@@ -10,20 +10,29 @@ of an ES module works without a flag). Built and checked with **TypeScript
 
 ## Install
 
-This checkout prepares **0.2.0-beta.1, which is not published yet**. The
-commands below become usable after that release is published. The last
-published release is
-[0.1.0-beta.2](https://github.com/kiketordera/totem-studio-typescript/releases/tag/v0.1.0-beta.2),
-which does not include notification methods.
-
-Install the release tarball. It contains the built package, so it needs no
-Git, no build step and no install scripts, and it works with `ignore-scripts`.
-Download the tarball and its checksum, check it, then install the file you
-checked:
+The latest published release is
+[0.1.0-beta.2](https://github.com/totem-studio/totem-studio-typescript/releases/tag/v0.1.0-beta.2).
+Download both `totemstudioai-sdk-0.1.0-beta.2.tgz` and its `.sha256` file
+from that release, then check and install the downloaded tarball:
 
 ```sh
-curl -fLO https://github.com/kiketordera/totem-studio-typescript/releases/download/v0.2.0-beta.1/totemstudioai-sdk-0.2.0-beta.1.tgz
-curl -fLO https://github.com/kiketordera/totem-studio-typescript/releases/download/v0.2.0-beta.1/totemstudioai-sdk-0.2.0-beta.1.tgz.sha256
+shasum -a 256 -c totemstudioai-sdk-0.1.0-beta.2.tgz.sha256
+npm install ./totemstudioai-sdk-0.1.0-beta.2.tgz
+```
+
+For documentation matching that release, read its
+[README at the release tag](https://github.com/totem-studio/totem-studio-typescript/blob/v0.1.0-beta.2/README.md).
+It does not include notification methods or the other changes listed for
+0.2.0-beta.1 in the [changelog](CHANGELOG.md).
+
+This branch prepares **0.2.0-beta.1, which is not published yet**. The rest of
+this README describes that upcoming version; the commands below will work once
+it is released. The tarball contains the built package, so it needs no Git, no
+build step and no install scripts, and it works with `ignore-scripts`.
+
+```sh
+curl -fLO https://github.com/totem-studio/totem-studio-typescript/releases/download/v0.2.0-beta.1/totemstudioai-sdk-0.2.0-beta.1.tgz
+curl -fLO https://github.com/totem-studio/totem-studio-typescript/releases/download/v0.2.0-beta.1/totemstudioai-sdk-0.2.0-beta.1.tgz.sha256
 shasum -a 256 -c totemstudioai-sdk-0.2.0-beta.1.tgz.sha256
 npm install ./totemstudioai-sdk-0.2.0-beta.1.tgz
 ```
@@ -31,7 +40,7 @@ npm install ./totemstudioai-sdk-0.2.0-beta.1.tgz
 `sha256sum -c` works as well as `shasum -a 256 -c`. The checksum shows that
 your download is complete and unchanged. It does not prove who built the file,
 because it is published on the same
-[GitHub release](https://github.com/kiketordera/totem-studio-typescript/releases)
+[GitHub release](https://github.com/totem-studio/totem-studio-typescript/releases)
 as the tarball. npm records the dependency as a `file:` path to that tarball,
 so keep the tarball where you installed it from: later installs such as
 `npm ci` read it from there. Import the package by its name,
@@ -44,7 +53,7 @@ allow `@totemstudioai/sdk`, or the install succeeds without a `dist/` and the
 import fails.
 
 ```sh
-npm install github:kiketordera/totem-studio-typescript#v0.2.0-beta.1
+npm install github:totem-studio/totem-studio-typescript#v0.2.0-beta.1
 ```
 
 The SDK is **not published to the npm registry yet**, so a package named
