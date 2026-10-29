@@ -20,12 +20,11 @@ comes from the same release as the tarball, so it does not independently show
 that Totem built the file: whoever could replace the tarball could replace the
 checksum too.
 
-Once the [current repository README](https://github.com/totem-studio/totem-studio-typescript#install)
-confirms the official npm package, the beta can also be installed as
-`@totemstudioai/sdk@beta`. Until then, do not give a key to an unverified
-package using that name. Check the registry's package information and any
-available provenance for the particular version; do not assume that every
-version has a provenance attestation.
+The official [npm package](https://www.npmjs.com/package/@totemstudioai/sdk)
+is also available as `@totemstudioai/sdk@beta`. Verify the registry and package
+before giving it a key. Check the registry's package information and any
+available provenance for the particular version; the initial npm release was
+published manually and has no GitHub Actions provenance attestation.
 
 Error messages name only the HTTP status, error code and parameter name. An
 error's `problem`, `cause` and `retryAfterMs` come from the response or the

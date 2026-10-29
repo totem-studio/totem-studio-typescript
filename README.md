@@ -10,10 +10,20 @@ of an ES module works without a flag). Built and checked with **TypeScript
 
 ## Install
 
-Install the **0.2.0-beta.1** release tarball from GitHub. It contains the
-built package, so it needs no Git, no build step and no install scripts, and
-it works with `ignore-scripts`. Download the tarball and its checksum, check
-it, then install the file you checked:
+Install the official [npm package](https://www.npmjs.com/package/@totemstudioai/sdk)
+on your server:
+
+```sh
+npm install @totemstudioai/sdk@beta
+```
+
+The `beta` tag selects the current beta release. To pin this version instead,
+use `npm install @totemstudioai/sdk@0.2.0-beta.1`.
+
+Alternatively, install the **0.2.0-beta.1** release tarball from GitHub. It
+contains the built package, so it needs no Git, no build step and no install
+scripts, and it works with `ignore-scripts`. Download the tarball and its
+checksum, check it, then install the file you checked:
 
 ```sh
 curl -fLO https://github.com/totem-studio/totem-studio-typescript/releases/download/v0.2.0-beta.1/totemstudioai-sdk-0.2.0-beta.1.tgz
@@ -40,17 +50,6 @@ import fails.
 ```sh
 npm install github:totem-studio/totem-studio-typescript#v0.2.0-beta.1
 ```
-
-Totem plans to publish the SDK on npm. Once the [current repository
-README](https://github.com/totem-studio/totem-studio-typescript#install)
-confirms that the official npm package is available, install the beta with:
-
-```sh
-npm install @totemstudioai/sdk@beta
-```
-
-Until that confirmation, use the GitHub release or Git tag above; do not give
-an API key to an unverified package using the same name.
 
 TypeScript projects need `module`/`moduleResolution` `nodenext` (or
 `bundler`). A CommonJS project compiled with `nodenext` can import the SDK;
