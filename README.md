@@ -17,8 +17,9 @@ on your server:
 npm install @totemstudioai/sdk@beta
 ```
 
-The `beta` tag selects the current beta release. To pin this version instead,
-use `npm install @totemstudioai/sdk@0.2.0-beta.2`.
+The `beta` tag selects the current npm beta release, **0.2.0-beta.1**.
+GitHub release **0.2.0-beta.2** is available below; its npm publication is pending.
+To pin the published npm version, use `npm install @totemstudioai/sdk@0.2.0-beta.1`.
 
 Alternatively, install the **0.2.0-beta.2** release tarball from GitHub. It
 contains the built package, so it needs no Git, no build step and no install
