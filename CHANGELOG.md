@@ -3,6 +3,16 @@
 The SDK follows the Totem API Beta. Until 1.0, a minor or prerelease version
 can change types or behaviour; each entry lists what to adapt.
 
+## 0.2.0-beta.2
+
+### Documentation
+
+- The npm package README now shows how to install the official beta from npm
+  and links to the Totem Studio GitHub organization. The GitHub release
+  tarball and tag remain available as alternatives.
+- This release changes documentation and the SDK version identifier; it does
+  not add or change API operations or wire types.
+
 ## 0.2.0-beta.1
 
 ### Added
@@ -57,12 +67,12 @@ can change types or behaviour; each entry lists what to adapt.
 
 ## 0.1.0-beta.2
 
-Install from the release tarball (see the README); the SDK is not on the npm registry yet.
+At this release, the SDK was distributed through the release tarball; it had not yet been published to npm.
 
 ### Renamed
 
 - The package is now `@totemstudioai/sdk` (was `@totemstudio/sdk`), matching the
-  `totemstudioai` npm organization it will be published under. Update your imports.
+  `totemstudioai` npm organization. Update your imports.
 
 ### Changed: adapt your code
 

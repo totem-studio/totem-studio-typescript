@@ -18,18 +18,18 @@ npm install @totemstudioai/sdk@beta
 ```
 
 The `beta` tag selects the current beta release. To pin this version instead,
-use `npm install @totemstudioai/sdk@0.2.0-beta.1`.
+use `npm install @totemstudioai/sdk@0.2.0-beta.2`.
 
-Alternatively, install the **0.2.0-beta.1** release tarball from GitHub. It
+Alternatively, install the **0.2.0-beta.2** release tarball from GitHub. It
 contains the built package, so it needs no Git, no build step and no install
 scripts, and it works with `ignore-scripts`. Download the tarball and its
 checksum, check it, then install the file you checked:
 
 ```sh
-curl -fLO https://github.com/totem-studio/totem-studio-typescript/releases/download/v0.2.0-beta.1/totemstudioai-sdk-0.2.0-beta.1.tgz
-curl -fLO https://github.com/totem-studio/totem-studio-typescript/releases/download/v0.2.0-beta.1/totemstudioai-sdk-0.2.0-beta.1.tgz.sha256
-shasum -a 256 -c totemstudioai-sdk-0.2.0-beta.1.tgz.sha256
-npm install ./totemstudioai-sdk-0.2.0-beta.1.tgz
+curl -fLO https://github.com/totem-studio/totem-studio-typescript/releases/download/v0.2.0-beta.2/totemstudioai-sdk-0.2.0-beta.2.tgz
+curl -fLO https://github.com/totem-studio/totem-studio-typescript/releases/download/v0.2.0-beta.2/totemstudioai-sdk-0.2.0-beta.2.tgz.sha256
+shasum -a 256 -c totemstudioai-sdk-0.2.0-beta.2.tgz.sha256
+npm install ./totemstudioai-sdk-0.2.0-beta.2.tgz
 ```
 
 `sha256sum -c` works as well as `shasum -a 256 -c`. The checksum shows that
@@ -48,7 +48,7 @@ allow `@totemstudioai/sdk`, or the install succeeds without a `dist/` and the
 import fails.
 
 ```sh
-npm install github:totem-studio/totem-studio-typescript#v0.2.0-beta.1
+npm install github:totem-studio/totem-studio-typescript#v0.2.0-beta.2
 ```
 
 TypeScript projects need `module`/`moduleResolution` `nodenext` (or
