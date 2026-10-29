@@ -41,9 +41,16 @@ import fails.
 npm install github:totem-studio/totem-studio-typescript#v0.2.0-beta.1
 ```
 
-The SDK is **not published to the npm registry yet**, so a package named
-`@totemstudioai/sdk` on npm is not Totem's until this README links it. Never
-give your secret key to a package installed any other way than the ones above.
+Totem plans to publish the SDK on npm. Once the [current repository
+README](https://github.com/totem-studio/totem-studio-typescript#install)
+confirms that the official npm package is available, install the beta with:
+
+```sh
+npm install @totemstudioai/sdk@beta
+```
+
+Until that confirmation, use the GitHub release or Git tag above; do not give
+an API key to an unverified package using the same name.
 
 TypeScript projects need `module`/`moduleResolution` `nodenext` (or
 `bundler`). A CommonJS project compiled with `nodenext` can import the SDK;

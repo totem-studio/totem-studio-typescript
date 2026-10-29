@@ -13,19 +13,19 @@ workers, encodes opaque cursors as data, rejects unsafe base URLs and does not
 follow redirects. Custom `fetch` implementations receive the credential and
 must be trusted.
 
-Install only the release tarball from this repository's GitHub releases,
-checked against the `.sha256` file published with it, or the Git tag (see the
+Install the release tarball from this repository's GitHub releases, checked
+against the `.sha256` file published with it, or use the Git tag (see the
 README). The SHA-256 shows that your download is complete and unchanged. It
 comes from the same release as the tarball, so it does not independently show
 that Totem built the file: whoever could replace the tarball could replace the
 checksum too.
 
-The SDK is not published to the npm registry yet: a package named
-`@totemstudioai/sdk` on npm is not Totem's until the README links it, so never
-give it a key. When the SDK is published there, the release workflow publishes
-it with npm provenance, which links each version to the workflow run in this
-repository that built it. Provenance will then be the check of authenticity
-(`npm audit signatures` verifies it for installed packages).
+Once the [current repository README](https://github.com/totem-studio/totem-studio-typescript#install)
+confirms the official npm package, the beta can also be installed as
+`@totemstudioai/sdk@beta`. Until then, do not give a key to an unverified
+package using that name. Check the registry's package information and any
+available provenance for the particular version; do not assume that every
+version has a provenance attestation.
 
 Error messages name only the HTTP status, error code and parameter name. An
 error's `problem`, `cause` and `retryAfterMs` come from the response or the
