@@ -3,9 +3,7 @@
 The SDK follows the Totem API Beta. Until 1.0, a minor or prerelease version
 can change types or behaviour; each entry lists what to adapt.
 
-## 0.2.0-beta.1 (unreleased)
-
-Prepared locally; the GitHub release and npm package have not been published.
+## 0.2.0-beta.1
 
 ### Added
 

@@ -10,25 +10,10 @@ of an ES module works without a flag). Built and checked with **TypeScript
 
 ## Install
 
-The latest published release is
-[0.1.0-beta.2](https://github.com/totem-studio/totem-studio-typescript/releases/tag/v0.1.0-beta.2).
-Download both `totemstudioai-sdk-0.1.0-beta.2.tgz` and its `.sha256` file
-from that release, then check and install the downloaded tarball:
-
-```sh
-shasum -a 256 -c totemstudioai-sdk-0.1.0-beta.2.tgz.sha256
-npm install ./totemstudioai-sdk-0.1.0-beta.2.tgz
-```
-
-For documentation matching that release, read its
-[README at the release tag](https://github.com/totem-studio/totem-studio-typescript/blob/v0.1.0-beta.2/README.md).
-It does not include notification methods or the other changes listed for
-0.2.0-beta.1 in the [changelog](CHANGELOG.md).
-
-This branch prepares **0.2.0-beta.1, which is not published yet**. The rest of
-this README describes that upcoming version; the commands below will work once
-it is released. The tarball contains the built package, so it needs no Git, no
-build step and no install scripts, and it works with `ignore-scripts`.
+Install the **0.2.0-beta.1** release tarball from GitHub. It contains the
+built package, so it needs no Git, no build step and no install scripts, and
+it works with `ignore-scripts`. Download the tarball and its checksum, check
+it, then install the file you checked:
 
 ```sh
 curl -fLO https://github.com/totem-studio/totem-studio-typescript/releases/download/v0.2.0-beta.1/totemstudioai-sdk-0.2.0-beta.1.tgz
