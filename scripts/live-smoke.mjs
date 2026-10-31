@@ -46,7 +46,7 @@ async function configuration() {
       || Object.entries(fixtures).some(([field, value]) => !FIXTURE_FIELDS.includes(field) || typeof value !== 'string' || !value)) throw new SmokeConfigError('fixtures_invalid');
   }
   const baseUrl = process.env.TOTEM_API_BASE_URL;
-  const common = { apiKey, ...(baseUrl ? { baseUrl } : {}), maxRetries: 0, timeoutMs: 30_000 };
+  const common = { apiKey, ...(baseUrl ? { baseUrl } : {}), timeoutMs: 30_000 };
   try { new TotemClient(common); } catch { throw new SmokeConfigError('base_url_invalid'); }
   if (profile === 'crm' && (!fixtures.crmEmail || !/^[A-Za-z0-9._+-]+@example\.invalid$/.test(fixtures.crmEmail)
     || !fixtures.crmExternalId || fixtures.crmExternalId.length > 200)) throw new SmokeConfigError('crm_fixtures_required');

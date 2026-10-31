@@ -1,7 +1,7 @@
 /** Generated from openapi.json and package.json. Do not edit; run npm run generate. */
 import type { ErrorAction, TotemErrorCode } from './schema.js'
 
-export const CONTRACT_SHA256 = '3827454ab34b9b07b23c08b258d994b35fe71ad335a48a4e39388d548d683293'
+export const CONTRACT_SHA256 = '1ae805da1fc9f40f542b454bbedbf34d41be25d109e4ca12e767bb61d7440a41'
 export const SDK_VERSION = '0.3.0-beta.1'
 export const DEFAULT_BASE_URL = "https://api.totemstudio.ai/v1"
 export const operationDefinitions = {

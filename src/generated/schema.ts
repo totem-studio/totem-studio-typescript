@@ -1794,7 +1794,7 @@ export interface OperationContracts {
 /**
  * Read the changes feed of one team
  *
- * Returns the next page of one team's changes, in the order Totem recorded them: each item is a record's current state or its removal. Without `cursor` it starts an initial sync of every record; after applying each page, store its `next_cursor` and send it on the next call, even when the page is empty. A cursor expires 30 days after the point in the feed it reached or, while an initial sync is still running, 30 days after that sync started.
+ * Reads current records and removals in capture order under the key's current scopes: the feed and CRM kinds require `crm:read`, calls `calls:read`, conversations `messages:read`, bookings `calendar:read`; notes additionally require `crm:notes:read`, explicit content permission and completed note capture. Start without `cursor` and save every `next_cursor`; withheld kinds advance it and can leave `data` empty with `has_more: true`, so keep paging; after gaining a scope, restart without a cursor to recover earlier withheld records. A cursor expires 30 days after its feed position or, during bootstrap, 30 days after bootstrap started.
  */
 "sync.changes": { response: Schemas["FeedPage"]; query: {
 /** The `next_cursor` of the previous page. Omit it to start an initial sync from the beginning. */
