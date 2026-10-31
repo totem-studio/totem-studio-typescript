@@ -27,6 +27,8 @@ const METHODS = ['get', 'put', 'post', 'delete', 'options', 'head', 'patch', 'tr
 const SCALAR_QUERY_TYPES = new Set(['string', 'integer', 'number']);
 /** x-totem-tenant-binding values; only team_header makes the SDK send Totem-Team. */
 const TENANT_BINDINGS = new Set(['principal', 'resource_id', 'team_header', 'none']);
+const EFFECTS = new Set(['read', 'write']);
+const REQUEST_HEADERS = new Map([['idempotency-key', 'Idempotency-Key'], ['if-match', 'If-Match']]);
 /** Hand-written SDK exports; a component alias with one of these names would shadow it. */
 const RESERVED = new Set(['TotemClient', 'TotemError', 'TotemApiError', 'TotemProtocolError', 'TotemTimeoutError', 'TotemConnectionError', 'Schemas', 'OperationContracts', 'OperationId', 'ResponseOf', 'QueryOf', 'BodyOf', 'RequestOptions', 'OptionsOf', 'RequestInput', 'RequestArgs', 'ListOperationId', 'ItemsOperationId', 'ItemOf', 'ResponseInfo', 'ClientOptions', 'TotemErrorCode', 'ErrorAction', 'ErrorCatalogueEntry', 'Stage', 'FeedRemoval', 'FeedUpsert', 'FeedObjectOf', 'UnionKeys', 'ExclusiveUnion']);
 
@@ -85,7 +87,6 @@ export function generate(document, { version, sha256 }) {
     });
     return branches.map((branch, index) => {
       const closed = new Set([...literals[index]].filter(([key, values]) => literals.some((other, at) => at !== index && other.has(key) && other.get(key) !== values)).map(([key]) => key));
-      if (closed.size && branch?.$ref) fail(`Union discriminator ${[...closed].join(', ')} is behind ${branch.$ref}; inline the branch`);
       return closed;
     });
   };
@@ -106,7 +107,10 @@ export function generate(document, { version, sha256 }) {
     const parts = [];
     if (schema.$ref) {
       if (mode === 'request') fail(`Request schemas must be inline, not ${schema.$ref}`);
-      parts.push(`Schemas[${quote(resolve(schema.$ref))}]`);
+      const name = resolve(schema.$ref);
+      // A referenced union branch must keep its discriminants closed while
+      // ordinary component enums remain open to additive server values.
+      parts.push(closedProperties.size ? type(schemas[name], mode, false, closedProperties) : `Schemas[${quote(name)}]`);
     }
     for (const key of ['anyOf', 'oneOf', 'allOf']) {
       if (!schema[key]) continue;
@@ -160,6 +164,8 @@ export function generate(document, { version, sha256 }) {
       for (const key of ['servers', 'callbacks']) if (Object.hasOwn(operation, key)) fail(`${id}: ${key} is not supported`);
       const binding = operation['x-totem-tenant-binding'];
       if (!TENANT_BINDINGS.has(binding)) fail(`${id}: x-totem-tenant-binding ${quote(binding)} is not one of ${[...TENANT_BINDINGS].join(', ')}`);
+      const effect = operation['x-totem-effect'];
+      if (!EFFECTS.has(effect)) fail(`${id}: x-totem-effect must be read or write`);
       const parameters = (operation.parameters ?? []).map(param => {
         if (!param?.$ref) return param;
         const prefix = '#/components/parameters/';
@@ -170,11 +176,29 @@ export function generate(document, { version, sha256 }) {
       for (const param of parameters) {
         const label = `${id}: ${param.in} parameter ${param.name}`;
         if (typeof param.name !== 'string' || !param.name) fail(`${id}: a parameter has no name`);
-        if (seen.has(`${param.in}:${param.name}`)) fail(`${label} is declared twice`);
-        seen.add(`${param.in}:${param.name}`);
+        const identity = `${param.in}:${param.in === 'header' ? param.name.toLowerCase() : param.name}`;
+        if (seen.has(identity)) fail(`${label} is declared twice`);
+        seen.add(identity);
         if (param.in === 'cookie') fail(`${label}: cookie parameters are not supported`);
         if (param.in === 'header') {
-          if (param.name.toLowerCase() !== 'totem-team' || binding !== 'team_header') fail(`${label}: only Totem-Team on team_header operations is supported`);
+          const name = param.name.toLowerCase();
+          if (name === 'totem-team') {
+            if (binding !== 'team_header') fail(`${label}: Totem-Team is only supported on team_header operations`);
+          } else {
+            if (!REQUEST_HEADERS.has(name)) fail(`${label}: only Totem-Team, Idempotency-Key and If-Match are supported`);
+            if (effect !== 'write') fail(`${label}: write headers require x-totem-effect write`);
+            if (param.schema?.type !== 'string' || param.content || param.style !== undefined || param.explode !== undefined) fail(`${label}: needs a plain string schema`);
+            if (Object.keys(param.schema).some(key => structural.has(key) && !['type', 'enum'].includes(key))) fail(`${label}: needs a plain string schema`);
+            if (param.schema.enum && !param.schema.enum.every(value => typeof value === 'string')) fail(`${label}: enum values must be strings`);
+            for (const key of ['minLength', 'maxLength']) {
+              if (param.schema[key] !== undefined && (!Number.isSafeInteger(param.schema[key]) || param.schema[key] < 0)) fail(`${label}: invalid ${key}`);
+            }
+            if ((param.schema.minLength ?? 0) > (param.schema.maxLength ?? Infinity)) fail(`${label}: invalid length range`);
+            type(param.schema, 'request');
+            if (param.schema.pattern !== undefined) {
+              try { new RegExp(param.schema.pattern); } catch { fail(`${label}: invalid pattern`); }
+            }
+          }
           continue;
         }
         if (param.in !== 'query' && param.in !== 'path') fail(`${label}: unsupported location`);
@@ -183,7 +207,7 @@ export function generate(document, { version, sha256 }) {
         if (param.in === 'path' && !path.includes(`{${param.name}}`)) fail(`${label} is not in the path template`);
         if (param.in === 'query' && !(SCALAR_QUERY_TYPES.has(param.schema.type) || (param.schema.enum && param.schema.type === undefined))) fail(`${label}: only scalar query values are supported`);
       }
-      if (binding === 'team_header' && !parameters.some(param => param.in === 'header')) fail(`${id}: a team_header operation must declare the Totem-Team header`);
+      if (binding === 'team_header' && !parameters.some(param => param.in === 'header' && param.name.toLowerCase() === 'totem-team')) fail(`${id}: a team_header operation must declare the Totem-Team header`);
       for (const [, name] of path.matchAll(/\{([^}]+)\}/g)) {
         if (!parameters.some(param => param.in === 'path' && param.name === name)) fail(`${id}: path template names {${name}} with no path parameter`);
       }
@@ -204,14 +228,28 @@ export function generate(document, { version, sha256 }) {
         body = type(request.content['application/json'].schema, 'request');
       }
       const responses = operation.responses ?? {};
-      for (const status of Object.keys(responses)) if (/^2/.test(status) && status !== '200') fail(`${id}: success status ${status} is not supported`);
-      const success = responses['200'];
-      if (!success || success.$ref) fail(`${id}: needs an inline 200 response`);
-      const media = Object.keys(success.content ?? {});
-      if (media.length !== 1 || media[0] !== 'application/json' || !success.content['application/json'].schema) fail(`${id}: the 200 response must be one application/json schema`);
+      const success = Object.keys(responses).filter(status => /^2/.test(status));
+      if (!success.length) fail(`${id}: needs a declared success response`);
+      const successTypes = [], successResponses = [];
+      for (const status of success) {
+        if (!['200', '201', '202', '204'].includes(status)) fail(`${id}: success status ${status} is not supported`);
+        const response = responses[status];
+        if (!response || response.$ref) fail(`${id}: needs an inline ${status} response`);
+        const media = Object.keys(response.content ?? {});
+        if (status === '204') {
+          if (media.length) fail(`${id}: a 204 response must not declare a body`);
+          successTypes.push('void');
+        } else {
+          if (media.length !== 1 || media[0] !== 'application/json' || !response.content['application/json'].schema) fail(`${id}: the ${status} response must be one application/json schema`);
+          successTypes.push(type(response.content['application/json'].schema, 'response'));
+        }
+        successResponses.push({ status: Number(status), body: status !== '204' });
+      }
       const security = operation.security ?? document.security ?? [];
-      operations[id] = { method: method.toUpperCase(), path, authenticated: security.length !== 0, body: operation.requestBody !== undefined, team: binding === 'team_header', query: parameters.filter(param => param.in === 'query').map(param => param.name) };
-      contracts.push(`${doc(operation.summary, operation.description)}${quote(id)}: { response: ${type(success.content['application/json'].schema, 'response')}; query: ${parameterType('query')}; path: ${parameterType('path')}; body: ${body} }`);
+      const headers = parameters.filter(param => param.in === 'header' && REQUEST_HEADERS.has(param.name.toLowerCase()))
+        .map(param => ({ name: REQUEST_HEADERS.get(param.name.toLowerCase()), required: param.required === true, schema: param.schema }));
+      operations[id] = { method: method.toUpperCase(), path, authenticated: security.length !== 0, body: operation.requestBody !== undefined, team: binding === 'team_header', effect, headers, successResponses, query: parameters.filter(param => param.in === 'query').map(param => param.name) };
+      contracts.push(`${doc(operation.summary, operation.description)}${quote(id)}: { response: ${[...new Set(successTypes)].join(' | ')}; query: ${parameterType('query')}; path: ${parameterType('path')}; body: ${body} }`);
     }
   }
   if (!Object.keys(operations).length) fail('The contract has no operations');

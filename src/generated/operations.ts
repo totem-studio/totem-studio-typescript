@@ -1,8 +1,8 @@
 /** Generated from openapi.json and package.json. Do not edit; run npm run generate. */
 import type { ErrorAction, TotemErrorCode } from './schema.js'
 
-export const CONTRACT_SHA256 = 'f16836bd8f953de813c8a9a74143477c232f43372ba63d954b0421edb3470a62'
-export const SDK_VERSION = '0.2.0-beta.2'
+export const CONTRACT_SHA256 = '3827454ab34b9b07b23c08b258d994b35fe71ad335a48a4e39388d548d683293'
+export const SDK_VERSION = '0.3.0-beta.1'
 export const DEFAULT_BASE_URL = "https://api.totemstudio.ai/v1"
 export const operationDefinitions = {
   "me.get": {
@@ -11,6 +11,14 @@ export const operationDefinitions = {
     "authenticated": true,
     "body": false,
     "team": false,
+    "effect": "read",
+    "headers": [],
+    "successResponses": [
+      {
+        "status": 200,
+        "body": true
+      }
+    ],
     "query": []
   },
   "teams.list": {
@@ -19,6 +27,14 @@ export const operationDefinitions = {
     "authenticated": true,
     "body": false,
     "team": false,
+    "effect": "read",
+    "headers": [],
+    "successResponses": [
+      {
+        "status": 200,
+        "body": true
+      }
+    ],
     "query": []
   },
   "teams.get": {
@@ -27,6 +43,14 @@ export const operationDefinitions = {
     "authenticated": true,
     "body": false,
     "team": false,
+    "effect": "read",
+    "headers": [],
+    "successResponses": [
+      {
+        "status": 200,
+        "body": true
+      }
+    ],
     "query": []
   },
   "boards.list": {
@@ -35,6 +59,14 @@ export const operationDefinitions = {
     "authenticated": true,
     "body": false,
     "team": true,
+    "effect": "read",
+    "headers": [],
+    "successResponses": [
+      {
+        "status": 200,
+        "body": true
+      }
+    ],
     "query": [
       "limit",
       "cursor"
@@ -46,6 +78,14 @@ export const operationDefinitions = {
     "authenticated": true,
     "body": false,
     "team": true,
+    "effect": "read",
+    "headers": [],
+    "successResponses": [
+      {
+        "status": 200,
+        "body": true
+      }
+    ],
     "query": []
   },
   "booking_services.list": {
@@ -54,6 +94,14 @@ export const operationDefinitions = {
     "authenticated": true,
     "body": false,
     "team": true,
+    "effect": "read",
+    "headers": [],
+    "successResponses": [
+      {
+        "status": 200,
+        "body": true
+      }
+    ],
     "query": []
   },
   "leads.list": {
@@ -62,6 +110,14 @@ export const operationDefinitions = {
     "authenticated": true,
     "body": false,
     "team": true,
+    "effect": "read",
+    "headers": [],
+    "successResponses": [
+      {
+        "status": 200,
+        "body": true
+      }
+    ],
     "query": [
       "limit",
       "cursor",
@@ -70,12 +126,88 @@ export const operationDefinitions = {
       "status"
     ]
   },
+  "leads.upsert": {
+    "method": "POST",
+    "path": "/leads",
+    "authenticated": true,
+    "body": true,
+    "team": true,
+    "effect": "write",
+    "headers": [
+      {
+        "name": "Idempotency-Key",
+        "required": true,
+        "schema": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 255,
+          "pattern": "^[\\x21-\\x7e]+$"
+        }
+      }
+    ],
+    "successResponses": [
+      {
+        "status": 200,
+        "body": true
+      },
+      {
+        "status": 201,
+        "body": true
+      }
+    ],
+    "query": []
+  },
   "leads.get": {
     "method": "GET",
     "path": "/leads/{id}",
     "authenticated": true,
     "body": false,
     "team": false,
+    "effect": "read",
+    "headers": [],
+    "successResponses": [
+      {
+        "status": 200,
+        "body": true
+      }
+    ],
+    "query": []
+  },
+  "leads.update": {
+    "method": "PATCH",
+    "path": "/leads/{id}",
+    "authenticated": true,
+    "body": true,
+    "team": false,
+    "effect": "write",
+    "headers": [
+      {
+        "name": "Idempotency-Key",
+        "required": false,
+        "schema": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 255,
+          "pattern": "^[\\x21-\\x7e]+$"
+        }
+      },
+      {
+        "name": "If-Match",
+        "required": true,
+        "schema": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 300,
+          "pattern": "^\"lead_[A-Za-z0-9]+:[1-9][0-9]{0,15}\"$"
+        }
+      }
+    ],
+    "successResponses": [
+      {
+        "status": 200,
+        "body": true
+      }
+    ],
     "query": []
   },
   "leads.search": {
@@ -84,6 +216,14 @@ export const operationDefinitions = {
     "authenticated": true,
     "body": true,
     "team": true,
+    "effect": "read",
+    "headers": [],
+    "successResponses": [
+      {
+        "status": 200,
+        "body": true
+      }
+    ],
     "query": []
   },
   "leads.activities": {
@@ -92,10 +232,175 @@ export const operationDefinitions = {
     "authenticated": true,
     "body": false,
     "team": false,
+    "effect": "read",
+    "headers": [],
+    "successResponses": [
+      {
+        "status": 200,
+        "body": true
+      }
+    ],
     "query": [
       "limit",
       "cursor"
     ]
+  },
+  "leads.notes": {
+    "method": "GET",
+    "path": "/leads/{id}/notes",
+    "authenticated": true,
+    "body": false,
+    "team": false,
+    "effect": "read",
+    "headers": [],
+    "successResponses": [
+      {
+        "status": 200,
+        "body": true
+      }
+    ],
+    "query": [
+      "limit",
+      "cursor"
+    ]
+  },
+  "leads.addNote": {
+    "method": "POST",
+    "path": "/leads/{id}/notes",
+    "authenticated": true,
+    "body": true,
+    "team": false,
+    "effect": "write",
+    "headers": [
+      {
+        "name": "Idempotency-Key",
+        "required": false,
+        "schema": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 255,
+          "pattern": "^[\\x21-\\x7e]+$"
+        }
+      }
+    ],
+    "successResponses": [
+      {
+        "status": 201,
+        "body": true
+      }
+    ],
+    "query": []
+  },
+  "leads.archive": {
+    "method": "POST",
+    "path": "/leads/{id}/archive",
+    "authenticated": true,
+    "body": true,
+    "team": false,
+    "effect": "write",
+    "headers": [
+      {
+        "name": "Idempotency-Key",
+        "required": false,
+        "schema": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 255,
+          "pattern": "^[\\x21-\\x7e]+$"
+        }
+      },
+      {
+        "name": "If-Match",
+        "required": true,
+        "schema": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 300,
+          "pattern": "^\"lead_[A-Za-z0-9]+:[1-9][0-9]{0,15}\"$"
+        }
+      }
+    ],
+    "successResponses": [
+      {
+        "status": 200,
+        "body": true
+      }
+    ],
+    "query": []
+  },
+  "leads.deleteNote": {
+    "method": "DELETE",
+    "path": "/leads/{id}/notes/{note}",
+    "authenticated": true,
+    "body": false,
+    "team": false,
+    "effect": "write",
+    "headers": [
+      {
+        "name": "Idempotency-Key",
+        "required": false,
+        "schema": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 255,
+          "pattern": "^[\\x21-\\x7e]+$"
+        }
+      },
+      {
+        "name": "If-Match",
+        "required": true,
+        "schema": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 300,
+          "pattern": "^\"note_[A-Za-z0-9]+:[1-9][0-9]{0,15}\"$"
+        }
+      }
+    ],
+    "successResponses": [
+      {
+        "status": 204,
+        "body": false
+      }
+    ],
+    "query": []
+  },
+  "leads.updateNote": {
+    "method": "PATCH",
+    "path": "/leads/{id}/notes/{note}",
+    "authenticated": true,
+    "body": true,
+    "team": false,
+    "effect": "write",
+    "headers": [
+      {
+        "name": "Idempotency-Key",
+        "required": false,
+        "schema": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 255,
+          "pattern": "^[\\x21-\\x7e]+$"
+        }
+      },
+      {
+        "name": "If-Match",
+        "required": true,
+        "schema": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 300,
+          "pattern": "^\"note_[A-Za-z0-9]+:[1-9][0-9]{0,15}\"$"
+        }
+      }
+    ],
+    "successResponses": [
+      {
+        "status": 200,
+        "body": true
+      }
+    ],
+    "query": []
   },
   "calls.list": {
     "method": "GET",
@@ -103,6 +408,14 @@ export const operationDefinitions = {
     "authenticated": true,
     "body": false,
     "team": true,
+    "effect": "read",
+    "headers": [],
+    "successResponses": [
+      {
+        "status": 200,
+        "body": true
+      }
+    ],
     "query": [
       "limit",
       "cursor",
@@ -115,6 +428,14 @@ export const operationDefinitions = {
     "authenticated": true,
     "body": false,
     "team": false,
+    "effect": "read",
+    "headers": [],
+    "successResponses": [
+      {
+        "status": 200,
+        "body": true
+      }
+    ],
     "query": []
   },
   "conversations.list": {
@@ -123,6 +444,14 @@ export const operationDefinitions = {
     "authenticated": true,
     "body": false,
     "team": true,
+    "effect": "read",
+    "headers": [],
+    "successResponses": [
+      {
+        "status": 200,
+        "body": true
+      }
+    ],
     "query": [
       "limit",
       "cursor",
@@ -135,6 +464,14 @@ export const operationDefinitions = {
     "authenticated": true,
     "body": false,
     "team": false,
+    "effect": "read",
+    "headers": [],
+    "successResponses": [
+      {
+        "status": 200,
+        "body": true
+      }
+    ],
     "query": []
   },
   "bookings.list": {
@@ -143,6 +480,14 @@ export const operationDefinitions = {
     "authenticated": true,
     "body": false,
     "team": true,
+    "effect": "read",
+    "headers": [],
+    "successResponses": [
+      {
+        "status": 200,
+        "body": true
+      }
+    ],
     "query": [
       "limit",
       "cursor",
@@ -155,6 +500,14 @@ export const operationDefinitions = {
     "authenticated": true,
     "body": false,
     "team": false,
+    "effect": "read",
+    "headers": [],
+    "successResponses": [
+      {
+        "status": 200,
+        "body": true
+      }
+    ],
     "query": []
   },
   "notifications.list": {
@@ -163,6 +516,14 @@ export const operationDefinitions = {
     "authenticated": true,
     "body": false,
     "team": true,
+    "effect": "read",
+    "headers": [],
+    "successResponses": [
+      {
+        "status": 200,
+        "body": true
+      }
+    ],
     "query": [
       "limit",
       "cursor",
@@ -176,6 +537,14 @@ export const operationDefinitions = {
     "authenticated": true,
     "body": false,
     "team": false,
+    "effect": "read",
+    "headers": [],
+    "successResponses": [
+      {
+        "status": 200,
+        "body": true
+      }
+    ],
     "query": []
   },
   "sync.changes": {
@@ -184,6 +553,14 @@ export const operationDefinitions = {
     "authenticated": true,
     "body": false,
     "team": true,
+    "effect": "read",
+    "headers": [],
+    "successResponses": [
+      {
+        "status": 200,
+        "body": true
+      }
+    ],
     "query": [
       "cursor",
       "limit"
@@ -195,11 +572,35 @@ export const operationDefinitions = {
     "authenticated": false,
     "body": false,
     "team": false,
+    "effect": "read",
+    "headers": [],
+    "successResponses": [
+      {
+        "status": 200,
+        "body": true
+      }
+    ],
     "query": []
   }
 } as const
 /** The contract's error catalogue: HTTP status, recommended action and docs entry for each code. */
 export const errorCatalogue = {
+/** This write requires an Idempotency-Key header before it can have an effect. */
+"idempotency_key_required": { status: 400, action: "fix_request", docUrl: "https://totemstudio.ai/developers/errors#idempotency_key_required" },
+/** This key was already used with a different body, resource or selected team. */
+"idempotency_key_reused": { status: 409, action: "fix_request", docUrl: "https://totemstudio.ai/developers/errors#idempotency_key_reused" },
+/** An identical write with this idempotency key is still being processed. */
+"idempotency_in_progress": { status: 409, action: "retry_after", docUrl: "https://totemstudio.ai/developers/errors#idempotency_in_progress" },
+/** An earlier attempt may have committed its effect, but Totem cannot safely prove its outcome. */
+"outcome_unknown": { status: 409, action: "contact_support", docUrl: "https://totemstudio.ai/developers/errors#outcome_unknown" },
+/** The strong If-Match validator no longer names the current public version of this lead. */
+"version_conflict": { status: 412, action: "fix_request", docUrl: "https://totemstudio.ai/developers/errors#version_conflict" },
+/** The supplied phone, email or integration external id resolves to conflicting lead identities. */
+"ambiguous_identity": { status: 409, action: "fix_request", docUrl: "https://totemstudio.ai/developers/errors#ambiguous_identity" },
+/** The principal does not hold the separate inbound intake capability requested by this write. */
+"inbound_not_enabled": { status: 403, action: "check_credentials", docUrl: "https://totemstudio.ai/developers/errors#inbound_not_enabled" },
+/** This effect requires explicit consent evidence that this request does not provide. */
+"consent_required": { status: 403, action: "fix_request", docUrl: "https://totemstudio.ai/developers/errors#consent_required" },
 /** Something in the request is not valid: an unknown, repeated or out-of-range query parameter, a query string or body on an endpoint that takes none, a cursor issued for another endpoint, filter or team, a malformed `Totem-Team` header, or a body that is not the JSON this endpoint expects. `param` names the parameter, header or field at fault. A conversations cursor is also refused once the conversation it points at has been erased. */
 "invalid_request": { status: 400, action: "fix_request", docUrl: "https://totemstudio.ai/developers/errors#invalid_request" },
 /** The key reads more than one team and this endpoint reads one team's data, but the request does not say which team. */
@@ -210,8 +611,8 @@ export const errorCatalogue = {
 "invalid_credentials": { status: 401, action: "check_credentials", docUrl: "https://totemstudio.ai/developers/errors#invalid_credentials" },
 /** The key was rolled and its grace period is over. */
 "key_expired": { status: 401, action: "check_credentials", docUrl: "https://totemstudio.ai/developers/errors#key_expired" },
-/** The key lacks a permission this endpoint needs. Every v1.0a key holds the full read set, so this should not happen. */
-"insufficient_scope": { status: 403, action: "contact_support", docUrl: "https://totemstudio.ai/developers/errors#insufficient_scope" },
+/** The key lacks a permission this endpoint needs; CRM writes and note-content reads require separate explicit grants. */
+"insufficient_scope": { status: 403, action: "check_credentials", docUrl: "https://totemstudio.ai/developers/errors#insufficient_scope" },
 /** The organization's plan does not include the Totem API at the moment. */
 "plan_not_entitled": { status: 403, action: "keep_and_retry", docUrl: "https://totemstudio.ai/developers/errors#plan_not_entitled" },
 /** The key is valid, but the request came from an IP address outside the integration's allowlist. */

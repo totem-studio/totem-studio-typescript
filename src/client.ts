@@ -5,7 +5,7 @@ import type {
   LeadDetail, LeadList, ListOperationId, Me, Notification, NotificationList, OperationId, OptionsOf, QueryOf, RequestArgs, ResponseInfo, ResponseOf, BoardList, Team,
 } from './types.js'
 
-/** Server-side client for the read-only Totem API. Every method returns the documented JSON body; errors are `TotemError` subclasses. */
+/** Server-side client for the Totem API. Every method returns its documented response body; errors are `TotemError` subclasses. */
 export class TotemClient {
   #transport: Transport
   constructor(options: ClientOptions) { this.#transport = new Transport(options) }
@@ -50,6 +50,20 @@ export class TotemClient {
     search: (body: BodyOf<'leads.search'>, options: OptionsOf<'leads.search'> = {}): Promise<ResponseOf<'leads.search'>> => this.request('leads.search', { ...options, body }),
     /** A page of one lead's status, stage and assignee changes. `GET /leads/{id}/activities` */
     activities: (id: string, query: QueryOf<'leads.activities'> = {}, options: OptionsOf<'leads.activities'> = {}): Promise<ActivityList> => this.request('leads.activities', { ...options, path: { id }, query }),
+    /** Import inert CRM data or request explicitly enabled inbound intake. Idempotency is stable across this call's retries. */
+    upsert: (body: BodyOf<'leads.upsert'>, options: OptionsOf<'leads.upsert'> = {}): Promise<ResponseOf<'leads.upsert'>> => this.request('leads.upsert', { ...options, body }),
+    /** Update allowlisted fields against the current strong lead ETag. */
+    update: (id: string, body: BodyOf<'leads.update'>, options: OptionsOf<'leads.update'>): Promise<ResponseOf<'leads.update'>> => this.request('leads.update', { ...options, path: { id }, body }),
+    /** Append a note; its receipt contains metadata only. */
+    addNote: (id: string, body: BodyOf<'leads.addNote'>, options: OptionsOf<'leads.addNote'> = {}): Promise<ResponseOf<'leads.addNote'>> => this.request('leads.addNote', { ...options, path: { id }, body }),
+    /** Archive a lead against its current strong ETag; never erase its data. */
+    archive: (id: string, body: BodyOf<'leads.archive'>, options: OptionsOf<'leads.archive'>): Promise<ResponseOf<'leads.archive'>> => this.request('leads.archive', { ...options, path: { id }, body }),
+    /** Read note bodies only with an explicit note-content grant. */
+    notes: (id: string, query: QueryOf<'leads.notes'> = {}, options: OptionsOf<'leads.notes'> = {}): Promise<ResponseOf<'leads.notes'>> => this.request('leads.notes', { ...options, path: { id }, query }),
+    /** Update a note against its current strong note ETag; receipt has no body. */
+    updateNote: (id: string, note: string, body: BodyOf<'leads.updateNote'>, options: OptionsOf<'leads.updateNote'>): Promise<ResponseOf<'leads.updateNote'>> => this.request('leads.updateNote', { ...options, path: { id, note }, body }),
+    /** Delete only this note against its current strong ETag. Success resolves to undefined. */
+    deleteNote: (id: string, note: string, options: OptionsOf<'leads.deleteNote'>): Promise<void> => this.request('leads.deleteNote', { ...options, path: { id, note } }),
   }
   readonly calls = {
     /** A page of the team's calls. `GET /calls` */

@@ -3,6 +3,21 @@
 The SDK follows the Totem API Beta. Until 1.0, a minor or prerelease version
 can change types or behaviour; each entry lists what to adapt.
 
+## 0.3.0-beta.1 (prepared; publication pending)
+
+- Generated API 1.0b types and all guarded CRM operations: identity upsert,
+  conditional update/archive, note list/create/update/delete and granted note
+  feed upserts/removals. Existing read-only integrations retain their profile.
+- Declared Idempotency-Key headers receive one UUID per logical call, stable
+  through retries; callers can persist their own key across restarts.
+  If-Match is required and validated for conditional lead/note writes.
+- Explicit read/write effect metadata preserves retryable POST search;
+  outcome_unknown is never retried. Supports 201 JSON and 204 void responses.
+- Note receipts expose metadata only. Notes content needs the separate grant;
+  read and write limits intentionally differ for existing product notes.
+- Live acceptance defaults to the read profile. The explicit CRM profile
+  validates disposable import/update/note/archive lifecycle and stale guards.
+
 ## 0.2.0-beta.2
 
 ### Documentation

@@ -22,6 +22,13 @@ const routes = [
   ['lead', client => client.leads.get('lead_ABC'), 'GET', '/v1/leads/lead_ABC', false],
   ['search', client => client.leads.search({ email: 'alice+crm@example.invalid' }), 'POST', '/v1/leads/search', true, '{"email":"alice+crm@example.invalid"}'],
   ['activities', client => client.leads.activities('lead_ABC', { limit: 1 }), 'GET', '/v1/leads/lead_ABC/activities?limit=1', false],
+  ['upsert', client => client.leads.upsert({ origin: 'import', email: 'ada@example.com' }), 'POST', '/v1/leads', true, '{"origin":"import","email":"ada@example.com"}', 201],
+  ['update', client => client.leads.update('lead_ABC', { name: 'Ada' }, { ifMatch: '"lead_ABC:7"' }), 'PATCH', '/v1/leads/lead_ABC', false, '{"name":"Ada"}'],
+  ['add note', client => client.leads.addNote('lead_ABC', { body: 'Asked for a proposal.' }), 'POST', '/v1/leads/lead_ABC/notes', false, '{"body":"Asked for a proposal."}', 201],
+  ['archive', client => client.leads.archive('lead_ABC', { reason: 'not_interested' }, { ifMatch: '"lead_ABC:7"' }), 'POST', '/v1/leads/lead_ABC/archive', false, '{"reason":"not_interested"}'],
+  ['notes', client => client.leads.notes('lead_ABC', { limit: 2 }), 'GET', '/v1/leads/lead_ABC/notes?limit=2', false],
+  ['update note', client => client.leads.updateNote('lead_ABC', 'note_DEF', { body: 'Updated.' }, { ifMatch: '"note_DEF:3"' }), 'PATCH', '/v1/leads/lead_ABC/notes/note_DEF', false, '{"body":"Updated."}'],
+  ['delete note', client => client.leads.deleteNote('lead_ABC', 'note_DEF', { ifMatch: '"note_DEF:3"' }), 'DELETE', '/v1/leads/lead_ABC/notes/note_DEF', false, '', 204],
   ['calls', client => client.calls.list(), 'GET', '/v1/calls', true],
   ['call', client => client.calls.get('call_ABC'), 'GET', '/v1/calls/call_ABC', false],
   ['conversations', client => client.conversations.list(), 'GET', '/v1/conversations', true],
@@ -34,22 +41,45 @@ const routes = [
   ['changes', client => client.sync.changes({ limit: 1 }), 'GET', '/v1/sync/changes?limit=1', true],
   ['health', client => client.health(), 'GET', '/v1/health', false],
 ];
-for (const [label, call, method, url, team, body = ''] of routes) {
+for (const [label, call, method, url, team, body = '', status = 200] of routes) {
   test(`wire route: ${label}`, async context => {
     const requests = [];
-    const baseUrl = await serve(context, request => { requests.push(request); return { body: { result: 'accepted' } }; });
+    const baseUrl = await serve(context, request => { requests.push(request); return { status, body: { result: 'accepted' } }; });
     const client = new TotemClient({ apiKey: KEY, team: 'team_SDK', baseUrl, maxRetries: 0 });
-    assert.deepEqual(await call(client), { result: 'accepted' });
+    assert.deepEqual(await call(client), status === 204 ? undefined : { result: 'accepted' });
     assert.equal(requests.length, 1);
     assert.equal(requests[0].method, method);
     assert.equal(requests[0].url, url);
     assert.equal(requests[0].body, body);
     // The edge refuses a POST body without exactly one application/json Content-Type.
-    assert.equal(requests[0].headers['content-type'], method === 'POST' ? 'application/json' : undefined);
+    assert.equal(requests[0].headers['content-type'], body ? 'application/json' : undefined);
     assert.equal(requests[0].headers.authorization, label === 'health' ? undefined : `Bearer ${KEY}`);
     assert.equal(requests[0].headers['totem-team'], team ? 'team_SDK' : undefined);
   });
 }
+for (const [label, options] of [
+  ['missing validator', {}],
+  ['weak validator', { ifMatch: 'W/"lead_ABC:7"' }],
+  ['wildcard', { ifMatch: '*' }],
+  ['multiple validators', { ifMatch: '"lead_ABC:7", "lead_ABC:8"' }],
+  ['wrong resource kind', { ifMatch: '"note_DEF:3"' }],
+  ['unsafe idempotency whitespace', { ifMatch: '"lead_ABC:7"', idempotencyKey: 'has space' }],
+  ['oversized idempotency key', { ifMatch: '"lead_ABC:7"', idempotencyKey: 'x'.repeat(256) }],
+]) {
+  test(`conditional write refuses ${label} before I/O`, async () => {
+    let requests = 0;
+    const client = new TotemClient({ apiKey: KEY, fetch: async () => { requests++; return Response.json({}); } });
+    await assert.rejects(client.leads.update('lead_ABC', { name: 'Ada' }, options), TypeError);
+    assert.equal(requests, 0);
+  });
+}
+test('read operations refuse undeclared write headers before I/O', async () => {
+  let requests = 0;
+  const client = new TotemClient({ apiKey: KEY, fetch: async () => { requests++; return Response.json({}); } });
+  await assert.rejects(client.leads.get('lead_ABC', { ifMatch: '"lead_ABC:7"' }), /does not accept If-Match/);
+  await assert.rejects(client.leads.list({}, { idempotencyKey: 'request-1' }), /does not accept Idempotency-Key/);
+  assert.equal(requests, 0);
+});
 test('User-Agent names the package version, which SDK_VERSION exports', async context => {
   const { version } = JSON.parse(await readFile(new URL('../package.json', import.meta.url), 'utf8'));
   const requests = [];

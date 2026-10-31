@@ -1,6 +1,6 @@
 # Totem TypeScript SDK
 
-Public server-side client for the Totem read-only API. Main branch: `main`.
+Public server-side client for the Totem API with explicit CRM write and note-content grants. Main branch: `main`.
 Develop on Node `24.18.0` (`.nvmrc`); consumers need Node `>=22.12.0`
 (`engines`), which CI also runs. Run `npm run health` before committing.
 Never commit API keys, live response records, `.env` files or live receipts.

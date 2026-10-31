@@ -77,9 +77,13 @@ test('every published operation example passes closed-world validation', async (
   let examples = 0;
   for (const methods of Object.values(document.paths)) {
     for (const operation of Object.values(methods)) {
-      const content = operation.responses['200'].content['application/json'];
-      validateResponse(content.example, content.schema, document, { closed: true });
-      examples++;
+      for (const [status, response] of Object.entries(operation.responses)) {
+        if (!/^2/.test(status)) continue;
+        if (status === '204') { assert.equal(response.content, undefined); continue; }
+        const content = response.content['application/json'];
+        validateResponse(content.example, content.schema, document, { closed: true });
+        examples++;
+      }
     }
   }
   assert.ok(examples > 0);

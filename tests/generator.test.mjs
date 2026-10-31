@@ -35,13 +35,13 @@ function fixture() {
     paths: {
       '/things': {
         get: {
-          operationId: 'things.list', summary: 'List things', description: 'Lists every thing.', 'x-totem-tenant-binding': 'team_header',
+          operationId: 'things.list', summary: 'List things', description: 'Lists every thing.', 'x-totem-tenant-binding': 'team_header', 'x-totem-effect': 'read',
           parameters: [{ name: 'limit', in: 'query', description: 'Items per page', schema: { type: 'integer' } }, { name: 'state', in: 'query', schema: { type: 'string', enum: ['a', 'b'] } }, { $ref: '#/components/parameters/Team' }],
           responses: ok200({ $ref: '#/components/schemas/Thing' }),
         },
       },
-      '/things/{id}': { get: { operationId: 'things.get', 'x-totem-tenant-binding': 'resource_id', parameters: [{ name: 'id', in: 'path', required: true, schema: { type: 'string' } }], responses: ok200({ $ref: '#/components/schemas/Thing' }) } },
-      '/health': { get: { operationId: 'health', 'x-totem-tenant-binding': 'none', security: [], responses: ok200({ type: 'object', properties: { status: { const: 'ok' } } }) } },
+      '/things/{id}': { get: { operationId: 'things.get', 'x-totem-tenant-binding': 'resource_id', 'x-totem-effect': 'read', parameters: [{ name: 'id', in: 'path', required: true, schema: { type: 'string' } }], responses: ok200({ $ref: '#/components/schemas/Thing' }) } },
+      '/health': { get: { operationId: 'health', 'x-totem-tenant-binding': 'none', 'x-totem-effect': 'read', security: [], responses: ok200({ type: 'object', properties: { status: { const: 'ok' } } }) } },
     },
   };
 }
@@ -59,22 +59,24 @@ for (const [label, mutate, message] of [
   ['an operation without operationId', document => { delete list(document).operationId; }, /has no operationId/],
   ['a cookie parameter', document => { list(document).parameters.push({ name: 'session', in: 'cookie', schema: { type: 'string' } }); }, /cookie parameters/],
   ['a header other than Totem-Team', document => { list(document).parameters.push({ name: 'X-Trace', in: 'header', schema: { type: 'string' } }); }, /only Totem-Team/],
-  ['Totem-Team on an operation not bound to it', document => { list(document)['x-totem-tenant-binding'] = 'resource_id'; }, /only Totem-Team/],
+  ['Totem-Team on an operation not bound to it', document => { list(document)['x-totem-tenant-binding'] = 'resource_id'; }, /Totem-Team is only supported/],
+  ['a missing effect', document => { delete list(document)['x-totem-effect']; }, /x-totem-effect must be read or write/],
+  ['an unsupported effect', document => { list(document)['x-totem-effect'] = 'outbound'; }, /x-totem-effect must be read or write/],
+  ['write headers on a read operation', document => { list(document).parameters.push({ name: 'Idempotency-Key', in: 'header', schema: { type: 'string' } }); }, /write headers require/],
+  ['duplicate header names with different casing', document => { list(document).parameters.push({ name: 'totem-team', in: 'header', schema: { type: 'string' } }); }, /is declared twice/],
   ['an unknown tenant binding', document => { document.paths['/things/{id}'].get['x-totem-tenant-binding'] = 'team_query'; }, /x-totem-tenant-binding "team_query" is not one of/],
   ['a missing tenant binding', document => { delete document.paths['/things/{id}'].get['x-totem-tenant-binding']; }, /x-totem-tenant-binding undefined is not one of/],
   ['a team_header operation without the Totem-Team header', document => { list(document).parameters.pop(); }, /must declare the Totem-Team header/],
   ['an array query parameter', document => { list(document).parameters.push({ name: 'ids', in: 'query', schema: { type: 'array', items: { type: 'string' } } }); }, /only scalar query values/],
   ['an optional path parameter', document => { document.paths['/things/{id}'].get.parameters[0].required = false; }, /must be required/],
   ['a path template with no parameter', document => { document.paths['/things/{id}'].get.parameters = []; }, /names \{id\} with no path parameter/],
-  ['a missing 200 response', document => { list(document).responses = { default: { description: 'Error' } }; }, /needs an inline 200 response/],
+  ['a missing success response', document => { list(document).responses = { default: { description: 'Error' } }; }, /needs a declared success response/],
   ['a non-JSON 200 response', document => { list(document).responses = { '200': { description: 'CSV', content: { 'text/csv': { schema: { type: 'string' } } } } }; }, /one application\/json schema/],
-  ['another success status', document => { list(document).responses['201'] = { description: 'Created' }; }, /success status 201/],
+  ['an unsupported success status', document => { list(document).responses['206'] = { description: 'Partial' }; }, /success status 206/],
+  ['a body on a no-content response', document => { list(document).responses['204'] = { description: 'No Content', content: { 'application/json': { schema: { type: 'string' } } } }; }, /204 response must not declare a body/],
   ['an optional request body', document => { list(document).requestBody = { content: { 'application/json': { schema: { type: 'object', properties: { q: { type: 'string' } } } } } }; }, /optional requestBody/],
   ['a request body behind a $ref', document => { list(document).requestBody = { required: true, content: { 'application/json': { schema: { $ref: '#/components/schemas/Thing' } } } }; }, /Request schemas must be inline/],
   ['a component named like an SDK export', document => { document.components.schemas.TotemClient = { type: 'string' }; }, /collides with an SDK export/],
-  ['a union discriminator behind a $ref', document => {
-    list(document).responses = ok200({ oneOf: [{ $ref: '#/components/schemas/Thing' }, { type: 'object', properties: { state: { const: 'c' } } }] });
-  }, /discriminator state is behind/],
   ['a numeric response enum, which cannot be opened', document => { thing(document).properties.state = { type: 'integer', enum: [1, 2] }; }, /only strings/],
   ['no error catalogue', document => { delete document['x-totem-errors']; }, /x-totem-errors/],
   ['pending components', document => { document.info['x-totem-pending-components'] = ['Thing']; }, /incomplete API/],
@@ -100,7 +102,57 @@ test('response enums are open, request enums closed, nullable type arrays kept',
   assert.ok(schema.includes('"state"?: ("a" | "b") | null | undefined'));
   assert.ok(schema.includes('"note"?: (string | null)'));
 });
+test('referenced union branches preserve closed discriminants without closing ordinary component enums', () => {
+  const document = fixture();
+  list(document).responses = ok200({ oneOf: [{ $ref: '#/components/schemas/Thing' }, { type: 'object', properties: { state: { const: 'c' } } }] });
+  const { 'schema.ts': schema } = generate(document, options);
+  assert.ok(schema.includes('"state": ("a" | "b")'));
+  assert.ok(schema.includes('"state": ((')); // The standalone component remains open.
+  assert.ok(schema.includes('"state"?: "c"'));
+});
 const definitions = output => JSON.parse(output.slice(output.indexOf('operationDefinitions = ') + 23, output.indexOf(' as const\n')));
+const write = document => {
+  const operation = { ...list(document), operationId: 'things.write', 'x-totem-effect': 'write', parameters: [{ $ref: '#/components/parameters/Team' }] };
+  document.paths['/things'].post = operation;
+  return operation;
+};
+test('declared write headers, effect and JSON/no-content success statuses reach the generated contract', () => {
+  const document = fixture(), operation = write(document);
+  operation.parameters.push(
+    { name: 'idempotency-key', in: 'header', schema: { type: 'string', minLength: 1, maxLength: 255 } },
+    { name: 'If-Match', in: 'header', required: true, schema: { type: 'string', pattern: '^"[0-9]+"$' } },
+  );
+  operation.responses = {
+    '200': { description: 'Existing', content: { 'application/json': { schema: { type: 'string' } } } },
+    '201': { description: 'Created', content: { 'application/json': { schema: { type: 'integer' } } } },
+    '202': { description: 'Accepted', content: { 'application/json': { schema: { type: 'boolean' } } } },
+    '204': { description: 'No content' },
+  };
+  const generated = generate(document, options), metadata = definitions(generated['operations.ts'])['things.write'];
+  assert.equal(metadata.method, 'POST');
+  assert.equal(metadata.effect, 'write');
+  assert.deepEqual(metadata.headers, [
+    { name: 'Idempotency-Key', required: false, schema: { type: 'string', minLength: 1, maxLength: 255 } },
+    { name: 'If-Match', required: true, schema: { type: 'string', pattern: '^"[0-9]+"$' } },
+  ]);
+  assert.deepEqual(metadata.successResponses, [{ status: 200, body: true }, { status: 201, body: true }, { status: 202, body: true }, { status: 204, body: false }]);
+  assert.ok(generated['schema.ts'].includes('"things.write": { response: string | number | boolean | void;'));
+  const readPost = { ...operation, operationId: 'things.search', 'x-totem-effect': 'read', parameters: [{ $ref: '#/components/parameters/Team' }] };
+  document.paths['/search'] = { post: readPost };
+  assert.equal(definitions(generate(document, options)['operations.ts'])['things.search'].effect, 'read');
+});
+for (const [label, parameter, message] of [
+  ['a non-string write header', { name: 'If-Match', in: 'header', schema: { type: 'integer' } }, /plain string schema/],
+  ['a union write header', { name: 'If-Match', in: 'header', schema: { type: 'string', anyOf: [{ type: 'string' }] } }, /plain string schema/],
+  ['a malformed pattern', { name: 'If-Match', in: 'header', schema: { type: 'string', pattern: '[' } }, /invalid pattern/],
+  ['a negative header length', { name: 'Idempotency-Key', in: 'header', schema: { type: 'string', minLength: -1 } }, /invalid minLength/],
+  ['an inverted header range', { name: 'Idempotency-Key', in: 'header', schema: { type: 'string', minLength: 256, maxLength: 255 } }, /invalid length range/],
+]) {
+  test(`refuses ${label}`, () => {
+    const document = fixture(); write(document).parameters.push(parameter);
+    assert.throws(() => generate(document, options), error => error instanceof GeneratorError && message.test(error.message));
+  });
+}
 test('authentication follows operation security, else document security; only team_header sends Totem-Team', () => {
   const document = fixture();
   const generated = definitions(generate(document, options)['operations.ts']);

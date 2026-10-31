@@ -1,5 +1,5 @@
 /**
- * Contract: the live runner covers every operation and every tenant check
+ * Contract: the live runner covers every operation of its explicit profile and every tenant check
  * against an edge-like fixture (Content-Type, query and Totem-Team hygiene),
  * fails closed on undeclared fields, skipped checks, repeated feed pages and
  * configuration errors, and records only closed diagnostics. Its
@@ -43,7 +43,7 @@ async function runSmoke(context, handler, { fixtures, env = {}, key = LIVE_KEY, 
   });
   const child = spawn(process.execPath, ['scripts/live-smoke.mjs'], {
     cwd: new URL('..', import.meta.url),
-    env: { ...process.env, TOTEM_API_KEY: '', TOTEM_API_KEY_FILE: keyFile, TOTEM_TEAM_ID: '', TOTEM_SMOKE_ALLOW_PARTIAL: '', TOTEM_LIVE_FIXTURES_FILE: fixtures === undefined ? '' : fixturesFile, TOTEM_API_BASE_URL: baseUrl, TOTEM_SMOKE_RECEIPT: receipt ? receiptFile : '', ...env },
+    env: { ...process.env, TOTEM_API_KEY: '', TOTEM_API_KEY_FILE: keyFile, TOTEM_TEAM_ID: '', TOTEM_SMOKE_ALLOW_PARTIAL: '', TOTEM_SMOKE_PROFILE: '', TOTEM_LIVE_FIXTURES_FILE: fixtures === undefined ? '' : fixturesFile, TOTEM_API_BASE_URL: baseUrl, TOTEM_SMOKE_RECEIPT: receipt ? receiptFile : '', ...env },
     stdio: ['ignore', 'pipe', 'pipe'],
   });
   let output = '';
@@ -73,13 +73,13 @@ function edge({ teams = [TEAM], checkSecret = true, override = () => undefined }
     const authorized = credential?.lookupId === LIVE.lookupId && (!checkSecret || credential.secret === LIVE.secret);
     if (url.pathname !== '/v1/health' && !authorized) return problem(401, 'invalid_credentials');
     for (const [path, methods] of Object.entries(document.paths)) {
-      const match = new RegExp(`^/v1${path.replace('{id}', '([^/]+)')}$`).exec(url.pathname);
+      const match = new RegExp(`^/v1${path.replace(/\{[^}]+\}/g, '([^/]+)')}$`).exec(url.pathname);
       const operation = match && methods[request.method.toLowerCase()];
       if (!operation) continue;
       const declared = (operation.parameters ?? []).filter(param => param.in === 'query').map(param => param.name);
       const keys = [...url.searchParams.keys()];
       if (keys.some(key => !declared.includes(key)) || new Set(keys).size !== keys.length) return problem(400, 'invalid_request');
-      if (request.method === 'POST' ? request.headers['content-type'] !== 'application/json' : request.headers['content-type'] !== undefined || request.body) return problem(400, 'invalid_request');
+      if (operation.requestBody ? request.headers['content-type'] !== 'application/json' : request.headers['content-type'] !== undefined || request.body) return problem(400, 'invalid_request');
       if (url.searchParams.get('limit') === '0') return problem(400, 'invalid_request');
       if (operation['x-totem-tenant-binding'] === 'team_header') {
         const team = request.headers['totem-team'];
@@ -88,21 +88,83 @@ function edge({ teams = [TEAM], checkSecret = true, override = () => undefined }
       }
       if (match[1]?.endsWith('FOREIGN')) return problem(404, 'resource_missing');
       if (operation.operationId === 'leads.search' && request.body === '{}') return problem(400, 'invalid_request');
+      const overridden = override({ operation, url, request });
+      if (overridden !== undefined) return overridden;
+      const status = Number(Object.keys(operation.responses).find(value => /^2/.test(value)));
       const body = operation.operationId === 'teams.list' ? { ...example('/teams'), data: teams.map(id => ({ ...example('/teams').data[0], id })) }
         : operation.operationId === 'sync.changes' && url.searchParams.has('cursor') ? { object: 'list', data: [], has_more: false, next_cursor: url.searchParams.get('cursor') }
-          : operation.responses['200'].content['application/json'].example;
-      return override({ operation, url, request }) ?? { headers: { ...headers, ...(operation.operationId === 'health' ? { 'Totem-Release': RELEASE } : {}) }, body };
+          : operation.responses[String(status)].content?.['application/json'].example;
+      return { status, headers: { ...headers, ...(operation.operationId === 'health' ? { 'Totem-Release': RELEASE } : {}) }, body };
     }
     return problem(404, 'resource_missing');
   };
 }
 
-test('live runner covers every operation and tenant check against an edge-like fixture', async context => {
+/** Stateful HTTP boundary: real runner/client/validators, closed mutation state and exact version guards. */
+function crmEdge({ acceptStale = false, leakReceipt = false } = {}) {
+  let lead = structuredClone(document.components.schemas.Lead.examples[0]);
+  let note = null;
+  const leadEtag = () => `"${lead.id}:${lead.version}"`;
+  const noteEtag = () => `"${note.id}:${note.version}"`;
+  const response = (body, etag, status = 200) => ({ status, headers: { 'Totem-Request-Id': REQUEST_ID, ...(etag ? { ETag: etag } : {}) }, body });
+  const mutation = created => ({ object: 'lead_mutation', created, lead, outreach: { status: 'not_armed', reason: null } });
+  const receipt = () => {
+    const { body, ...metadata } = note;
+    return { object: 'lead_note_receipt', note: leakReceipt ? { ...metadata, body } : metadata };
+  };
+  return edge({ override: ({ operation, request }) => {
+    const id = operation.operationId;
+    if (id === 'me.get') return response({ ...example('/me'), scopes: [...example('/me').scopes, 'crm:write', 'crm:notes:read'] });
+    if (operation['x-totem-effect'] !== 'write' && id !== 'leads.notes') return undefined;
+    if (operation['x-totem-effect'] === 'write' && !request.headers['idempotency-key']) return problem(400, 'idempotency_key_required');
+    const body = request.body ? JSON.parse(request.body) : undefined;
+    if (id === 'leads.upsert') {
+      if (body.validate_only) return response({ object: 'lead_validation', valid: true });
+      return response(mutation(true), leadEtag(), 201);
+    }
+    if (id === 'leads.notes') return response({ object: 'list', data: note ? [note] : [], has_more: false, next_cursor: null });
+    if (id === 'leads.addNote') {
+      note = { ...document.components.schemas.LeadNote.examples[0], lead: lead.id, body: body.body, external_id: body.external_id ?? null };
+      return response(receipt(), noteEtag(), 201);
+    }
+    const noteOperation = id === 'leads.updateNote' || id === 'leads.deleteNote';
+    if (!acceptStale && request.headers['if-match'] !== (noteOperation ? noteEtag() : leadEtag())) return problem(412, 'version_conflict');
+    if (id === 'leads.updateNote') { note = { ...note, body: body.body, version: note.version + 1 }; return response(receipt(), noteEtag()); }
+    if (id === 'leads.deleteNote') { note = null; return response(undefined, undefined, 204); }
+    lead = { ...lead, ...(id === 'leads.archive' ? { status: 'archived' } : body), version: lead.version + 1 };
+    return response(mutation(false), leadEtag());
+  } });
+}
+
+test('explicit CRM profile validates writes, content, conditional updates and deletion without leaking content', async context => {
+  const result = await runSmoke(context, crmEdge(), { fixtures: { ...FOREIGN, crmEmail: 'sdk-smoke-123@example.invalid', crmExternalId: 'sdk-smoke-123' }, env: { TOTEM_SMOKE_PROFILE: 'crm' } });
+  assert.equal(result.exitCode, 0, result.output);
+  assert.equal(result.receipt.profile, 'crm');
+  assert.deepEqual(result.receipt.excludedOperations, []);
+  assert.equal(result.receipt.coveredOperations.length, 27);
+  assert.equal(result.receipt.checks.some(check => check.operation === 'leads.deleteNote' && check.status === 204), true);
+  assert.equal(result.receiptText.includes('SDK CRM smoke updated note.'), false);
+});
+for (const [label, fault, expected] of [
+  ['server ignores If-Match', { acceptStale: true }, 'expectation_failed'],
+  ['server leaks note body into write receipt', { leakReceipt: true }, 'response_schema_mismatch'],
+]) {
+  test(`CRM runner detects boundary fault: ${label}`, async context => {
+    const result = await runSmoke(context, crmEdge(fault), { fixtures: { ...FOREIGN, crmEmail: 'sdk-smoke-123@example.invalid', crmExternalId: 'sdk-smoke-123' }, env: { TOTEM_SMOKE_PROFILE: 'crm' } });
+    assert.equal(result.exitCode, 1);
+    assert.equal(result.receipt.failure.code, expected);
+  });
+}
+
+test('default live runner covers the read profile and tenant checks without mutating CRM', async context => {
   const result = await runSmoke(context, edge({ teams: [TEAM, 'team_SECOND'] }), { fixtures: FOREIGN });
   assert.equal(result.exitCode, 0, result.output);
   assert.equal(result.receipt.passed, true);
   assert.equal(result.receipt.failure, null);
-  assert.deepEqual(new Set(result.receipt.coveredOperations), new Set(Object.values(document.paths).flatMap(Object.values).map(operation => operation.operationId)));
+  const operations = Object.values(document.paths).flatMap(Object.values);
+  assert.deepEqual(new Set(result.receipt.coveredOperations), new Set(operations.filter(operation => operation['x-totem-effect'] === 'read' && operation.operationId !== 'leads.notes').map(operation => operation.operationId)));
+  assert.equal(result.receipt.profile, 'read');
+  assert.equal(result.receipt.excludedOperations.length, 7);
   const labels = result.receipt.checks.filter(check => check.check).map(check => check.check);
   assert.deepEqual(labels, ['invalid credentials', 'invalid limit', 'search requires one identifier', 'team required on a multi-team key', 'foreign lead isolation', 'foreign team isolation']);
   assert.deepEqual(result.receipt.skippedChecks, []);

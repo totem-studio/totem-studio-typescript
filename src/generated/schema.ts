@@ -2,9 +2,9 @@
 type UnionKeys<T> = T extends unknown ? keyof T : never
 type ExclusiveUnion<T, All = T> = T extends unknown ? T & Partial<Record<Exclude<UnionKeys<All>, keyof T>, never>> : never
 /** Every error code the contract documents. New codes may appear: handle an unknown one by its status. */
-export type TotemErrorCode = "invalid_request" | "team_required" | "secret_key_in_browser" | "invalid_credentials" | "key_expired" | "insufficient_scope" | "plan_not_entitled" | "ip_not_allowed" | "team_state_restricted" | "sector_restricted" | "capability_disabled" | "resource_missing" | "team_not_accessible" | "resync_required" | "capture_not_ready" | "sync_cursor_expired" | "rate_limited" | "quota_exceeded" | "internal_error" | "api_disabled" | "service_unavailable"
+export type TotemErrorCode = "idempotency_key_required" | "idempotency_key_reused" | "idempotency_in_progress" | "outcome_unknown" | "version_conflict" | "ambiguous_identity" | "inbound_not_enabled" | "consent_required" | "invalid_request" | "team_required" | "secret_key_in_browser" | "invalid_credentials" | "key_expired" | "insufficient_scope" | "plan_not_entitled" | "ip_not_allowed" | "team_state_restricted" | "sector_restricted" | "capability_disabled" | "resource_missing" | "team_not_accessible" | "resync_required" | "capture_not_ready" | "sync_cursor_expired" | "rate_limited" | "quota_exceeded" | "internal_error" | "api_disabled" | "service_unavailable"
 /** What the caller should do about an error, from the contract's error catalogue. */
-export type ErrorAction = "fix_request" | "check_credentials" | "contact_support" | "keep_and_retry" | "drop_team" | "resync" | "wait_capture" | "retry_after" | "backoff"
+export type ErrorAction = "fix_request" | "retry_after" | "contact_support" | "check_credentials" | "keep_and_retry" | "drop_team" | "resync" | "wait_capture" | "backoff"
 export interface Schemas {
 /** One stage, status or assignee transition of a lead. Activities never change once written. */
 "Activity": ExclusiveUnion<({
@@ -356,6 +356,15 @@ export interface Schemas {
 "object": Schemas["Lead"]
 } | {
 /** The kind of the record, such as `lead` or `call`. */
+"kind": "lead_note";
+/** Public id of the record; the facets `lead_attribution` and `lead_response` use their lead's id. */
+"id": string;
+/** The record's version. Apply the item only when it is greater than the version you hold. */
+"version": number;
+/** The record as it is now. */
+"object": Schemas["LeadNote"]
+} | {
+/** The kind of the record, such as `lead` or `call`. */
 "kind": "lead_attribution";
 /** Public id of the record; the facets `lead_attribution` and `lead_response` use their lead's id. */
 "id": string;
@@ -428,7 +437,7 @@ export interface Schemas {
 "object": Schemas["Notification"]
 } | {
 /** The kind of the record, such as `lead` or `call`. */
-"kind": ("lead" | "lead_attribution" | "lead_response" | "activity" | "call" | "conversation" | "booking" | "board" | "notification");
+"kind": ("lead" | "lead_note" | "lead_attribution" | "lead_response" | "activity" | "call" | "conversation" | "booking" | "board" | "notification");
 /** Public id of the removed record. */
 "id": string;
 /** The record's version. Apply the item only when it is greater than the version you hold. */
@@ -479,6 +488,8 @@ export interface Schemas {
 "email": (string | null);
 /** Company, or null. */
 "company": (string | null);
+/** Contact website as stored, without fetching it, or null. */
+"website": (string | null);
 /** Phone in E.164, only when the stored number validates; otherwise null. */
 "phone": (string | null);
 /** `valid` (see `phone`), `invalid` (a number is stored but does not validate, for example one stored without its country prefix) or `missing`. */
@@ -958,6 +969,8 @@ export interface Schemas {
 "email": (string | null);
 /** Company, or null. */
 "company": (string | null);
+/** Contact website as stored, without fetching it, or null. */
+"website": (string | null);
 /** Phone in E.164, only when the stored number validates; otherwise null. */
 "phone": (string | null);
 /** `valid` (see `phone`), `invalid` (a number is stored but does not validate, for example one stored without its country prefix) or `missing`. */
@@ -1051,6 +1064,97 @@ export interface Schemas {
 /** Opaque cursor for the next page, or null on the last page. Never parse it. */
 "next_cursor": (string | null)
 };
+/** A lead mutation and its current public projection; use its ETag for the next conditional write. */
+"LeadMutation": {
+/** Always lead_mutation. */
+"object": "lead_mutation";
+/** True only when this call created a new lead. */
+"created": boolean;
+"lead": Schemas["Lead"];
+/** Intake outreach disposition, present on upsert responses. */
+"outreach"?: {
+/** not_armed for imports; withheld when a guard blocks intake outreach; eligible means queued under the team’s ordinary intake rules, never a delivery promise. */
+"status": (("not_armed" | "withheld" | "eligible") | (string & {}));
+/** Closed guard reason when withheld, otherwise null. */
+"reason": (string | null)
+}
+};
+/** Lead note body. */
+"LeadNote": {
+/** Public id of the record. */
+"id": string;
+/** Always `lead_note`. */
+"object": "lead_note";
+/** `true` for real data; `false` in example data. */
+"livemode": boolean;
+/** The parent lead. */
+"lead": string;
+/** CRM note text; requires the explicit note-content grant. */
+"body": string;
+/** When this note was created. */
+"created_at": string;
+/** The caller’s own external id, or null. Canonical feed objects withhold all integration namespaces. */
+"external_id": (string | null);
+/** Increases every time one of the record's exported fields changes. Apply a change only when its version is greater than the one you hold. */
+"version": number;
+/** When Totem recorded this version (UTC). It is not the time the business event happened. */
+"updated_at": string
+};
+/** A cursor-paged list of this lead’s notes, requiring an explicit note-content grant. */
+"LeadNoteList": {
+/** Always `list`. */
+"object": "list";
+/** The items of this page. */
+"data": Array<{
+/** Opaque stable note id, bound to this team and lead incarnation; never parse it. */
+"id": string;
+/** Always lead_note. */
+"object": "lead_note";
+/** True for real data; false only in fictional example data. */
+"livemode": boolean;
+/** The lead this note belongs to. */
+"lead": string;
+/** The current note version; use the matching strong note ETag for conditional writes. */
+"version": number;
+/** When the note was created. */
+"created_at": string;
+/** When the current version was recorded. */
+"updated_at": string;
+/** Your integration’s external id for this note, or null; other integrations’ ids are withheld. */
+"external_id": (string | null);
+/** Existing note content, including empty attachment-only notes; available only with the explicit note-content grant. API writes accept 1–20,000 characters. */
+"body": string
+}>;
+/** `true` when another page follows: fetch it with `next_cursor`, even if this page holds fewer items than `limit`. */
+"has_more": boolean;
+/** Opaque cursor for the next page, or null on the last page. Never parse it. */
+"next_cursor": (string | null)
+};
+/** Lead note metadata without its content; safe for a write-only receipt or replay. */
+"LeadNoteMetadata": {
+/** Opaque stable note id, bound to this team and lead incarnation; never parse it. */
+"id": string;
+/** Always lead_note. */
+"object": "lead_note";
+/** True for real data; false only in fictional example data. */
+"livemode": boolean;
+/** The lead this note belongs to. */
+"lead": string;
+/** The current note version; use the matching strong note ETag for conditional writes. */
+"version": number;
+/** When the note was created. */
+"created_at": string;
+/** When the current version was recorded. */
+"updated_at": string;
+/** Your integration’s external id for this note, or null; other integrations’ ids are withheld. */
+"external_id": (string | null)
+};
+/** Metadata of the note written, without its body or other notes; safe to replay after a human edits the content. */
+"LeadNoteReceipt": {
+/** Always lead_note_receipt. */
+"object": "lead_note_receipt";
+"note": Schemas["LeadNoteMetadata"]
+};
 /** How the team has answered a lead across its conversations and calls: the latest messages each way and whether a reply is due. It uses its lead's id. */
 "LeadResponse": {
 /** Public id of the record. */
@@ -1087,6 +1191,33 @@ export interface Schemas {
 /** When Totem recorded this version (UTC). It is not the time the business event happened. */
 "updated_at": string
 };
+/** The persisted lead result, or a validation-only result without a mutation. */
+"LeadUpsertResult": ({
+/** Always lead_mutation. */
+"object": "lead_mutation";
+/** True only when this call created a new lead. */
+"created": boolean;
+"lead": Schemas["Lead"];
+/** Intake outreach disposition, present on upsert responses. */
+"outreach"?: {
+/** not_armed for imports; withheld when a guard blocks intake outreach; eligible means queued under the team’s ordinary intake rules, never a delivery promise. */
+"status": (("not_armed" | "withheld" | "eligible") | (string & {}));
+/** Closed guard reason when withheld, otherwise null. */
+"reason": (string | null)
+}
+} | {
+/** Always lead_validation. */
+"object": "lead_validation";
+/** The request passed validation; no mutation or outreach was performed. */
+"valid": true
+});
+/** A successful dry run; it never represents a persisted lead. */
+"LeadValidation": {
+/** Always lead_validation. */
+"object": "lead_validation";
+/** The request passed validation; no mutation or outreach was performed. */
+"valid": true
+};
 /** The integration that owns the key, with the teams the key reads. */
 "Me": {
 /** Always `integration`. */
@@ -1104,8 +1235,8 @@ export interface Schemas {
 };
 /** The teams this key reads today. Their details are in `GET /v1/teams`. */
 "teams": Array<string>;
-/** The key's scopes: the fixed read set in v1.0a. */
-"scopes": Array<(("teams:read" | "crm:read" | "calls:read" | "messages:read" | "calendar:read") | (string & {}))>
+/** The key’s explicitly granted scopes; old read-only keys never gain writes or note content implicitly. */
+"scopes": Array<(("teams:read" | "crm:read" | "calls:read" | "messages:read" | "calendar:read" | "crm:write" | "crm:notes:read") | (string & {}))>
 };
 /** A team member, by display name only: Totem exports no email, phone or role. */
 "Member": {
@@ -1329,6 +1460,61 @@ export interface OperationContracts {
 
 }; body: never };
 /**
+ * Upsert a lead by identity
+ *
+ * Creates a lead with all supplied CRM fields (201), or fills only missing contact details on an existing identity (200); changing an existing pipeline value requires conditional PATCH and otherwise returns `400 invalid_request`. Import never revives or arms outreach; inbound requires its separate capability and a phone supplied by the person, with destination, consent and durable outreach guards. A validate_only dry run returns 200 without writes, conflicting identities return `409 ambiguous_identity`, and external ids never cross integration namespaces.
+ */
+"leads.upsert": { response: Schemas["LeadUpsertResult"]; query: {
+
+}; path: {
+
+}; body: {
+/** Required contact contract: import never arms outreach; inbound requires an explicitly enabled principal and a phone supplied by the person. */
+"origin": ("import" | "inbound");
+/** Phone supplied by the person in E.164 format. */
+"phone"?: string | undefined;
+/** Contact email address. */
+"email"?: string | undefined;
+/** First name or display name. */
+"name"?: string | undefined;
+/** Surname. */
+"surname"?: string | undefined;
+/** Company name. */
+"company"?: string | undefined;
+/** Contact website; it is stored without fetching it. */
+"website"?: string | undefined;
+/** Destination board belonging to the selected team. */
+"board"?: string | undefined;
+/** Destination stage belonging to the selected board and team; a move never bypasses outreach guards. */
+"stage"?: string | undefined;
+/** Business tags, replacing the editable set; system tags cannot be set or removed. */
+"tags"?: Array<string> | undefined;
+/** Lead priority. */
+"priority"?: ("low" | "medium" | "high" | "urgent") | undefined;
+/** Estimated value in major units, without an implied currency. */
+"estimated_value"?: number | undefined;
+/** Assigned team members, replacing the previous editable set. */
+"assignees"?: Array<string> | undefined;
+/** Your integration’s external id, scoped to this principal and team; never another integration’s namespace. */
+"external_id"?: string | undefined;
+/** Validate without creating, updating or contacting anyone; the response is a lead_validation object. */
+"validate_only"?: boolean | undefined;
+/** Explicit consent evidence; omitted consent is never treated as granted and import does not record it. */
+"consent"?: {
+/** Auditable WhatsApp consent evidence, attributed to the integration. */
+"whatsapp"?: {
+/** The person’s explicit WhatsApp choice; inbound origin alone never grants consent. */
+"granted": boolean;
+/** When the person made this choice. */
+"captured_at": string;
+/** How this explicit consent was collected. */
+"method": string;
+/** Reference to the notice shown when collecting this choice. */
+"notice_ref": string
+} | undefined
+} | undefined
+} };
+/**
  * Get a lead with its attribution and response
  *
  * Returns one lead with its two facets: `attribution` (where it came from) and `response` (how the team has answered it), each with its own `version`. A lead created moments ago can answer `404 resource_missing` until Totem has prepared it; the changes feed delivers it then.
@@ -1339,6 +1525,50 @@ export interface OperationContracts {
 /** The lead's public id. */
 "id": string
 }; body: never };
+/**
+ * Update editable CRM fields
+ *
+ * Updates only the declared CRM fields using the strong ETag from the current lead in If-Match; a stale version returns `412 version_conflict`. Omitted fields remain unchanged, opt-outs can only be added, contact changes never arm outreach and an empty diff writes nothing. System, assistant, automation and billing fields are refused.
+ */
+"leads.update": { response: Schemas["LeadMutation"]; query: {
+
+}; path: {
+/** The lead's public id. */
+"id": string
+}; body: {
+/** Phone supplied by the person in E.164 format. */
+"phone"?: string | undefined;
+/** Contact email address. */
+"email"?: string | undefined;
+/** First name or display name. */
+"name"?: string | undefined;
+/** Surname. */
+"surname"?: string | undefined;
+/** Company name. */
+"company"?: string | undefined;
+/** Contact website; it is stored without fetching it. */
+"website"?: string | undefined;
+/** Destination board belonging to the selected team. */
+"board"?: string | undefined;
+/** Destination stage belonging to the selected board and team; a move never bypasses outreach guards. */
+"stage"?: string | undefined;
+/** Business tags, replacing the editable set; system tags cannot be set or removed. */
+"tags"?: Array<string> | undefined;
+/** Lead priority. */
+"priority"?: ("low" | "medium" | "high" | "urgent") | undefined;
+/** Estimated value in major units, without an implied currency. */
+"estimated_value"?: number | undefined;
+/** Assigned team members, replacing the previous editable set. */
+"assignees"?: Array<string> | undefined;
+/** Civil birth date, or null to clear it. */
+"date_of_birth"?: (string | null) | undefined;
+/** Your integration’s external id, scoped to this principal and team; never another integration’s namespace. */
+"external_id"?: string | undefined;
+/** Record an opt-out on every channel; the API cannot clear one. */
+"do_not_contact"?: true | undefined;
+/** Record an email opt-out; the API cannot clear one. */
+"email_opt_out"?: true | undefined
+} };
 /**
  * Find leads by exact phone or email
  *
@@ -1378,6 +1608,83 @@ export interface OperationContracts {
 /** The lead's public id. */
 "id": string
 }; body: never };
+/**
+ * List a lead’s note content
+ *
+ * Returns a cursor-paged list of this lead’s notes only when this principal has the separate explicit note-content grant and crm:notes:read scope. Existing read-only keys never gain note content automatically, and sector restrictions still apply. Cursors are bound to this principal, team and lead incarnation.
+ */
+"leads.notes": { response: Schemas["LeadNoteList"]; query: {
+/** Items per page, 1–100. Defaults to 25. */
+"limit"?: number | null | undefined;
+/** The `next_cursor` of the previous page. Omit it for the first page. */
+"cursor"?: string | null | undefined
+}; path: {
+/** The lead's public id. */
+"id": string
+}; body: never };
+/**
+ * Add a lead note
+ *
+ * Appends one integration-authored plain-text note and returns only its metadata, never note content. An external id is scoped to this integration and lead, and Idempotency-Key safely replays the same logical request. Reading any note body requires the separate explicit note-content grant.
+ */
+"leads.addNote": { response: Schemas["LeadNoteReceipt"]; query: {
+
+}; path: {
+/** The lead's public id. */
+"id": string
+}; body: {
+/** Plain-text note body; stored with the integration as its author. */
+"body": string;
+/** Your integration’s external id, scoped to this principal and team; never another integration’s namespace. */
+"external_id"?: string | undefined
+} };
+/**
+ * Archive a lead
+ *
+ * Archives the lead with a closed business reason using its current strong ETag in If-Match; stale versions return `412 version_conflict`. The destructive-change budget applies and an opt_out reason suppresses every contact channel. This route cannot merge, transfer or erase a lead.
+ */
+"leads.archive": { response: Schemas["LeadMutation"]; query: {
+
+}; path: {
+/** The lead's public id. */
+"id": string
+}; body: {
+/** Public archive reason; merging and transfers within an organization are separate privileged operations. */
+"reason": ("opt_out" | "no_consent" | "not_interested" | "not_qualified" | "no_contact" | "other");
+/** Optional explanation of the archive reason. */
+"detail"?: string | undefined
+} };
+/**
+ * Delete a lead note
+ *
+ * Deletes only the named note under this lead incarnation using its current strong note ETag in If-Match; a stale version returns `412 version_conflict`. Success returns 204 with no JSON body and the changes feed retains a deletion marker. It never deletes or archives the parent lead.
+ */
+"leads.deleteNote": { response: void; query: {
+
+}; path: {
+/** The note’s parent lead id. */
+"id": string;
+/** The opaque note id within this lead incarnation. */
+"note": string
+}; body: never };
+/**
+ * Update a lead note
+ *
+ * Updates the note under this lead incarnation using its current strong note ETag in If-Match; stale versions return `412 version_conflict`. Only the note body and this integration’s external id can change, and the response contains metadata without content. An unchanged body creates no new note version.
+ */
+"leads.updateNote": { response: Schemas["LeadNoteReceipt"]; query: {
+
+}; path: {
+/** The note’s parent lead id. */
+"id": string;
+/** The opaque note id within this lead incarnation. */
+"note": string
+}; body: {
+/** Plain-text note body; stored with the integration as its author. */
+"body": string;
+/** Your integration’s external id, scoped to this principal and team; never another integration’s namespace. */
+"external_id"?: string | undefined
+} };
 /**
  * List calls
  *
@@ -1546,8 +1853,22 @@ export type LeadAttribution = Schemas["LeadAttribution"]
 export type LeadDetail = Schemas["LeadDetail"]
 /** A page of Lead objects, in a stable order that carries no meaning. */
 export type LeadList = Schemas["LeadList"]
+/** A lead mutation and its current public projection; use its ETag for the next conditional write. */
+export type LeadMutation = Schemas["LeadMutation"]
+/** Lead note body. */
+export type LeadNote = Schemas["LeadNote"]
+/** A cursor-paged list of this lead’s notes, requiring an explicit note-content grant. */
+export type LeadNoteList = Schemas["LeadNoteList"]
+/** Lead note metadata without its content; safe for a write-only receipt or replay. */
+export type LeadNoteMetadata = Schemas["LeadNoteMetadata"]
+/** Metadata of the note written, without its body or other notes; safe to replay after a human edits the content. */
+export type LeadNoteReceipt = Schemas["LeadNoteReceipt"]
 /** How the team has answered a lead across its conversations and calls: the latest messages each way and whether a reply is due. It uses its lead's id. */
 export type LeadResponse = Schemas["LeadResponse"]
+/** The persisted lead result, or a validation-only result without a mutation. */
+export type LeadUpsertResult = Schemas["LeadUpsertResult"]
+/** A successful dry run; it never represents a persisted lead. */
+export type LeadValidation = Schemas["LeadValidation"]
 /** The integration that owns the key, with the teams the key reads. */
 export type Me = Schemas["Me"]
 /** A team member, by display name only: Totem exports no email, phone or role. */

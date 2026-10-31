@@ -21,8 +21,8 @@ export type FeedObjectOf<K extends FeedUpsert['kind']> = Extract<FeedUpsert, { k
 
 export interface RequestOptions {
   /**
-   * The team to read, as a `team_…` id. Required on collection routes when the
-   * key reads more than one team. Detail routes take the team from the
+   * The team to access, as a `team_…` id. Required on collection routes when the
+   * key grants more than one team. Detail routes take the team from the
    * record's id: compare the record's `team` with the one you expect.
    */
   team?: string | undefined
@@ -30,9 +30,20 @@ export interface RequestOptions {
   signal?: AbortSignal | undefined
   /** Deadline of one request, including retries, retry waits and body reading. In `pages()` and `items()` it applies to each page. */
   timeoutMs?: number | undefined
+  /** Reuse this key for the same logical write across calls/restarts. A declared write route gets one UUID per SDK call when omitted. */
+  idempotencyKey?: string | undefined
+  /** A single strong ETag copied unchanged from the resource response. Only offered where the operation declares If-Match. */
+  ifMatch?: string | undefined
 }
-/** Request settings of one operation: `team` only where the API reads a `Totem-Team` header. */
-export type OptionsOf<Id extends OperationId> = (typeof operationDefinitions)[Id]['team'] extends true ? RequestOptions : Omit<RequestOptions, 'team'>
+type DeclaredHeaders<Id extends OperationId> = (typeof operationDefinitions)[Id] extends { headers: ReadonlyArray<infer Header> } ? Header : never
+type HeaderOptions<Id extends OperationId> =
+  ([Extract<DeclaredHeaders<Id>, { name: 'Idempotency-Key' }>] extends [never] ? { idempotencyKey?: never } : { idempotencyKey?: string | undefined })
+  & ([Extract<DeclaredHeaders<Id>, { name: 'If-Match' }>] extends [never] ? { ifMatch?: never }
+    : [Extract<DeclaredHeaders<Id>, { name: 'If-Match'; required: true }>] extends [never] ? { ifMatch?: string | undefined } : { ifMatch: string })
+/** Request settings of one operation: only headers declared by that operation are offered. */
+export type OptionsOf<Id extends OperationId> =
+  ((typeof operationDefinitions)[Id]['team'] extends true ? Omit<RequestOptions, 'idempotencyKey' | 'ifMatch'> : Omit<RequestOptions, 'team' | 'idempotencyKey' | 'ifMatch'>)
+  & HeaderOptions<Id>
 export type RequestInput<Id extends OperationId> = OptionsOf<Id>
   & (keyof OperationContracts[Id]['path'] extends never ? { path?: never } : { path: OperationContracts[Id]['path'] })
   & (keyof QueryOf<Id> extends never ? { query?: never } : { query?: QueryOf<Id> | undefined })

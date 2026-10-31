@@ -1,5 +1,5 @@
 /**
- * Exercise every published operation against a Totem-owned test team; never
+ * Exercise the selected read-only or explicit CRM profile on a Totem-owned test team; never
  * logs credentials or records. Responses are validated closed-world (an
  * undeclared field fails). Diagnostics are closed: operation ids, check
  * labels, schema codes, schema-derived paths, request ids and the server
@@ -12,7 +12,7 @@ import { operationDefinitions } from '../dist/generated/operations.js';
 import { parseSecretKey, wrongSecretKey } from './key-format.mjs';
 import { ResponseValidationError, VALIDATION_CODES, validateResponse } from './schema-validation.mjs';
 
-const FIXTURE_FIELDS = ['teamId', 'leadId', 'callId', 'conversationId', 'bookingId', 'notificationId', 'searchEmail', 'foreignLeadId', 'foreignTeamId'];
+const FIXTURE_FIELDS = ['teamId', 'leadId', 'callId', 'conversationId', 'bookingId', 'notificationId', 'searchEmail', 'foreignLeadId', 'foreignTeamId', 'crmEmail', 'crmExternalId'];
 const SYNC_PAGE_BUDGET = 5;
 const SAFE_SCHEMA_PATH = /^\$(?:\.[A-Za-z0-9_]+|\[\d+\]|\.\*)*$/;
 const safeRelease = value => typeof value === 'string' && /^[0-9a-f]{7,40}$/.test(value) ? value : null;
@@ -26,6 +26,8 @@ class FixtureMissingError extends Error {
 }
 
 async function configuration() {
+  const profile = process.env.TOTEM_SMOKE_PROFILE || 'read';
+  if (!['read', 'crm'].includes(profile)) throw new SmokeConfigError('profile_invalid');
   const keyFile = process.env.TOTEM_API_KEY_FILE;
   let apiKey = process.env.TOTEM_API_KEY;
   if (keyFile) {
@@ -46,7 +48,9 @@ async function configuration() {
   const baseUrl = process.env.TOTEM_API_BASE_URL;
   const common = { apiKey, ...(baseUrl ? { baseUrl } : {}), maxRetries: 0, timeoutMs: 30_000 };
   try { new TotemClient(common); } catch { throw new SmokeConfigError('base_url_invalid'); }
-  return { apiKey, fixtures, common };
+  if (profile === 'crm' && (!fixtures.crmEmail || !/^[A-Za-z0-9._+-]+@example\.invalid$/.test(fixtures.crmEmail)
+    || !fixtures.crmExternalId || fixtures.crmExternalId.length > 200)) throw new SmokeConfigError('crm_fixtures_required');
+  return { apiKey, fixtures, common, profile };
 }
 
 async function writeReceipt(receipt) {
@@ -67,13 +71,17 @@ async function main() {
     process.exitCode = 1;
     return;
   }
-  const { apiKey, fixtures, common } = config;
+  const { apiKey, fixtures, common, profile } = config;
   const allowPartial = process.env.TOTEM_SMOKE_ALLOW_PARTIAL === '1';
   const unscoped = new TotemClient(common);
   let client = unscoped;
   const schema = JSON.parse(await readFile(new URL('../openapi.json', import.meta.url), 'utf8'));
   const checks = [];
   const covered = new Set();
+  const expectedOperations = Object.keys(operationDefinitions).filter(id => profile === 'crm'
+    || operationDefinitions[id].effect === 'read' && id !== 'leads.notes');
+  const excludedOperations = Object.keys(operationDefinitions).filter(id => !expectedOperations.includes(id));
+  const responses = new Map();
   const skippedChecks = [];
   const feedVariants = new Set();
   let serverRelease = null;
@@ -88,9 +96,13 @@ async function main() {
     if (id === 'health') serverRelease = safeRelease(result.headers.get('Totem-Release'));
     const definition = operationDefinitions[id];
     const operation = schema.paths[definition.path][definition.method.toLowerCase()];
-    validateResponse(result.data, operation.responses['200'].content['application/json'].schema, schema, { closed: true });
+    const success = operation.responses[String(result.status)];
+    assert.ok(success, 'Undeclared success status');
+    if (result.status === 204) assert.equal(result.data, undefined);
+    else validateResponse(result.data, success.content['application/json'].schema, schema, { closed: true });
     assert.ok(current.requestId, `${id}: missing request id`);
     covered.add(id);
+    responses.set(id, result);
     checks.push({ operation: id, status: result.status, requestId: current.requestId, passed: true });
     console.log(`PASS ${id} (${result.status})`);
     return result.data;
@@ -132,7 +144,8 @@ async function main() {
   let failed = null;
   try {
     await run('health');
-    await run('me.get');
+    const integration = await run('me.get');
+    if (profile === 'crm') assert.ok(['crm:write', 'crm:notes:read'].every(scope => integration.scopes.includes(scope)), 'CRM smoke needs explicit CRM-write and note-content grants');
     const teams = await run('teams.list');
     const team = process.env.TOTEM_TEAM_ID || fixtures.teamId || teams.data[0]?.id;
     if (!team) throw new FixtureMissingError('teamId');
@@ -151,6 +164,39 @@ async function main() {
     }
     await run('leads.search', { body: { email: fixtures.searchEmail ?? 'sdk-smoke-no-match@example.invalid' } });
     await walkFeed();
+    if (profile === 'crm') {
+      const dryRun = await run('leads.upsert', { body: { origin: 'import', email: fixtures.crmEmail, external_id: fixtures.crmExternalId, validate_only: true } });
+      assert.equal(dryRun.object, 'lead_validation');
+      const created = await run('leads.upsert', { body: { origin: 'import', email: fixtures.crmEmail, external_id: fixtures.crmExternalId } });
+      assert.equal(created.object, 'lead_mutation');
+      assert.equal(created.created, true, 'CRM fixture identity must be disposable and unique to this run');
+      assert.equal(created.outreach?.status, 'not_armed');
+      const id = created.lead.id;
+      const leadEtag = responses.get('leads.upsert').headers.get('ETag');
+      assert.ok(leadEtag, 'Lead mutation needs ETag');
+      await run('leads.update', { path: { id }, body: { name: 'SDK CRM smoke' }, ifMatch: leadEtag });
+      const updatedLeadEtag = responses.get('leads.update').headers.get('ETag');
+      assert.ok(updatedLeadEtag && updatedLeadEtag !== leadEtag, 'Real lead update must advance ETag');
+      const receipt = await run('leads.addNote', { path: { id }, body: { body: 'SDK CRM smoke initial note.', external_id: `${fixtures.crmExternalId}-note`.slice(0, 200) } });
+      assert.equal(Object.hasOwn(receipt.note, 'body'), false);
+      const note = receipt.note.id;
+      const noteEtag = responses.get('leads.addNote').headers.get('ETag');
+      assert.ok(noteEtag, 'Note creation needs ETag');
+      const before = await run('leads.notes', { path: { id }, query: { limit: 100 } });
+      assert.equal(before.data.find(item => item.id === note)?.body, 'SDK CRM smoke initial note.');
+      await run('leads.updateNote', { path: { id, note }, body: { body: 'SDK CRM smoke updated note.' }, ifMatch: noteEtag });
+      const updatedNoteEtag = responses.get('leads.updateNote').headers.get('ETag');
+      assert.ok(updatedNoteEtag && updatedNoteEtag !== noteEtag, 'Real note update must advance ETag');
+      const after = await run('leads.notes', { path: { id }, query: { limit: 100 } });
+      assert.equal(after.data.find(item => item.id === note)?.body, 'SDK CRM smoke updated note.');
+      await negative('stale note write', () => client.leads.updateNote(id, note, { body: 'Stale must never win.' }, { ifMatch: noteEtag }), 412, 'version_conflict');
+      await run('leads.deleteNote', { path: { id, note }, ifMatch: updatedNoteEtag });
+      const deleted = await run('leads.notes', { path: { id }, query: { limit: 100 } });
+      assert.equal(deleted.data.some(item => item.id === note), false);
+      await negative('stale lead write', () => client.leads.update(id, { name: 'Stale must never win.' }, { ifMatch: leadEtag }), 412, 'version_conflict');
+      const archived = await run('leads.archive', { path: { id }, body: { reason: 'other', detail: 'Completed disposable SDK CRM smoke.' }, ifMatch: updatedLeadEtag });
+      assert.equal(archived.lead.status, 'archived');
+    }
     // Well-formed, with this key's lookup id and another secret: the API must find the key and refuse the secret. Never printed or recorded.
     const badKeyClient = new TotemClient({ ...common, apiKey: wrongSecretKey(apiKey) });
     await negative('invalid credentials', () => badKeyClient.me.get(), 401, 'invalid_credentials');
@@ -162,7 +208,7 @@ async function main() {
     if (fixtures.foreignTeamId) await negative('foreign team isolation', () => client.request('leads.list', { team: fixtures.foreignTeamId, query: { limit: 1 } }), 404, 'team_not_accessible');
     else skippedChecks.push('foreign_team_isolation');
     current = { check: 'endpoint coverage', requestId: null };
-    assert.equal(covered.size, Object.keys(operationDefinitions).length, 'Incomplete endpoint coverage');
+    assert.deepEqual([...covered].sort(), [...expectedOperations].sort(), 'Incomplete selected-profile endpoint coverage');
   } catch (error) {
     const requestId = error instanceof TotemApiError ? safeRequestId(error.requestId) : current?.requestId ?? null;
     const apiCode = error instanceof TotemApiError && Object.hasOwn(schema['x-totem-errors'] ?? {}, error.code) ? error.code : null;
@@ -183,9 +229,9 @@ async function main() {
     failed = { code: 'checks_skipped', status: null, apiCode: null, requestId: null, operation: null, check: null, schemaCode: null, schemaPath: null, missingFixture: null };
     console.error(`FAIL checks_skipped ${skippedChecks.join(' ')} (add the foreign fixtures, or set TOTEM_SMOKE_ALLOW_PARTIAL=1 to accept a partial run)`);
   }
-  const receipt = { ...base, endedAt: new Date().toISOString(), serverRelease, coveredOperations: [...covered], checks, skippedChecks, allowPartial, syncPages, feedVariants: [...feedVariants].sort(), passed: failed === null, failure: failed };
+  const receipt = { ...base, profile, excludedOperations, endedAt: new Date().toISOString(), serverRelease, coveredOperations: [...covered], checks, skippedChecks, allowPartial, syncPages, feedVariants: [...feedVariants].sort(), passed: failed === null, failure: failed };
   await writeReceipt(receipt);
-  console.log(`${covered.size}/${Object.keys(operationDefinitions).length} operations verified${skippedChecks.length ? `; skipped ${skippedChecks.join(', ')}` : ''}`);
+  console.log(`${covered.size}/${expectedOperations.length} ${profile}-profile operations verified; ${excludedOperations.length} operations outside profile${skippedChecks.length ? `; skipped ${skippedChecks.join(', ')}` : ''}`);
   if (failed) process.exitCode = 1;
 }
 await main().catch(() => { console.error('FAIL smoke_failed'); process.exitCode = 1; });

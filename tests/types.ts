@@ -34,6 +34,30 @@ const dateObjectBirthday: Lead['date_of_birth'] = new Date('2000-02-29')
 void version; void birthday; void birthdayInFeed; void birthdayInDetail; void knownBirthday; void noBirthday
 void omittedBirthday; void timestampBirthday; void dateObjectBirthday
 client.leads.search({ email: 'sdk@example.invalid' })
+client.leads.upsert({ origin: 'import', email: 'ada@example.com', external_id: 'crm-123' }, { idempotencyKey: 'request-123' })
+client.leads.update('lead_ABC', { do_not_contact: true }, { ifMatch: '"lead_ABC:7"' })
+client.leads.archive('lead_ABC', { reason: 'not_interested' }, { ifMatch: '"lead_ABC:7"' })
+client.leads.addNote('lead_ABC', { body: 'Asked for a proposal.' })
+client.leads.notes('lead_ABC', { cursor: null, limit: 25 })
+client.items('leads.notes', { path: { id: 'lead_ABC' } })
+client.leads.updateNote('lead_ABC', 'note_DEF', { body: 'Updated.' }, { ifMatch: '"note_DEF:3"' })
+const deletion: Promise<void> = client.leads.deleteNote('lead_ABC', 'note_DEF', { ifMatch: '"note_DEF:3"' })
+void deletion
+// @ts-expect-error origin is mandatory for every upsert
+client.leads.upsert({ email: 'ada@example.com' })
+// @ts-expect-error opt-outs cannot be cleared by the public API
+client.leads.update('lead_ABC', { do_not_contact: false }, { ifMatch: '"lead_ABC:7"' })
+// @ts-expect-error a conditional CRM update requires If-Match
+client.leads.update('lead_ABC', { name: 'Ada' })
+// @ts-expect-error deletion also requires its note precondition
+client.leads.deleteNote('lead_ABC', 'note_DEF', {})
+// @ts-expect-error read operations never offer write-only headers
+client.leads.get('lead_ABC', { idempotencyKey: 'request-1' })
+// @ts-expect-error unknown CRM/system fields are refused
+client.leads.update('lead_ABC', { automationEnabled: true }, { ifMatch: '"lead_ABC:7"' })
+// @ts-expect-error a write receipt never includes note content
+const receiptContent: string = ({} as ResponseOf<'leads.addNote'>).note.body
+void receiptContent
 client.request('leads.get', { path: { id: 'lead_ABC' } })
 client.request('leads.list', { query: { limit: 1, status: 'new' } })
 client.notifications.list({ limit: 100, cursor: null }, { team: 'team_A' })
@@ -57,7 +81,7 @@ client.notifications.create({ summary: 'Call the lead' })
 client.request('leads.get')
 // @ts-expect-error search bodies are required
 client.request('leads.search')
-// @ts-expect-error no writes are exposed
+// @ts-expect-error lead erasure is not exposed
 client.request('leads.delete', { path: { id: 'lead_ABC' } })
 // @ts-expect-error unknown query keys are refused
 client.leads.list({ updated_since: '2026-10-17' })

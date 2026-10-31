@@ -2,9 +2,9 @@
   "openapi": "3.1.0",
   "info": {
     "title": "Totem API",
-    "version": "1.0a",
-    "summary": "Read-only export of a Totem Studio team: leads, calls, conversations, bookings, business notification summaries and a changes feed.",
-    "x-summary-es": "Exportación de solo lectura de un equipo de Totem Studio: leads, llamadas, conversaciones, citas, resúmenes de avisos de negocio y un feed de cambios.",
+    "version": "1.0b",
+    "summary": "Totem Studio CRM reads and guarded writes, explicit note-content access, calls, conversations, bookings, business notifications and a changes feed.",
+    "x-summary-es": "Lecturas y escrituras protegidas de CRM de Totem Studio, acceso explícito al contenido de notas, llamadas, conversaciones, citas, avisos de negocio y un feed de cambios.",
     "x-totem-stability": "beta",
     "x-totem-pending-components": []
   },
@@ -125,6 +125,7 @@
         ],
         "x-totem-scopes": [],
         "x-totem-rate-class": "read",
+        "x-totem-effect": "read",
         "x-totem-tenant-binding": "principal",
         "x-totem-stability": "beta"
       }
@@ -221,6 +222,7 @@
           "teams:read"
         ],
         "x-totem-rate-class": "sync",
+        "x-totem-effect": "read",
         "x-totem-tenant-binding": "principal",
         "x-totem-stability": "beta"
       }
@@ -298,6 +300,7 @@
           "teams:read"
         ],
         "x-totem-rate-class": "read",
+        "x-totem-effect": "read",
         "x-totem-tenant-binding": "resource_id",
         "x-totem-stability": "beta"
       }
@@ -438,6 +441,7 @@
           "crm:read"
         ],
         "x-totem-rate-class": "sync",
+        "x-totem-effect": "read",
         "x-totem-tenant-binding": "team_header",
         "x-totem-stability": "beta"
       }
@@ -543,6 +547,7 @@
           "teams:read"
         ],
         "x-totem-rate-class": "sync",
+        "x-totem-effect": "read",
         "x-totem-tenant-binding": "team_header",
         "x-totem-stability": "beta"
       }
@@ -649,6 +654,7 @@
           "calendar:read"
         ],
         "x-totem-rate-class": "sync",
+        "x-totem-effect": "read",
         "x-totem-tenant-binding": "team_header",
         "x-totem-stability": "beta"
       }
@@ -763,6 +769,7 @@
                       "date_of_birth": "1990-04-23",
                       "email": "alex.rivera@example.com",
                       "company": "Example Dental",
+                      "website": null,
                       "phone": "+12025550123",
                       "phone_status": "valid",
                       "status": "contacted",
@@ -840,6 +847,417 @@
           "crm:read"
         ],
         "x-totem-rate-class": "sync",
+        "x-totem-effect": "read",
+        "x-totem-tenant-binding": "team_header",
+        "x-totem-stability": "beta"
+      },
+      "post": {
+        "operationId": "leads.upsert",
+        "tags": [
+          "leads"
+        ],
+        "summary": "Upsert a lead by identity",
+        "x-summary-es": "Crea o resuelve un lead por identidad",
+        "description": "Creates a lead with all supplied CRM fields (201), or fills only missing contact details on an existing identity (200); changing an existing pipeline value requires conditional PATCH and otherwise returns `400 invalid_request`. Import never revives or arms outreach; inbound requires its separate capability and a phone supplied by the person, with destination, consent and durable outreach guards. A validate_only dry run returns 200 without writes, conflicting identities return `409 ambiguous_identity`, and external ids never cross integration namespaces.",
+        "x-description-es": "Crea un lead con todos los campos CRM enviados (201), o completa solo datos de contacto ausentes de una identidad existente (200); cambiar un valor existente del embudo requiere PATCH condicional y, en otro caso, devuelve `400 invalid_request`. Import nunca reactiva ni activa contactos; inbound requiere su capacidad independiente y un teléfono facilitado por la persona, con protecciones de destino, consentimiento y límites duraderos. La validación validate_only devuelve 200 sin escrituras, las identidades en conflicto devuelven `409 ambiguous_identity` y los identificadores externos nunca cruzan espacios de integración.",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/TotemTeam"
+          },
+          {
+            "name": "Idempotency-Key",
+            "in": "header",
+            "required": true,
+            "description": "One unique visible-ASCII key per logical write; reuse exactly on retries and never retry outcome_unknown automatically.",
+            "x-description-es": "Una clave ASCII visible única por escritura lógica; reutilízala exactamente al reintentar y nunca reintentes outcome_unknown automáticamente.",
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 255,
+              "pattern": "^[\\x21-\\x7e]+$"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "origin": {
+                    "type": "string",
+                    "enum": [
+                      "import",
+                      "inbound"
+                    ],
+                    "description": "Required contact contract: import never arms outreach; inbound requires an explicitly enabled principal and a phone supplied by the person.",
+                    "x-description-es": "Contrato de contacto obligatorio: import nunca activa contactos; inbound requiere un principal habilitado expresamente y un teléfono facilitado por la persona."
+                  },
+                  "phone": {
+                    "description": "Phone supplied by the person in E.164 format.",
+                    "x-description-es": "Teléfono facilitado por la persona en formato E.164.",
+                    "type": "string",
+                    "pattern": "^\\+[1-9][0-9]{6,14}$"
+                  },
+                  "email": {
+                    "description": "Contact email address.",
+                    "x-description-es": "Correo electrónico del contacto.",
+                    "type": "string",
+                    "maxLength": 254,
+                    "format": "email",
+                    "pattern": "^(?:[A-Za-z0-9_'+\\-]+\\.)*[A-Za-z0-9_'+\\-]*[A-Za-z0-9_+-]@(?:[A-Za-z0-9][A-Za-z0-9\\-]*\\.)+[A-Za-z]{2,}$"
+                  },
+                  "name": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 200,
+                    "description": "First name or display name.",
+                    "x-description-es": "Nombre o nombre visible."
+                  },
+                  "surname": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 200,
+                    "description": "Surname.",
+                    "x-description-es": "Apellidos."
+                  },
+                  "company": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 300,
+                    "description": "Company name.",
+                    "x-description-es": "Nombre de empresa."
+                  },
+                  "website": {
+                    "description": "Contact website; it is stored without fetching it.",
+                    "x-description-es": "Web del contacto; se guarda sin realizar ninguna descarga.",
+                    "type": "string",
+                    "maxLength": 2048,
+                    "format": "uri"
+                  },
+                  "board": {
+                    "type": "string",
+                    "pattern": "^brd_[0-9A-Za-z]+$",
+                    "description": "Destination board belonging to the selected team.",
+                    "x-description-es": "Tablero de destino del equipo seleccionado."
+                  },
+                  "stage": {
+                    "type": "string",
+                    "pattern": "^stg_[0-9A-Za-z]+$",
+                    "description": "Destination stage belonging to the selected board and team; a move never bypasses outreach guards.",
+                    "x-description-es": "Etapa de destino del tablero y equipo seleccionados; un movimiento nunca elude las protecciones de contacto."
+                  },
+                  "tags": {
+                    "description": "Business tags, replacing the editable set; system tags cannot be set or removed.",
+                    "x-description-es": "Etiquetas de negocio que sustituyen el conjunto editable; las etiquetas de sistema no se pueden fijar ni eliminar.",
+                    "maxItems": 50,
+                    "type": "array",
+                    "items": {
+                      "type": "string",
+                      "minLength": 1,
+                      "maxLength": 100
+                    }
+                  },
+                  "priority": {
+                    "description": "Lead priority.",
+                    "x-description-es": "Prioridad del lead.",
+                    "type": "string",
+                    "enum": [
+                      "low",
+                      "medium",
+                      "high",
+                      "urgent"
+                    ]
+                  },
+                  "estimated_value": {
+                    "description": "Estimated value in major units, without an implied currency.",
+                    "x-description-es": "Valor estimado en unidades principales, sin una moneda implícita.",
+                    "type": "number",
+                    "minimum": 0,
+                    "maximum": 1000000000000
+                  },
+                  "assignees": {
+                    "description": "Assigned team members, replacing the previous editable set.",
+                    "x-description-es": "Miembros asignados del equipo, que sustituyen el conjunto editable anterior.",
+                    "maxItems": 100,
+                    "type": "array",
+                    "items": {
+                      "type": "string",
+                      "pattern": "^mem_[0-9A-Za-z]+$",
+                      "description": "A member of the selected team.",
+                      "x-description-es": "Un miembro del equipo seleccionado."
+                    }
+                  },
+                  "external_id": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 200,
+                    "description": "Your integration’s external id, scoped to this principal and team; never another integration’s namespace.",
+                    "x-description-es": "Identificador externo de tu integración, limitado a este principal y equipo; nunca el espacio de otra integración."
+                  },
+                  "validate_only": {
+                    "description": "Validate without creating, updating or contacting anyone; the response is a lead_validation object.",
+                    "x-description-es": "Valida sin crear, actualizar ni contactar con nadie; la respuesta es un objeto lead_validation.",
+                    "type": "boolean"
+                  },
+                  "consent": {
+                    "description": "Explicit consent evidence; omitted consent is never treated as granted and import does not record it.",
+                    "x-description-es": "Evidencia explícita de consentimiento; su ausencia nunca se interpreta como aceptación e import no la registra.",
+                    "type": "object",
+                    "properties": {
+                      "whatsapp": {
+                        "type": "object",
+                        "properties": {
+                          "granted": {
+                            "type": "boolean",
+                            "description": "The person’s explicit WhatsApp choice; inbound origin alone never grants consent.",
+                            "x-description-es": "Elección explícita de WhatsApp de la persona; el origen inbound por sí solo nunca otorga consentimiento."
+                          },
+                          "captured_at": {
+                            "type": "string",
+                            "format": "date-time",
+                            "description": "When the person made this choice.",
+                            "x-description-es": "Cuándo hizo la persona esta elección."
+                          },
+                          "method": {
+                            "type": "string",
+                            "minLength": 1,
+                            "maxLength": 100,
+                            "description": "How this explicit consent was collected.",
+                            "x-description-es": "Cómo se recogió este consentimiento explícito."
+                          },
+                          "notice_ref": {
+                            "type": "string",
+                            "minLength": 1,
+                            "maxLength": 500,
+                            "description": "Reference to the notice shown when collecting this choice.",
+                            "x-description-es": "Referencia al aviso mostrado al recoger esta elección."
+                          }
+                        },
+                        "required": [
+                          "granted",
+                          "captured_at",
+                          "method",
+                          "notice_ref"
+                        ],
+                        "additionalProperties": false,
+                        "description": "Auditable WhatsApp consent evidence, attributed to the integration.",
+                        "x-description-es": "Evidencia auditable del consentimiento de WhatsApp, atribuida a la integración."
+                      }
+                    },
+                    "additionalProperties": false
+                  }
+                },
+                "required": [
+                  "origin"
+                ],
+                "additionalProperties": false,
+                "description": "Strict CRM intake body. An external id alone must already resolve in this integration’s namespace; conflicting phone/email identities are never silently merged.",
+                "x-description-es": "Cuerpo estricto de entrada CRM. Un identificador externo aislado debe existir ya en el espacio de esta integración; las identidades de teléfono y correo en conflicto nunca se fusionan en silencio."
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Upsert a lead by identity",
+            "x-description-es": "Crea o resuelve un lead por identidad",
+            "headers": {
+              "Totem-Request-Id": {
+                "$ref": "#/components/headers/TotemRequestId"
+              },
+              "ETag": {
+                "$ref": "#/components/headers/LeadEtag"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LeadUpsertResult"
+                },
+                "example": {
+                  "object": "lead_mutation",
+                  "created": true,
+                  "lead": {
+                    "id": "lead_r72EfbRNUzuqORFJR0O8HxAwEXd93jGUTYMaMMXKSF0QbLS8CiUKJpEP34LFQG",
+                    "object": "lead",
+                    "livemode": false,
+                    "team": "team_r9uYrIW4gSFJJ6hZQ9ip1UIpPaAD1CF7NR",
+                    "record_kind": "lead",
+                    "name": "Alex",
+                    "surname": "Rivera",
+                    "date_of_birth": "1990-04-23",
+                    "email": "alex.rivera@example.com",
+                    "company": "Example Dental",
+                    "website": null,
+                    "phone": "+12025550123",
+                    "phone_status": "valid",
+                    "status": "contacted",
+                    "status_set_by": "ai",
+                    "archive_reason": null,
+                    "archived_from_status": null,
+                    "contact_permissions": {
+                      "do_not_contact": false,
+                      "email_opt_out": false,
+                      "email_opt_out_at": null,
+                      "whatsapp_consent": null,
+                      "provenance": {
+                        "do_not_contact": null,
+                        "email_opt_out": null,
+                        "whatsapp_consent": null
+                      }
+                    },
+                    "merged_into": null,
+                    "transferred_to": null,
+                    "revived_at": null,
+                    "pipeline_cleared": false,
+                    "converted_at": null,
+                    "value_at_conversion": null,
+                    "priority": "high",
+                    "tags": [
+                      "spring-check-up"
+                    ],
+                    "board": "brd_r72EfbRNUzuqORFJR0O8HxAwEXd93jGUTYMaMMX3trzsVUZQuHcMSuDh1aRIst",
+                    "stage": "stg_r72EfbRNUzuqORFJR0O8HxAwEXd93jGUTYMaMMXWBYWcKwVTY3CRZlVS3oYvs0",
+                    "assignees": [
+                      "mem_h548E7UiYhutHhucVrQCzkM0eaea0"
+                    ],
+                    "estimated_value": 1200,
+                    "estimated_value_currency": null,
+                    "source": "meta_lead_ads",
+                    "source_channel": null,
+                    "source_detail": null,
+                    "source_provenance": "member_editable",
+                    "created_at": "2026-09-28T10:15:00.000Z",
+                    "version": 3,
+                    "updated_at": "2026-09-28T10:20:01.250Z"
+                  },
+                  "outreach": {
+                    "status": "not_armed",
+                    "reason": null
+                  }
+                }
+              }
+            }
+          },
+          "201": {
+            "description": "Upsert a lead by identity",
+            "x-description-es": "Crea o resuelve un lead por identidad",
+            "headers": {
+              "Totem-Request-Id": {
+                "$ref": "#/components/headers/TotemRequestId"
+              },
+              "ETag": {
+                "$ref": "#/components/headers/LeadEtag"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LeadUpsertResult"
+                },
+                "example": {
+                  "object": "lead_mutation",
+                  "created": true,
+                  "lead": {
+                    "id": "lead_r72EfbRNUzuqORFJR0O8HxAwEXd93jGUTYMaMMXKSF0QbLS8CiUKJpEP34LFQG",
+                    "object": "lead",
+                    "livemode": false,
+                    "team": "team_r9uYrIW4gSFJJ6hZQ9ip1UIpPaAD1CF7NR",
+                    "record_kind": "lead",
+                    "name": "Alex",
+                    "surname": "Rivera",
+                    "date_of_birth": "1990-04-23",
+                    "email": "alex.rivera@example.com",
+                    "company": "Example Dental",
+                    "website": null,
+                    "phone": "+12025550123",
+                    "phone_status": "valid",
+                    "status": "contacted",
+                    "status_set_by": "ai",
+                    "archive_reason": null,
+                    "archived_from_status": null,
+                    "contact_permissions": {
+                      "do_not_contact": false,
+                      "email_opt_out": false,
+                      "email_opt_out_at": null,
+                      "whatsapp_consent": null,
+                      "provenance": {
+                        "do_not_contact": null,
+                        "email_opt_out": null,
+                        "whatsapp_consent": null
+                      }
+                    },
+                    "merged_into": null,
+                    "transferred_to": null,
+                    "revived_at": null,
+                    "pipeline_cleared": false,
+                    "converted_at": null,
+                    "value_at_conversion": null,
+                    "priority": "high",
+                    "tags": [
+                      "spring-check-up"
+                    ],
+                    "board": "brd_r72EfbRNUzuqORFJR0O8HxAwEXd93jGUTYMaMMX3trzsVUZQuHcMSuDh1aRIst",
+                    "stage": "stg_r72EfbRNUzuqORFJR0O8HxAwEXd93jGUTYMaMMXWBYWcKwVTY3CRZlVS3oYvs0",
+                    "assignees": [
+                      "mem_h548E7UiYhutHhucVrQCzkM0eaea0"
+                    ],
+                    "estimated_value": 1200,
+                    "estimated_value_currency": null,
+                    "source": "meta_lead_ads",
+                    "source_channel": null,
+                    "source_detail": null,
+                    "source_provenance": "member_editable",
+                    "created_at": "2026-09-28T10:15:00.000Z",
+                    "version": 3,
+                    "updated_at": "2026-09-28T10:20:01.250Z"
+                  },
+                  "outreach": {
+                    "status": "not_armed",
+                    "reason": null
+                  }
+                }
+              }
+            }
+          },
+          "default": {
+            "$ref": "#/components/responses/Problem"
+          }
+        },
+        "x-totem-errors": [
+          "invalid_request",
+          "secret_key_in_browser",
+          "invalid_credentials",
+          "key_expired",
+          "insufficient_scope",
+          "plan_not_entitled",
+          "ip_not_allowed",
+          "capability_disabled",
+          "rate_limited",
+          "internal_error",
+          "api_disabled",
+          "service_unavailable",
+          "team_required",
+          "team_not_accessible",
+          "team_state_restricted",
+          "sector_restricted",
+          "capture_not_ready",
+          "idempotency_key_required",
+          "idempotency_key_reused",
+          "idempotency_in_progress",
+          "outcome_unknown",
+          "quota_exceeded",
+          "ambiguous_identity",
+          "inbound_not_enabled",
+          "consent_required"
+        ],
+        "x-totem-scopes": [
+          "crm:write"
+        ],
+        "x-totem-rate-class": "write",
+        "x-totem-effect": "write",
         "x-totem-tenant-binding": "team_header",
         "x-totem-stability": "beta"
       }
@@ -874,6 +1292,9 @@
             "headers": {
               "Totem-Request-Id": {
                 "$ref": "#/components/headers/TotemRequestId"
+              },
+              "ETag": {
+                "$ref": "#/components/headers/LeadEtag"
               }
             },
             "content": {
@@ -892,6 +1313,7 @@
                   "date_of_birth": "1990-04-23",
                   "email": "alex.rivera@example.com",
                   "company": "Example Dental",
+                  "website": null,
                   "phone": "+12025550123",
                   "phone_status": "valid",
                   "status": "contacted",
@@ -1085,6 +1507,317 @@
           "crm:read"
         ],
         "x-totem-rate-class": "read",
+        "x-totem-effect": "read",
+        "x-totem-tenant-binding": "resource_id",
+        "x-totem-stability": "beta"
+      },
+      "patch": {
+        "operationId": "leads.update",
+        "tags": [
+          "leads"
+        ],
+        "summary": "Update editable CRM fields",
+        "x-summary-es": "Actualiza los campos editables del CRM",
+        "description": "Updates only the declared CRM fields using the strong ETag from the current lead in If-Match; a stale version returns `412 version_conflict`. Omitted fields remain unchanged, opt-outs can only be added, contact changes never arm outreach and an empty diff writes nothing. System, assistant, automation and billing fields are refused.",
+        "x-description-es": "Actualiza solo los campos CRM declarados usando en If-Match el ETag fuerte del lead actual; una versión obsoleta devuelve `412 version_conflict`. Los campos omitidos no cambian, las bajas solo se pueden añadir, los cambios de contacto nunca activan contactos y un cambio vacío no escribe nada. Los campos de sistema, asistentes, automatización y facturación se rechazan.",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "description": "The lead's public id.",
+            "x-description-es": "El identificador público del lead.",
+            "schema": {
+              "type": "string",
+              "pattern": "^lead_[0-9A-Za-z]+$"
+            }
+          },
+          {
+            "name": "Idempotency-Key",
+            "in": "header",
+            "required": false,
+            "description": "One unique visible-ASCII key per logical write; reuse exactly on retries and never retry outcome_unknown automatically.",
+            "x-description-es": "Una clave ASCII visible única por escritura lógica; reutilízala exactamente al reintentar y nunca reintentes outcome_unknown automáticamente.",
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 255,
+              "pattern": "^[\\x21-\\x7e]+$"
+            }
+          },
+          {
+            "name": "If-Match",
+            "in": "header",
+            "required": true,
+            "description": "The current strong resource ETag, including its quotes; weak tags, wildcards, lists and another resource’s validator are refused.",
+            "x-description-es": "El ETag fuerte actual del recurso, con sus comillas; se rechazan etiquetas débiles, comodines, listas y validadores de otro recurso.",
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 300,
+              "pattern": "^\"lead_[A-Za-z0-9]+:[1-9][0-9]{0,15}\"$"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "phone": {
+                    "description": "Phone supplied by the person in E.164 format.",
+                    "x-description-es": "Teléfono facilitado por la persona en formato E.164.",
+                    "type": "string",
+                    "pattern": "^\\+[1-9][0-9]{6,14}$"
+                  },
+                  "email": {
+                    "description": "Contact email address.",
+                    "x-description-es": "Correo electrónico del contacto.",
+                    "type": "string",
+                    "maxLength": 254,
+                    "format": "email",
+                    "pattern": "^(?:[A-Za-z0-9_'+\\-]+\\.)*[A-Za-z0-9_'+\\-]*[A-Za-z0-9_+-]@(?:[A-Za-z0-9][A-Za-z0-9\\-]*\\.)+[A-Za-z]{2,}$"
+                  },
+                  "name": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 200,
+                    "description": "First name or display name.",
+                    "x-description-es": "Nombre o nombre visible."
+                  },
+                  "surname": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 200,
+                    "description": "Surname.",
+                    "x-description-es": "Apellidos."
+                  },
+                  "company": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 300,
+                    "description": "Company name.",
+                    "x-description-es": "Nombre de empresa."
+                  },
+                  "website": {
+                    "description": "Contact website; it is stored without fetching it.",
+                    "x-description-es": "Web del contacto; se guarda sin realizar ninguna descarga.",
+                    "type": "string",
+                    "maxLength": 2048,
+                    "format": "uri"
+                  },
+                  "board": {
+                    "type": "string",
+                    "pattern": "^brd_[0-9A-Za-z]+$",
+                    "description": "Destination board belonging to the selected team.",
+                    "x-description-es": "Tablero de destino del equipo seleccionado."
+                  },
+                  "stage": {
+                    "type": "string",
+                    "pattern": "^stg_[0-9A-Za-z]+$",
+                    "description": "Destination stage belonging to the selected board and team; a move never bypasses outreach guards.",
+                    "x-description-es": "Etapa de destino del tablero y equipo seleccionados; un movimiento nunca elude las protecciones de contacto."
+                  },
+                  "tags": {
+                    "description": "Business tags, replacing the editable set; system tags cannot be set or removed.",
+                    "x-description-es": "Etiquetas de negocio que sustituyen el conjunto editable; las etiquetas de sistema no se pueden fijar ni eliminar.",
+                    "maxItems": 50,
+                    "type": "array",
+                    "items": {
+                      "type": "string",
+                      "minLength": 1,
+                      "maxLength": 100
+                    }
+                  },
+                  "priority": {
+                    "description": "Lead priority.",
+                    "x-description-es": "Prioridad del lead.",
+                    "type": "string",
+                    "enum": [
+                      "low",
+                      "medium",
+                      "high",
+                      "urgent"
+                    ]
+                  },
+                  "estimated_value": {
+                    "description": "Estimated value in major units, without an implied currency.",
+                    "x-description-es": "Valor estimado en unidades principales, sin una moneda implícita.",
+                    "type": "number",
+                    "minimum": 0,
+                    "maximum": 1000000000000
+                  },
+                  "assignees": {
+                    "description": "Assigned team members, replacing the previous editable set.",
+                    "x-description-es": "Miembros asignados del equipo, que sustituyen el conjunto editable anterior.",
+                    "maxItems": 100,
+                    "type": "array",
+                    "items": {
+                      "type": "string",
+                      "pattern": "^mem_[0-9A-Za-z]+$",
+                      "description": "A member of the selected team.",
+                      "x-description-es": "Un miembro del equipo seleccionado."
+                    }
+                  },
+                  "date_of_birth": {
+                    "description": "Civil birth date, or null to clear it.",
+                    "x-description-es": "Fecha civil de nacimiento, o null para borrarla.",
+                    "anyOf": [
+                      {
+                        "type": "string",
+                        "format": "date",
+                        "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))$"
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ]
+                  },
+                  "external_id": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 200,
+                    "description": "Your integration’s external id, scoped to this principal and team; never another integration’s namespace.",
+                    "x-description-es": "Identificador externo de tu integración, limitado a este principal y equipo; nunca el espacio de otra integración."
+                  },
+                  "do_not_contact": {
+                    "description": "Record an opt-out on every channel; the API cannot clear one.",
+                    "x-description-es": "Registra la baja de todos los canales; la API no puede retirarla.",
+                    "type": "boolean",
+                    "const": true
+                  },
+                  "email_opt_out": {
+                    "description": "Record an email opt-out; the API cannot clear one.",
+                    "x-description-es": "Registra la baja del correo electrónico; la API no puede retirarla.",
+                    "type": "boolean",
+                    "const": true
+                  }
+                },
+                "additionalProperties": false,
+                "description": "Allowlisted CRM patch. Omitted fields are unchanged; contact changes remain inert and never arm outreach.",
+                "x-description-es": "Cambio CRM con campos permitidos. Los campos omitidos no cambian; los cambios de contacto permanecen inertes y nunca activan contactos."
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Update editable CRM fields",
+            "x-description-es": "Actualiza los campos editables del CRM",
+            "headers": {
+              "Totem-Request-Id": {
+                "$ref": "#/components/headers/TotemRequestId"
+              },
+              "ETag": {
+                "$ref": "#/components/headers/LeadEtag"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LeadMutation"
+                },
+                "example": {
+                  "object": "lead_mutation",
+                  "created": true,
+                  "lead": {
+                    "id": "lead_r72EfbRNUzuqORFJR0O8HxAwEXd93jGUTYMaMMXKSF0QbLS8CiUKJpEP34LFQG",
+                    "object": "lead",
+                    "livemode": false,
+                    "team": "team_r9uYrIW4gSFJJ6hZQ9ip1UIpPaAD1CF7NR",
+                    "record_kind": "lead",
+                    "name": "Alex",
+                    "surname": "Rivera",
+                    "date_of_birth": "1990-04-23",
+                    "email": "alex.rivera@example.com",
+                    "company": "Example Dental",
+                    "website": null,
+                    "phone": "+12025550123",
+                    "phone_status": "valid",
+                    "status": "contacted",
+                    "status_set_by": "ai",
+                    "archive_reason": null,
+                    "archived_from_status": null,
+                    "contact_permissions": {
+                      "do_not_contact": false,
+                      "email_opt_out": false,
+                      "email_opt_out_at": null,
+                      "whatsapp_consent": null,
+                      "provenance": {
+                        "do_not_contact": null,
+                        "email_opt_out": null,
+                        "whatsapp_consent": null
+                      }
+                    },
+                    "merged_into": null,
+                    "transferred_to": null,
+                    "revived_at": null,
+                    "pipeline_cleared": false,
+                    "converted_at": null,
+                    "value_at_conversion": null,
+                    "priority": "high",
+                    "tags": [
+                      "spring-check-up"
+                    ],
+                    "board": "brd_r72EfbRNUzuqORFJR0O8HxAwEXd93jGUTYMaMMX3trzsVUZQuHcMSuDh1aRIst",
+                    "stage": "stg_r72EfbRNUzuqORFJR0O8HxAwEXd93jGUTYMaMMXWBYWcKwVTY3CRZlVS3oYvs0",
+                    "assignees": [
+                      "mem_h548E7UiYhutHhucVrQCzkM0eaea0"
+                    ],
+                    "estimated_value": 1200,
+                    "estimated_value_currency": null,
+                    "source": "meta_lead_ads",
+                    "source_channel": null,
+                    "source_detail": null,
+                    "source_provenance": "member_editable",
+                    "created_at": "2026-09-28T10:15:00.000Z",
+                    "version": 3,
+                    "updated_at": "2026-09-28T10:20:01.250Z"
+                  },
+                  "outreach": {
+                    "status": "not_armed",
+                    "reason": null
+                  }
+                }
+              }
+            }
+          },
+          "default": {
+            "$ref": "#/components/responses/Problem"
+          }
+        },
+        "x-totem-errors": [
+          "invalid_request",
+          "secret_key_in_browser",
+          "invalid_credentials",
+          "key_expired",
+          "insufficient_scope",
+          "plan_not_entitled",
+          "ip_not_allowed",
+          "capability_disabled",
+          "rate_limited",
+          "internal_error",
+          "api_disabled",
+          "service_unavailable",
+          "resource_missing",
+          "team_state_restricted",
+          "sector_restricted",
+          "capture_not_ready",
+          "idempotency_key_required",
+          "idempotency_key_reused",
+          "idempotency_in_progress",
+          "outcome_unknown",
+          "quota_exceeded",
+          "version_conflict",
+          "ambiguous_identity"
+        ],
+        "x-totem-scopes": [
+          "crm:write"
+        ],
+        "x-totem-rate-class": "write",
+        "x-totem-effect": "write",
         "x-totem-tenant-binding": "resource_id",
         "x-totem-stability": "beta"
       }
@@ -1207,6 +1940,7 @@
                       "date_of_birth": "1990-04-23",
                       "email": "alex.rivera@example.com",
                       "company": "Example Dental",
+                      "website": null,
                       "phone": "+12025550123",
                       "phone_status": "valid",
                       "status": "contacted",
@@ -1283,6 +2017,7 @@
           "crm:read"
         ],
         "x-totem-rate-class": "read",
+        "x-totem-effect": "read",
         "x-totem-tenant-binding": "team_header",
         "x-totem-stability": "beta"
       }
@@ -1412,6 +2147,736 @@
           "crm:read"
         ],
         "x-totem-rate-class": "sync",
+        "x-totem-effect": "read",
+        "x-totem-tenant-binding": "resource_id",
+        "x-totem-stability": "beta"
+      }
+    },
+    "/leads/{id}/notes": {
+      "post": {
+        "operationId": "leads.addNote",
+        "tags": [
+          "leads"
+        ],
+        "summary": "Add a lead note",
+        "x-summary-es": "Añade una nota a un lead",
+        "description": "Appends one integration-authored plain-text note and returns only its metadata, never note content. An external id is scoped to this integration and lead, and Idempotency-Key safely replays the same logical request. Reading any note body requires the separate explicit note-content grant.",
+        "x-description-es": "Añade una nota de texto plano de la integración y devuelve solo sus metadatos, nunca contenido de notas. El identificador externo se limita a esta integración y lead, e Idempotency-Key permite repetir la misma petición lógica con seguridad. Leer el cuerpo de cualquier nota requiere la autorización explícita e independiente de contenido de notas.",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "description": "The lead's public id.",
+            "x-description-es": "El identificador público del lead.",
+            "schema": {
+              "type": "string",
+              "pattern": "^lead_[0-9A-Za-z]+$"
+            }
+          },
+          {
+            "name": "Idempotency-Key",
+            "in": "header",
+            "required": false,
+            "description": "One unique visible-ASCII key per logical write; reuse exactly on retries and never retry outcome_unknown automatically.",
+            "x-description-es": "Una clave ASCII visible única por escritura lógica; reutilízala exactamente al reintentar y nunca reintentes outcome_unknown automáticamente.",
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 255,
+              "pattern": "^[\\x21-\\x7e]+$"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "body": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 20000,
+                    "description": "Plain-text note body; stored with the integration as its author.",
+                    "x-description-es": "Texto plano de la nota; se guarda con la integración como autora."
+                  },
+                  "external_id": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 200,
+                    "description": "Your integration’s external id, scoped to this principal and team; never another integration’s namespace.",
+                    "x-description-es": "Identificador externo de tu integración, limitado a este principal y equipo; nunca el espacio de otra integración."
+                  }
+                },
+                "required": [
+                  "body"
+                ],
+                "additionalProperties": false,
+                "description": "Append one integration-authored note. An external id deduplicates within this integration and lead.",
+                "x-description-es": "Añade una nota de la integración. El identificador externo evita duplicados dentro de esta integración y lead."
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Add a lead note",
+            "x-description-es": "Añade una nota a un lead",
+            "headers": {
+              "Totem-Request-Id": {
+                "$ref": "#/components/headers/TotemRequestId"
+              },
+              "ETag": {
+                "$ref": "#/components/headers/NoteEtag"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LeadNoteReceipt"
+                },
+                "example": {
+                  "object": "lead_note_receipt",
+                  "note": {
+                    "id": "note_m3S3yY53i0GJwNn0UPsl4jp3BubIW",
+                    "object": "lead_note",
+                    "livemode": false,
+                    "lead": "lead_r72EfbRNUzuqORFJR0O8HxAwEXd93jGUTYMaMMXKSF0QbLS8CiUKJpEP34LFQG",
+                    "created_at": "2026-10-01T09:30:00.000Z",
+                    "external_id": "crm-note-123",
+                    "version": 1,
+                    "updated_at": "2026-10-01T09:30:00.000Z"
+                  }
+                }
+              }
+            }
+          },
+          "default": {
+            "$ref": "#/components/responses/Problem"
+          }
+        },
+        "x-totem-errors": [
+          "invalid_request",
+          "secret_key_in_browser",
+          "invalid_credentials",
+          "key_expired",
+          "insufficient_scope",
+          "plan_not_entitled",
+          "ip_not_allowed",
+          "capability_disabled",
+          "rate_limited",
+          "internal_error",
+          "api_disabled",
+          "service_unavailable",
+          "resource_missing",
+          "team_state_restricted",
+          "sector_restricted",
+          "capture_not_ready",
+          "idempotency_key_required",
+          "idempotency_key_reused",
+          "idempotency_in_progress",
+          "outcome_unknown",
+          "quota_exceeded"
+        ],
+        "x-totem-scopes": [
+          "crm:write"
+        ],
+        "x-totem-rate-class": "write",
+        "x-totem-effect": "write",
+        "x-totem-tenant-binding": "resource_id",
+        "x-totem-stability": "beta"
+      },
+      "get": {
+        "operationId": "leads.notes",
+        "tags": [
+          "leads"
+        ],
+        "summary": "List a lead’s note content",
+        "x-summary-es": "Lista el contenido de notas de un lead",
+        "description": "Returns a cursor-paged list of this lead’s notes only when this principal has the separate explicit note-content grant and crm:notes:read scope. Existing read-only keys never gain note content automatically, and sector restrictions still apply. Cursors are bound to this principal, team and lead incarnation.",
+        "x-description-es": "Devuelve una lista paginada por cursor de las notas de este lead solo si el principal tiene la autorización explícita e independiente de contenido de notas y el permiso crm:notes:read. Las claves anteriores de solo lectura nunca obtienen el contenido automáticamente y se mantienen las restricciones sectoriales. Los cursores están ligados a este principal, equipo y encarnación del lead.",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "description": "The lead's public id.",
+            "x-description-es": "El identificador público del lead.",
+            "schema": {
+              "type": "string",
+              "pattern": "^lead_[0-9A-Za-z]+$"
+            }
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "description": "Items per page, 1–100. Defaults to 25.",
+            "x-description-es": "Elementos por página, de 1 a 100. Por defecto, 25.",
+            "schema": {
+              "default": 25,
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 100
+            }
+          },
+          {
+            "name": "cursor",
+            "in": "query",
+            "required": false,
+            "description": "The `next_cursor` of the previous page. Omit it for the first page.",
+            "x-description-es": "El `next_cursor` de la página anterior. Omítelo en la primera página.",
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 512
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "List a lead’s note content",
+            "x-description-es": "Lista el contenido de notas de un lead",
+            "headers": {
+              "Totem-Request-Id": {
+                "$ref": "#/components/headers/TotemRequestId"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LeadNoteList"
+                },
+                "example": {
+                  "object": "list",
+                  "data": [
+                    {
+                      "id": "note_m3S3yY53i0GJwNn0UPsl4jp3BubIW",
+                      "object": "lead_note",
+                      "livemode": false,
+                      "lead": "lead_r72EfbRNUzuqORFJR0O8HxAwEXd93jGUTYMaMMXKSF0QbLS8CiUKJpEP34LFQG",
+                      "body": "Requested an updated proposal for the appointment.",
+                      "created_at": "2026-10-01T09:30:00.000Z",
+                      "external_id": "crm-note-123",
+                      "version": 1,
+                      "updated_at": "2026-10-01T09:30:00.000Z"
+                    }
+                  ],
+                  "has_more": false,
+                  "next_cursor": null
+                }
+              }
+            }
+          },
+          "default": {
+            "$ref": "#/components/responses/Problem"
+          }
+        },
+        "x-totem-errors": [
+          "invalid_request",
+          "secret_key_in_browser",
+          "invalid_credentials",
+          "key_expired",
+          "insufficient_scope",
+          "plan_not_entitled",
+          "ip_not_allowed",
+          "capability_disabled",
+          "rate_limited",
+          "internal_error",
+          "api_disabled",
+          "service_unavailable",
+          "resource_missing",
+          "team_state_restricted",
+          "sector_restricted",
+          "capture_not_ready",
+          "quota_exceeded"
+        ],
+        "x-totem-scopes": [
+          "crm:read",
+          "crm:notes:read"
+        ],
+        "x-totem-rate-class": "sync",
+        "x-totem-effect": "read",
+        "x-totem-tenant-binding": "resource_id",
+        "x-totem-stability": "beta"
+      }
+    },
+    "/leads/{id}/archive": {
+      "post": {
+        "operationId": "leads.archive",
+        "tags": [
+          "leads"
+        ],
+        "summary": "Archive a lead",
+        "x-summary-es": "Archiva un lead",
+        "description": "Archives the lead with a closed business reason using its current strong ETag in If-Match; stale versions return `412 version_conflict`. The destructive-change budget applies and an opt_out reason suppresses every contact channel. This route cannot merge, transfer or erase a lead.",
+        "x-description-es": "Archiva el lead con un motivo de negocio cerrado usando su ETag fuerte actual en If-Match; las versiones obsoletas devuelven `412 version_conflict`. Se aplica el presupuesto de cambios destructivos y opt_out bloquea todos los canales de contacto. Esta ruta no permite fusionar, traspasar ni borrar un lead.",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "description": "The lead's public id.",
+            "x-description-es": "El identificador público del lead.",
+            "schema": {
+              "type": "string",
+              "pattern": "^lead_[0-9A-Za-z]+$"
+            }
+          },
+          {
+            "name": "Idempotency-Key",
+            "in": "header",
+            "required": false,
+            "description": "One unique visible-ASCII key per logical write; reuse exactly on retries and never retry outcome_unknown automatically.",
+            "x-description-es": "Una clave ASCII visible única por escritura lógica; reutilízala exactamente al reintentar y nunca reintentes outcome_unknown automáticamente.",
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 255,
+              "pattern": "^[\\x21-\\x7e]+$"
+            }
+          },
+          {
+            "name": "If-Match",
+            "in": "header",
+            "required": true,
+            "description": "The current strong resource ETag, including its quotes; weak tags, wildcards, lists and another resource’s validator are refused.",
+            "x-description-es": "El ETag fuerte actual del recurso, con sus comillas; se rechazan etiquetas débiles, comodines, listas y validadores de otro recurso.",
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 300,
+              "pattern": "^\"lead_[A-Za-z0-9]+:[1-9][0-9]{0,15}\"$"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "reason": {
+                    "type": "string",
+                    "enum": [
+                      "opt_out",
+                      "no_consent",
+                      "not_interested",
+                      "not_qualified",
+                      "no_contact",
+                      "other"
+                    ],
+                    "description": "Public archive reason; merging and transfers within an organization are separate privileged operations.",
+                    "x-description-es": "Motivo público de archivo; la fusión y los traspasos dentro de una organización son operaciones privilegiadas independientes."
+                  },
+                  "detail": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 2000,
+                    "description": "Optional explanation of the archive reason.",
+                    "x-description-es": "Explicación opcional del motivo de archivo."
+                  }
+                },
+                "required": [
+                  "reason"
+                ],
+                "additionalProperties": false,
+                "description": "Archive this lead with a closed business reason; never delete its data.",
+                "x-description-es": "Archiva este lead con un motivo de negocio cerrado; nunca borra sus datos."
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Archive a lead",
+            "x-description-es": "Archiva un lead",
+            "headers": {
+              "Totem-Request-Id": {
+                "$ref": "#/components/headers/TotemRequestId"
+              },
+              "ETag": {
+                "$ref": "#/components/headers/LeadEtag"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LeadMutation"
+                },
+                "example": {
+                  "object": "lead_mutation",
+                  "created": true,
+                  "lead": {
+                    "id": "lead_r72EfbRNUzuqORFJR0O8HxAwEXd93jGUTYMaMMXKSF0QbLS8CiUKJpEP34LFQG",
+                    "object": "lead",
+                    "livemode": false,
+                    "team": "team_r9uYrIW4gSFJJ6hZQ9ip1UIpPaAD1CF7NR",
+                    "record_kind": "lead",
+                    "name": "Alex",
+                    "surname": "Rivera",
+                    "date_of_birth": "1990-04-23",
+                    "email": "alex.rivera@example.com",
+                    "company": "Example Dental",
+                    "website": null,
+                    "phone": "+12025550123",
+                    "phone_status": "valid",
+                    "status": "contacted",
+                    "status_set_by": "ai",
+                    "archive_reason": null,
+                    "archived_from_status": null,
+                    "contact_permissions": {
+                      "do_not_contact": false,
+                      "email_opt_out": false,
+                      "email_opt_out_at": null,
+                      "whatsapp_consent": null,
+                      "provenance": {
+                        "do_not_contact": null,
+                        "email_opt_out": null,
+                        "whatsapp_consent": null
+                      }
+                    },
+                    "merged_into": null,
+                    "transferred_to": null,
+                    "revived_at": null,
+                    "pipeline_cleared": false,
+                    "converted_at": null,
+                    "value_at_conversion": null,
+                    "priority": "high",
+                    "tags": [
+                      "spring-check-up"
+                    ],
+                    "board": "brd_r72EfbRNUzuqORFJR0O8HxAwEXd93jGUTYMaMMX3trzsVUZQuHcMSuDh1aRIst",
+                    "stage": "stg_r72EfbRNUzuqORFJR0O8HxAwEXd93jGUTYMaMMXWBYWcKwVTY3CRZlVS3oYvs0",
+                    "assignees": [
+                      "mem_h548E7UiYhutHhucVrQCzkM0eaea0"
+                    ],
+                    "estimated_value": 1200,
+                    "estimated_value_currency": null,
+                    "source": "meta_lead_ads",
+                    "source_channel": null,
+                    "source_detail": null,
+                    "source_provenance": "member_editable",
+                    "created_at": "2026-09-28T10:15:00.000Z",
+                    "version": 3,
+                    "updated_at": "2026-09-28T10:20:01.250Z"
+                  },
+                  "outreach": {
+                    "status": "not_armed",
+                    "reason": null
+                  }
+                }
+              }
+            }
+          },
+          "default": {
+            "$ref": "#/components/responses/Problem"
+          }
+        },
+        "x-totem-errors": [
+          "invalid_request",
+          "secret_key_in_browser",
+          "invalid_credentials",
+          "key_expired",
+          "insufficient_scope",
+          "plan_not_entitled",
+          "ip_not_allowed",
+          "capability_disabled",
+          "rate_limited",
+          "internal_error",
+          "api_disabled",
+          "service_unavailable",
+          "resource_missing",
+          "team_state_restricted",
+          "sector_restricted",
+          "capture_not_ready",
+          "idempotency_key_required",
+          "idempotency_key_reused",
+          "idempotency_in_progress",
+          "outcome_unknown",
+          "quota_exceeded",
+          "version_conflict"
+        ],
+        "x-totem-scopes": [
+          "crm:write"
+        ],
+        "x-totem-rate-class": "write",
+        "x-totem-effect": "write",
+        "x-totem-tenant-binding": "resource_id",
+        "x-totem-stability": "beta"
+      }
+    },
+    "/leads/{id}/notes/{note}": {
+      "patch": {
+        "operationId": "leads.updateNote",
+        "tags": [
+          "leads"
+        ],
+        "summary": "Update a lead note",
+        "x-summary-es": "Actualiza una nota de lead",
+        "description": "Updates the note under this lead incarnation using its current strong note ETag in If-Match; stale versions return `412 version_conflict`. Only the note body and this integration’s external id can change, and the response contains metadata without content. An unchanged body creates no new note version.",
+        "x-description-es": "Actualiza la nota de esta encarnación del lead usando su ETag fuerte actual en If-Match; una versión obsoleta devuelve `412 version_conflict`. Solo pueden cambiar el cuerpo de la nota y el identificador externo de esta integración; la respuesta contiene metadatos sin contenido. Un cuerpo sin cambios no crea una versión nueva de la nota.",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "description": "The note’s parent lead id.",
+            "x-description-es": "Identificador del lead al que pertenece la nota.",
+            "schema": {
+              "type": "string",
+              "pattern": "^lead_[0-9A-Za-z]+$"
+            }
+          },
+          {
+            "name": "note",
+            "in": "path",
+            "required": true,
+            "description": "The opaque note id within this lead incarnation.",
+            "x-description-es": "Identificador opaco de la nota dentro de esta encarnación del lead.",
+            "schema": {
+              "type": "string",
+              "maxLength": 256,
+              "pattern": "^note_[A-Za-z0-9]+$"
+            }
+          },
+          {
+            "name": "Idempotency-Key",
+            "in": "header",
+            "required": false,
+            "description": "One unique visible-ASCII key per logical write; reuse exactly on retries and never retry outcome_unknown automatically.",
+            "x-description-es": "Una clave ASCII visible única por escritura lógica; reutilízala exactamente al reintentar y nunca reintentes outcome_unknown automáticamente.",
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 255,
+              "pattern": "^[\\x21-\\x7e]+$"
+            }
+          },
+          {
+            "name": "If-Match",
+            "in": "header",
+            "required": true,
+            "description": "The current strong resource ETag, including its quotes; weak tags, wildcards, lists and another resource’s validator are refused.",
+            "x-description-es": "El ETag fuerte actual del recurso, con sus comillas; se rechazan etiquetas débiles, comodines, listas y validadores de otro recurso.",
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 300,
+              "pattern": "^\"note_[A-Za-z0-9]+:[1-9][0-9]{0,15}\"$"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "body": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 20000,
+                    "description": "Plain-text note body; stored with the integration as its author.",
+                    "x-description-es": "Texto plano de la nota; se guarda con la integración como autora."
+                  },
+                  "external_id": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 200,
+                    "description": "Your integration’s external id, scoped to this principal and team; never another integration’s namespace.",
+                    "x-description-es": "Identificador externo de tu integración, limitado a este principal y equipo; nunca el espacio de otra integración."
+                  }
+                },
+                "required": [
+                  "body"
+                ],
+                "additionalProperties": false,
+                "description": "Append one integration-authored note. An external id deduplicates within this integration and lead.",
+                "x-description-es": "Añade una nota de la integración. El identificador externo evita duplicados dentro de esta integración y lead."
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Update a lead note",
+            "x-description-es": "Actualiza una nota de lead",
+            "headers": {
+              "Totem-Request-Id": {
+                "$ref": "#/components/headers/TotemRequestId"
+              },
+              "ETag": {
+                "$ref": "#/components/headers/NoteEtag"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LeadNoteReceipt"
+                },
+                "example": {
+                  "object": "lead_note_receipt",
+                  "note": {
+                    "id": "note_m3S3yY53i0GJwNn0UPsl4jp3BubIW",
+                    "object": "lead_note",
+                    "livemode": false,
+                    "lead": "lead_r72EfbRNUzuqORFJR0O8HxAwEXd93jGUTYMaMMXKSF0QbLS8CiUKJpEP34LFQG",
+                    "created_at": "2026-10-01T09:30:00.000Z",
+                    "external_id": "crm-note-123",
+                    "version": 1,
+                    "updated_at": "2026-10-01T09:30:00.000Z"
+                  }
+                }
+              }
+            }
+          },
+          "default": {
+            "$ref": "#/components/responses/Problem"
+          }
+        },
+        "x-totem-errors": [
+          "invalid_request",
+          "secret_key_in_browser",
+          "invalid_credentials",
+          "key_expired",
+          "insufficient_scope",
+          "plan_not_entitled",
+          "ip_not_allowed",
+          "capability_disabled",
+          "rate_limited",
+          "internal_error",
+          "api_disabled",
+          "service_unavailable",
+          "resource_missing",
+          "team_state_restricted",
+          "sector_restricted",
+          "capture_not_ready",
+          "idempotency_key_required",
+          "idempotency_key_reused",
+          "idempotency_in_progress",
+          "outcome_unknown",
+          "quota_exceeded",
+          "version_conflict"
+        ],
+        "x-totem-scopes": [
+          "crm:write"
+        ],
+        "x-totem-rate-class": "write",
+        "x-totem-effect": "write",
+        "x-totem-tenant-binding": "resource_id",
+        "x-totem-stability": "beta"
+      },
+      "delete": {
+        "operationId": "leads.deleteNote",
+        "tags": [
+          "leads"
+        ],
+        "summary": "Delete a lead note",
+        "x-summary-es": "Elimina una nota de lead",
+        "description": "Deletes only the named note under this lead incarnation using its current strong note ETag in If-Match; a stale version returns `412 version_conflict`. Success returns 204 with no JSON body and the changes feed retains a deletion marker. It never deletes or archives the parent lead.",
+        "x-description-es": "Elimina solo la nota indicada de esta encarnación del lead usando su ETag fuerte actual en If-Match; una versión obsoleta devuelve `412 version_conflict`. El resultado correcto devuelve 204 sin cuerpo JSON y el feed de cambios conserva una marca de eliminación. Nunca borra ni archiva el lead padre.",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "description": "The note’s parent lead id.",
+            "x-description-es": "Identificador del lead al que pertenece la nota.",
+            "schema": {
+              "type": "string",
+              "pattern": "^lead_[0-9A-Za-z]+$"
+            }
+          },
+          {
+            "name": "note",
+            "in": "path",
+            "required": true,
+            "description": "The opaque note id within this lead incarnation.",
+            "x-description-es": "Identificador opaco de la nota dentro de esta encarnación del lead.",
+            "schema": {
+              "type": "string",
+              "maxLength": 256,
+              "pattern": "^note_[A-Za-z0-9]+$"
+            }
+          },
+          {
+            "name": "Idempotency-Key",
+            "in": "header",
+            "required": false,
+            "description": "One unique visible-ASCII key per logical write; reuse exactly on retries and never retry outcome_unknown automatically.",
+            "x-description-es": "Una clave ASCII visible única por escritura lógica; reutilízala exactamente al reintentar y nunca reintentes outcome_unknown automáticamente.",
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 255,
+              "pattern": "^[\\x21-\\x7e]+$"
+            }
+          },
+          {
+            "name": "If-Match",
+            "in": "header",
+            "required": true,
+            "description": "The current strong resource ETag, including its quotes; weak tags, wildcards, lists and another resource’s validator are refused.",
+            "x-description-es": "El ETag fuerte actual del recurso, con sus comillas; se rechazan etiquetas débiles, comodines, listas y validadores de otro recurso.",
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 300,
+              "pattern": "^\"note_[A-Za-z0-9]+:[1-9][0-9]{0,15}\"$"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Delete a lead note",
+            "x-description-es": "Elimina una nota de lead",
+            "headers": {
+              "Totem-Request-Id": {
+                "$ref": "#/components/headers/TotemRequestId"
+              },
+              "ETag": {
+                "$ref": "#/components/headers/NoteEtag"
+              }
+            }
+          },
+          "default": {
+            "$ref": "#/components/responses/Problem"
+          }
+        },
+        "x-totem-errors": [
+          "invalid_request",
+          "secret_key_in_browser",
+          "invalid_credentials",
+          "key_expired",
+          "insufficient_scope",
+          "plan_not_entitled",
+          "ip_not_allowed",
+          "capability_disabled",
+          "rate_limited",
+          "internal_error",
+          "api_disabled",
+          "service_unavailable",
+          "resource_missing",
+          "team_state_restricted",
+          "sector_restricted",
+          "capture_not_ready",
+          "idempotency_key_required",
+          "idempotency_key_reused",
+          "idempotency_in_progress",
+          "outcome_unknown",
+          "quota_exceeded",
+          "version_conflict"
+        ],
+        "x-totem-scopes": [
+          "crm:write"
+        ],
+        "x-totem-rate-class": "write",
+        "x-totem-effect": "write",
         "x-totem-tenant-binding": "resource_id",
         "x-totem-stability": "beta"
       }
@@ -1533,6 +2998,7 @@
           "calls:read"
         ],
         "x-totem-rate-class": "sync",
+        "x-totem-effect": "read",
         "x-totem-tenant-binding": "team_header",
         "x-totem-stability": "beta"
       }
@@ -1617,6 +3083,7 @@
           "calls:read"
         ],
         "x-totem-rate-class": "read",
+        "x-totem-effect": "read",
         "x-totem-tenant-binding": "resource_id",
         "x-totem-stability": "beta"
       }
@@ -1740,6 +3207,7 @@
           "messages:read"
         ],
         "x-totem-rate-class": "sync",
+        "x-totem-effect": "read",
         "x-totem-tenant-binding": "team_header",
         "x-totem-stability": "beta"
       }
@@ -1826,6 +3294,7 @@
           "messages:read"
         ],
         "x-totem-rate-class": "read",
+        "x-totem-effect": "read",
         "x-totem-tenant-binding": "resource_id",
         "x-totem-stability": "beta"
       }
@@ -1952,6 +3421,7 @@
           "calendar:read"
         ],
         "x-totem-rate-class": "sync",
+        "x-totem-effect": "read",
         "x-totem-tenant-binding": "team_header",
         "x-totem-stability": "beta"
       }
@@ -2041,6 +3511,7 @@
           "calendar:read"
         ],
         "x-totem-rate-class": "read",
+        "x-totem-effect": "read",
         "x-totem-tenant-binding": "resource_id",
         "x-totem-stability": "beta"
       }
@@ -2179,6 +3650,7 @@
           "crm:read"
         ],
         "x-totem-rate-class": "sync",
+        "x-totem-effect": "read",
         "x-totem-tenant-binding": "team_header",
         "x-totem-stability": "beta"
       }
@@ -2265,6 +3737,7 @@
           "crm:read"
         ],
         "x-totem-rate-class": "read",
+        "x-totem-effect": "read",
         "x-totem-tenant-binding": "resource_id",
         "x-totem-stability": "beta"
       }
@@ -2341,6 +3814,7 @@
                         "date_of_birth": "1990-04-23",
                         "email": "alex.rivera@example.com",
                         "company": "Example Dental",
+                        "website": null,
                         "phone": "+12025550123",
                         "phone_status": "valid",
                         "status": "contacted",
@@ -2487,6 +3961,7 @@
           "calendar:read"
         ],
         "x-totem-rate-class": "sync",
+        "x-totem-effect": "read",
         "x-totem-tenant-binding": "team_header",
         "x-totem-stability": "beta"
       }
@@ -2538,6 +4013,7 @@
         ],
         "x-totem-scopes": [],
         "x-totem-rate-class": "none",
+        "x-totem-effect": "read",
         "x-totem-tenant-binding": "none",
         "x-totem-stability": "beta"
       }
@@ -2568,6 +4044,22 @@
       }
     },
     "headers": {
+      "NoteEtag": {
+        "description": "Strong validator of this note version, including quotes; send it unchanged as If-Match when updating or deleting the note.",
+        "x-description-es": "Validador fuerte de esta versión de la nota, con comillas; envíalo sin cambios en If-Match al actualizar o borrar la nota.",
+        "schema": {
+          "type": "string",
+          "pattern": "^\"note_[A-Za-z0-9]+:[1-9][0-9]{0,15}\"$"
+        }
+      },
+      "LeadEtag": {
+        "description": "Strong validator of the current lead projection, including quotes; send it unchanged as If-Match on update and archive. Absent for a validation-only upsert.",
+        "x-description-es": "Validador fuerte de la proyección actual del lead, con comillas; envíalo sin cambios en If-Match al actualizar o archivar. No aparece en un upsert de solo validación.",
+        "schema": {
+          "type": "string",
+          "pattern": "^\"lead_[A-Za-z0-9]+:[1-9][0-9]{0,15}\"$"
+        }
+      },
       "TotemRequestId": {
         "description": "Unique id of this request. Quote it when you contact support.",
         "x-description-es": "Identificador único de esta petición. Indícalo cuando escribas a soporte.",
@@ -4596,6 +6088,40 @@
             "properties": {
               "kind": {
                 "type": "string",
+                "const": "lead_note",
+                "description": "The kind of the record, such as `lead` or `call`.",
+                "x-description-es": "El tipo del registro, como `lead` o `call`."
+              },
+              "id": {
+                "type": "string",
+                "pattern": "^note_[0-9A-Za-z]+$",
+                "description": "Public id of the record; the facets `lead_attribution` and `lead_response` use their lead's id.",
+                "x-description-es": "Identificador público del registro; las facetas `lead_attribution` y `lead_response` usan el de su lead."
+              },
+              "version": {
+                "type": "integer",
+                "minimum": 1,
+                "description": "The record's version. Apply the item only when it is greater than the version you hold.",
+                "x-description-es": "La versión del registro. Aplica el elemento solo si es mayor que la versión que guardas."
+              },
+              "object": {
+                "description": "The record as it is now.",
+                "x-description-es": "El registro tal como está ahora.",
+                "$ref": "#/components/schemas/LeadNote"
+              }
+            },
+            "required": [
+              "kind",
+              "id",
+              "version",
+              "object"
+            ]
+          },
+          {
+            "type": "object",
+            "properties": {
+              "kind": {
+                "type": "string",
                 "const": "lead_attribution",
                 "description": "The kind of the record, such as `lead` or `call`.",
                 "x-description-es": "El tipo del registro, como `lead` o `call`."
@@ -4870,6 +6396,7 @@
                 "type": "string",
                 "enum": [
                   "lead",
+                  "lead_note",
                   "lead_attribution",
                   "lead_response",
                   "activity",
@@ -4884,7 +6411,7 @@
               },
               "id": {
                 "type": "string",
-                "pattern": "^(lead|act|call|conv|bkg|brd|ntf)_[0-9A-Za-z]+$",
+                "pattern": "^(lead|note|act|call|conv|bkg|brd|ntf)_[0-9A-Za-z]+$",
                 "description": "Public id of the removed record.",
                 "x-description-es": "Identificador público del registro eliminado."
               },
@@ -4940,6 +6467,7 @@
               "date_of_birth": "1990-04-23",
               "email": "alex.rivera@example.com",
               "company": "Example Dental",
+              "website": null,
               "phone": "+12025550123",
               "phone_status": "valid",
               "status": "contacted",
@@ -5040,6 +6568,7 @@
                   "date_of_birth": "1990-04-23",
                   "email": "alex.rivera@example.com",
                   "company": "Example Dental",
+                  "website": null,
                   "phone": "+12025550123",
                   "phone_status": "valid",
                   "status": "contacted",
@@ -5257,6 +6786,14 @@
           "company": {
             "description": "Company, or null.",
             "x-description-es": "Empresa, o null.",
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "website": {
+            "description": "Contact website as stored, without fetching it, or null.",
+            "x-description-es": "Web del contacto tal como se guardó, sin descargarla, o null.",
             "type": [
               "string",
               "null"
@@ -5728,6 +7265,7 @@
           "date_of_birth",
           "email",
           "company",
+          "website",
           "phone",
           "phone_status",
           "status",
@@ -5770,6 +7308,7 @@
             "date_of_birth": "1990-04-23",
             "email": "alex.rivera@example.com",
             "company": "Example Dental",
+            "website": null,
             "phone": "+12025550123",
             "phone_status": "valid",
             "status": "contacted",
@@ -7720,6 +9259,14 @@
               "null"
             ]
           },
+          "website": {
+            "description": "Contact website as stored, without fetching it, or null.",
+            "x-description-es": "Web del contacto tal como se guardó, sin descargarla, o null.",
+            "type": [
+              "string",
+              "null"
+            ]
+          },
           "phone": {
             "description": "Phone in E.164, only when the stored number validates; otherwise null.",
             "x-description-es": "Teléfono en E.164, solo si el número guardado es válido; si no, null.",
@@ -8210,6 +9757,7 @@
           "date_of_birth",
           "email",
           "company",
+          "website",
           "phone",
           "phone_status",
           "status",
@@ -8254,6 +9802,7 @@
             "date_of_birth": "1990-04-23",
             "email": "alex.rivera@example.com",
             "company": "Example Dental",
+            "website": null,
             "phone": "+12025550123",
             "phone_status": "valid",
             "status": "contacted",
@@ -8474,6 +10023,7 @@
                 "date_of_birth": "1990-04-23",
                 "email": "alex.rivera@example.com",
                 "company": "Example Dental",
+                "website": null,
                 "phone": "+12025550123",
                 "phone_status": "valid",
                 "status": "contacted",
@@ -8519,6 +10069,476 @@
             ],
             "has_more": true,
             "next_cursor": "eyJ2IjoxLCJrIjoibGVhZCIsImEiOiJsZWFkX3I3MkVmYlJOVXp1cU9SRkpSME84SHhBd0VYZDkzakdVVFlNYU1NWEtTRjBRYkxTOENpVUtKcEVQMzRMRlFHIiwicyI6ImYzNTI3NzI2MTkwYiJ93iHyRg"
+          }
+        ]
+      },
+      "LeadMutation": {
+        "type": "object",
+        "properties": {
+          "object": {
+            "type": "string",
+            "const": "lead_mutation",
+            "description": "Always lead_mutation.",
+            "x-description-es": "Siempre lead_mutation."
+          },
+          "created": {
+            "type": "boolean",
+            "description": "True only when this call created a new lead.",
+            "x-description-es": "Verdadero solo si esta llamada creó un lead nuevo."
+          },
+          "lead": {
+            "$ref": "#/components/schemas/Lead"
+          },
+          "outreach": {
+            "description": "Intake outreach disposition, present on upsert responses.",
+            "x-description-es": "Resultado de las protecciones de contacto de entrada, presente al crear o resolver un lead.",
+            "type": "object",
+            "properties": {
+              "status": {
+                "type": "string",
+                "enum": [
+                  "not_armed",
+                  "withheld",
+                  "eligible"
+                ],
+                "description": "not_armed for imports; withheld when a guard blocks intake outreach; eligible means queued under the team’s ordinary intake rules, never a delivery promise.",
+                "x-description-es": "not_armed para importaciones; withheld cuando una protección impide el contacto de entrada; eligible indica entrada bajo las reglas ordinarias del equipo, sin prometer una entrega."
+              },
+              "reason": {
+                "anyOf": [
+                  {
+                    "type": "string",
+                    "maxLength": 200
+                  },
+                  {
+                    "type": "null"
+                  }
+                ],
+                "description": "Closed guard reason when withheld, otherwise null.",
+                "x-description-es": "Motivo cerrado de la protección si se retiene, o null."
+              }
+            },
+            "required": [
+              "status",
+              "reason"
+            ]
+          }
+        },
+        "required": [
+          "object",
+          "created",
+          "lead"
+        ],
+        "description": "A lead mutation and its current public projection; use its ETag for the next conditional write.",
+        "x-description-es": "Un cambio de lead y su proyección pública actual; usa su ETag en la siguiente escritura condicional.",
+        "examples": [
+          {
+            "object": "lead_mutation",
+            "created": true,
+            "lead": {
+              "id": "lead_r72EfbRNUzuqORFJR0O8HxAwEXd93jGUTYMaMMXKSF0QbLS8CiUKJpEP34LFQG",
+              "object": "lead",
+              "livemode": false,
+              "team": "team_r9uYrIW4gSFJJ6hZQ9ip1UIpPaAD1CF7NR",
+              "record_kind": "lead",
+              "name": "Alex",
+              "surname": "Rivera",
+              "date_of_birth": "1990-04-23",
+              "email": "alex.rivera@example.com",
+              "company": "Example Dental",
+              "website": null,
+              "phone": "+12025550123",
+              "phone_status": "valid",
+              "status": "contacted",
+              "status_set_by": "ai",
+              "archive_reason": null,
+              "archived_from_status": null,
+              "contact_permissions": {
+                "do_not_contact": false,
+                "email_opt_out": false,
+                "email_opt_out_at": null,
+                "whatsapp_consent": null,
+                "provenance": {
+                  "do_not_contact": null,
+                  "email_opt_out": null,
+                  "whatsapp_consent": null
+                }
+              },
+              "merged_into": null,
+              "transferred_to": null,
+              "revived_at": null,
+              "pipeline_cleared": false,
+              "converted_at": null,
+              "value_at_conversion": null,
+              "priority": "high",
+              "tags": [
+                "spring-check-up"
+              ],
+              "board": "brd_r72EfbRNUzuqORFJR0O8HxAwEXd93jGUTYMaMMX3trzsVUZQuHcMSuDh1aRIst",
+              "stage": "stg_r72EfbRNUzuqORFJR0O8HxAwEXd93jGUTYMaMMXWBYWcKwVTY3CRZlVS3oYvs0",
+              "assignees": [
+                "mem_h548E7UiYhutHhucVrQCzkM0eaea0"
+              ],
+              "estimated_value": 1200,
+              "estimated_value_currency": null,
+              "source": "meta_lead_ads",
+              "source_channel": null,
+              "source_detail": null,
+              "source_provenance": "member_editable",
+              "created_at": "2026-09-28T10:15:00.000Z",
+              "version": 3,
+              "updated_at": "2026-09-28T10:20:01.250Z"
+            },
+            "outreach": {
+              "status": "not_armed",
+              "reason": null
+            }
+          }
+        ]
+      },
+      "LeadNote": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "pattern": "^note_[0-9A-Za-z]+$",
+            "description": "Public id of the record.",
+            "x-description-es": "Identificador público del registro."
+          },
+          "object": {
+            "type": "string",
+            "const": "lead_note",
+            "description": "Always `lead_note`.",
+            "x-description-es": "Siempre `lead_note`."
+          },
+          "livemode": {
+            "type": "boolean",
+            "description": "`true` for real data; `false` in example data.",
+            "x-description-es": "`true` en datos reales; `false` en los datos de ejemplo."
+          },
+          "lead": {
+            "type": "string",
+            "pattern": "^lead_[0-9A-Za-z]+$",
+            "description": "The parent lead.",
+            "x-description-es": "El lead al que pertenece la nota."
+          },
+          "body": {
+            "type": "string",
+            "maxLength": 50000,
+            "description": "CRM note text; requires the explicit note-content grant.",
+            "x-description-es": "Texto de la nota CRM; requiere autorización explícita de contenido."
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time",
+            "description": "When this note was created.",
+            "x-description-es": "Cuándo se creó la nota."
+          },
+          "external_id": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 200
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "The caller’s own external id, or null. Canonical feed objects withhold all integration namespaces.",
+            "x-description-es": "Identificador externo propio del solicitante, o null. El feed canónico oculta todos los espacios de integración."
+          },
+          "version": {
+            "type": "integer",
+            "minimum": 1,
+            "description": "Increases every time one of the record's exported fields changes. Apply a change only when its version is greater than the one you hold.",
+            "x-description-es": "Aumenta cada vez que cambia alguno de los campos exportados del registro. Aplica un cambio solo si su versión es mayor que la que guardas."
+          },
+          "updated_at": {
+            "type": "string",
+            "format": "date-time",
+            "description": "When Totem recorded this version (UTC). It is not the time the business event happened.",
+            "x-description-es": "Cuándo registró Totem esta versión (UTC). No es la hora en que ocurrió el hecho."
+          }
+        },
+        "required": [
+          "id",
+          "object",
+          "livemode",
+          "lead",
+          "body",
+          "created_at",
+          "external_id",
+          "version",
+          "updated_at"
+        ],
+        "description": "Lead note body.",
+        "x-description-es": "Cuerpo de la nota de lead.",
+        "examples": [
+          {
+            "id": "note_m3S3yY53i0GJwNn0UPsl4jp3BubIW",
+            "object": "lead_note",
+            "livemode": false,
+            "lead": "lead_r72EfbRNUzuqORFJR0O8HxAwEXd93jGUTYMaMMXKSF0QbLS8CiUKJpEP34LFQG",
+            "body": "Requested an updated proposal for the appointment.",
+            "created_at": "2026-10-01T09:30:00.000Z",
+            "external_id": null,
+            "version": 1,
+            "updated_at": "2026-10-01T09:30:00.000Z"
+          }
+        ]
+      },
+      "LeadNoteList": {
+        "type": "object",
+        "properties": {
+          "object": {
+            "type": "string",
+            "const": "list",
+            "description": "Always `list`.",
+            "x-description-es": "Siempre `list`."
+          },
+          "data": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "id": {
+                  "type": "string",
+                  "maxLength": 256,
+                  "pattern": "^note_[A-Za-z0-9]+$",
+                  "description": "Opaque stable note id, bound to this team and lead incarnation; never parse it.",
+                  "x-description-es": "Identificador opaco y estable de nota, ligado a este equipo y encarnación del lead; no lo interpretes."
+                },
+                "object": {
+                  "type": "string",
+                  "const": "lead_note",
+                  "description": "Always lead_note.",
+                  "x-description-es": "Siempre lead_note."
+                },
+                "livemode": {
+                  "type": "boolean",
+                  "description": "True for real data; false only in fictional example data.",
+                  "x-description-es": "Verdadero en datos reales; falso solo en datos ficticios de ejemplo."
+                },
+                "lead": {
+                  "type": "string",
+                  "pattern": "^lead_[0-9A-Za-z]+$",
+                  "description": "The lead this note belongs to.",
+                  "x-description-es": "El lead al que pertenece esta nota."
+                },
+                "version": {
+                  "type": "integer",
+                  "minimum": 1,
+                  "description": "The current note version; use the matching strong note ETag for conditional writes.",
+                  "x-description-es": "Versión actual de la nota; usa el ETag fuerte de nota correspondiente en escrituras condicionales."
+                },
+                "created_at": {
+                  "type": "string",
+                  "format": "date-time",
+                  "description": "When the note was created.",
+                  "x-description-es": "Cuándo se creó la nota."
+                },
+                "updated_at": {
+                  "type": "string",
+                  "format": "date-time",
+                  "description": "When the current version was recorded.",
+                  "x-description-es": "Cuándo se registró la versión actual."
+                },
+                "external_id": {
+                  "anyOf": [
+                    {
+                      "type": "string",
+                      "maxLength": 200
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ],
+                  "description": "Your integration’s external id for this note, or null; other integrations’ ids are withheld.",
+                  "x-description-es": "Identificador externo de tu integración para esta nota, o null; los identificadores de otras integraciones se ocultan."
+                },
+                "body": {
+                  "type": "string",
+                  "maxLength": 50000,
+                  "description": "Existing note content, including empty attachment-only notes; available only with the explicit note-content grant. API writes accept 1–20,000 characters.",
+                  "x-description-es": "Contenido existente de la nota, incluidas notas vacías que solo contienen adjuntos; disponible solo con autorización explícita de contenido de notas. Las escrituras API admiten de 1 a 20.000 caracteres."
+                }
+              },
+              "required": [
+                "id",
+                "object",
+                "livemode",
+                "lead",
+                "version",
+                "created_at",
+                "updated_at",
+                "external_id",
+                "body"
+              ],
+              "description": "A lead note with explicitly granted content access.",
+              "x-description-es": "Una nota de lead con acceso a contenido autorizado expresamente."
+            },
+            "description": "The items of this page.",
+            "x-description-es": "Los elementos de esta página."
+          },
+          "has_more": {
+            "type": "boolean",
+            "description": "`true` when another page follows: fetch it with `next_cursor`, even if this page holds fewer items than `limit`.",
+            "x-description-es": "`true` si hay otra página: pídela con `next_cursor`, aunque esta traiga menos elementos que `limit`."
+          },
+          "next_cursor": {
+            "description": "Opaque cursor for the next page, or null on the last page. Never parse it.",
+            "x-description-es": "Cursor opaco de la página siguiente, o null en la última. No lo interpretes.",
+            "type": [
+              "string",
+              "null"
+            ]
+          }
+        },
+        "required": [
+          "object",
+          "data",
+          "has_more",
+          "next_cursor"
+        ],
+        "description": "A cursor-paged list of this lead’s notes, requiring an explicit note-content grant.",
+        "x-description-es": "Lista paginada por cursor de notas de este lead, que requiere autorización explícita de contenido de notas.",
+        "examples": [
+          {
+            "object": "list",
+            "data": [
+              {
+                "id": "note_m3S3yY53i0GJwNn0UPsl4jp3BubIW",
+                "object": "lead_note",
+                "livemode": false,
+                "lead": "lead_r72EfbRNUzuqORFJR0O8HxAwEXd93jGUTYMaMMXKSF0QbLS8CiUKJpEP34LFQG",
+                "body": "Requested an updated proposal for the appointment.",
+                "created_at": "2026-10-01T09:30:00.000Z",
+                "external_id": "crm-note-123",
+                "version": 1,
+                "updated_at": "2026-10-01T09:30:00.000Z"
+              }
+            ],
+            "has_more": false,
+            "next_cursor": null
+          }
+        ]
+      },
+      "LeadNoteMetadata": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "maxLength": 256,
+            "pattern": "^note_[A-Za-z0-9]+$",
+            "description": "Opaque stable note id, bound to this team and lead incarnation; never parse it.",
+            "x-description-es": "Identificador opaco y estable de nota, ligado a este equipo y encarnación del lead; no lo interpretes."
+          },
+          "object": {
+            "type": "string",
+            "const": "lead_note",
+            "description": "Always lead_note.",
+            "x-description-es": "Siempre lead_note."
+          },
+          "livemode": {
+            "type": "boolean",
+            "description": "True for real data; false only in fictional example data.",
+            "x-description-es": "Verdadero en datos reales; falso solo en datos ficticios de ejemplo."
+          },
+          "lead": {
+            "type": "string",
+            "pattern": "^lead_[0-9A-Za-z]+$",
+            "description": "The lead this note belongs to.",
+            "x-description-es": "El lead al que pertenece esta nota."
+          },
+          "version": {
+            "type": "integer",
+            "minimum": 1,
+            "description": "The current note version; use the matching strong note ETag for conditional writes.",
+            "x-description-es": "Versión actual de la nota; usa el ETag fuerte de nota correspondiente en escrituras condicionales."
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time",
+            "description": "When the note was created.",
+            "x-description-es": "Cuándo se creó la nota."
+          },
+          "updated_at": {
+            "type": "string",
+            "format": "date-time",
+            "description": "When the current version was recorded.",
+            "x-description-es": "Cuándo se registró la versión actual."
+          },
+          "external_id": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 200
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Your integration’s external id for this note, or null; other integrations’ ids are withheld.",
+            "x-description-es": "Identificador externo de tu integración para esta nota, o null; los identificadores de otras integraciones se ocultan."
+          }
+        },
+        "required": [
+          "id",
+          "object",
+          "livemode",
+          "lead",
+          "version",
+          "created_at",
+          "updated_at",
+          "external_id"
+        ],
+        "description": "Lead note metadata without its content; safe for a write-only receipt or replay.",
+        "x-description-es": "Metadatos de una nota de lead sin su contenido; seguros en un justificante o repetición de solo escritura.",
+        "examples": [
+          {
+            "id": "note_m3S3yY53i0GJwNn0UPsl4jp3BubIW",
+            "object": "lead_note",
+            "livemode": false,
+            "lead": "lead_r72EfbRNUzuqORFJR0O8HxAwEXd93jGUTYMaMMXKSF0QbLS8CiUKJpEP34LFQG",
+            "created_at": "2026-10-01T09:30:00.000Z",
+            "external_id": "crm-note-123",
+            "version": 1,
+            "updated_at": "2026-10-01T09:30:00.000Z"
+          }
+        ]
+      },
+      "LeadNoteReceipt": {
+        "type": "object",
+        "properties": {
+          "object": {
+            "type": "string",
+            "const": "lead_note_receipt",
+            "description": "Always lead_note_receipt.",
+            "x-description-es": "Siempre lead_note_receipt."
+          },
+          "note": {
+            "$ref": "#/components/schemas/LeadNoteMetadata"
+          }
+        },
+        "required": [
+          "object",
+          "note"
+        ],
+        "description": "Metadata of the note written, without its body or other notes; safe to replay after a human edits the content.",
+        "x-description-es": "Metadatos de la nota escrita, sin su cuerpo ni otras notas; seguros al repetir tras una edición humana del contenido.",
+        "examples": [
+          {
+            "object": "lead_note_receipt",
+            "note": {
+              "id": "note_m3S3yY53i0GJwNn0UPsl4jp3BubIW",
+              "object": "lead_note",
+              "livemode": false,
+              "lead": "lead_r72EfbRNUzuqORFJR0O8HxAwEXd93jGUTYMaMMXKSF0QbLS8CiUKJpEP34LFQG",
+              "created_at": "2026-10-01T09:30:00.000Z",
+              "external_id": "crm-note-123",
+              "version": 1,
+              "updated_at": "2026-10-01T09:30:00.000Z"
+            }
           }
         ]
       },
@@ -8710,6 +10730,111 @@
           }
         ]
       },
+      "LeadUpsertResult": {
+        "anyOf": [
+          {
+            "$ref": "#/components/schemas/LeadMutation"
+          },
+          {
+            "$ref": "#/components/schemas/LeadValidation"
+          }
+        ],
+        "description": "The persisted lead result, or a validation-only result without a mutation.",
+        "x-description-es": "El resultado del lead guardado, o una validación sin realizar cambios.",
+        "examples": [
+          {
+            "object": "lead_mutation",
+            "created": true,
+            "lead": {
+              "id": "lead_r72EfbRNUzuqORFJR0O8HxAwEXd93jGUTYMaMMXKSF0QbLS8CiUKJpEP34LFQG",
+              "object": "lead",
+              "livemode": false,
+              "team": "team_r9uYrIW4gSFJJ6hZQ9ip1UIpPaAD1CF7NR",
+              "record_kind": "lead",
+              "name": "Alex",
+              "surname": "Rivera",
+              "date_of_birth": "1990-04-23",
+              "email": "alex.rivera@example.com",
+              "company": "Example Dental",
+              "website": null,
+              "phone": "+12025550123",
+              "phone_status": "valid",
+              "status": "contacted",
+              "status_set_by": "ai",
+              "archive_reason": null,
+              "archived_from_status": null,
+              "contact_permissions": {
+                "do_not_contact": false,
+                "email_opt_out": false,
+                "email_opt_out_at": null,
+                "whatsapp_consent": null,
+                "provenance": {
+                  "do_not_contact": null,
+                  "email_opt_out": null,
+                  "whatsapp_consent": null
+                }
+              },
+              "merged_into": null,
+              "transferred_to": null,
+              "revived_at": null,
+              "pipeline_cleared": false,
+              "converted_at": null,
+              "value_at_conversion": null,
+              "priority": "high",
+              "tags": [
+                "spring-check-up"
+              ],
+              "board": "brd_r72EfbRNUzuqORFJR0O8HxAwEXd93jGUTYMaMMX3trzsVUZQuHcMSuDh1aRIst",
+              "stage": "stg_r72EfbRNUzuqORFJR0O8HxAwEXd93jGUTYMaMMXWBYWcKwVTY3CRZlVS3oYvs0",
+              "assignees": [
+                "mem_h548E7UiYhutHhucVrQCzkM0eaea0"
+              ],
+              "estimated_value": 1200,
+              "estimated_value_currency": null,
+              "source": "meta_lead_ads",
+              "source_channel": null,
+              "source_detail": null,
+              "source_provenance": "member_editable",
+              "created_at": "2026-09-28T10:15:00.000Z",
+              "version": 3,
+              "updated_at": "2026-09-28T10:20:01.250Z"
+            },
+            "outreach": {
+              "status": "not_armed",
+              "reason": null
+            }
+          }
+        ]
+      },
+      "LeadValidation": {
+        "type": "object",
+        "properties": {
+          "object": {
+            "type": "string",
+            "const": "lead_validation",
+            "description": "Always lead_validation.",
+            "x-description-es": "Siempre lead_validation."
+          },
+          "valid": {
+            "type": "boolean",
+            "const": true,
+            "description": "The request passed validation; no mutation or outreach was performed.",
+            "x-description-es": "La petición superó la validación; no se realizó ningún cambio ni contacto."
+          }
+        },
+        "required": [
+          "object",
+          "valid"
+        ],
+        "description": "A successful dry run; it never represents a persisted lead.",
+        "x-description-es": "Una validación correcta; nunca representa un lead guardado.",
+        "examples": [
+          {
+            "object": "lead_validation",
+            "valid": true
+          }
+        ]
+      },
       "Me": {
         "type": "object",
         "properties": {
@@ -8772,11 +10897,13 @@
                 "crm:read",
                 "calls:read",
                 "messages:read",
-                "calendar:read"
+                "calendar:read",
+                "crm:write",
+                "crm:notes:read"
               ]
             },
-            "description": "The key's scopes: the fixed read set in v1.0a.",
-            "x-description-es": "Los permisos de la clave: el conjunto fijo de lectura en v1.0a."
+            "description": "The key’s explicitly granted scopes; old read-only keys never gain writes or note content implicitly.",
+            "x-description-es": "Los permisos concedidos expresamente; las claves anteriores nunca ganan escritura ni contenido de notas implícitamente."
           }
         },
         "required": [
@@ -9202,6 +11329,14 @@
               {
                 "type": "string",
                 "enum": [
+                  "idempotency_key_required",
+                  "idempotency_key_reused",
+                  "idempotency_in_progress",
+                  "outcome_unknown",
+                  "version_conflict",
+                  "ambiguous_identity",
+                  "inbound_not_enabled",
+                  "consent_required",
                   "invalid_request",
                   "team_required",
                   "secret_key_in_browser",
@@ -9447,7 +11582,7 @@
     },
     "PLATFORM_CONFIG_TTL_MS": 15000,
     "REMOVAL_RETENTION_DAYS": 45,
-    "REQUEST_BODY_MAX_BYTES": 16384,
+    "REQUEST_BODY_MAX_BYTES": 131072,
     "ROLL_GRACE_DEFAULT_HOURS": 24,
     "ROLL_GRACE_HOURS": [
       0,
@@ -9472,6 +11607,94 @@
     "TEAM_CACHE_TTL_MS": 30000
   },
   "x-totem-errors": {
+    "idempotency_key_required": {
+      "status": 400,
+      "title": "Idempotency key required",
+      "x-title-es": "Falta la clave de idempotencia",
+      "action": "fix_request",
+      "description": "This write requires an Idempotency-Key header before it can have an effect.",
+      "x-description-es": "Esta escritura requiere la cabecera Idempotency-Key antes de poder producir un efecto.",
+      "fix": "Send one unique key per logical write and reuse that same key for every retry.",
+      "x-fix-es": "Envía una clave única por escritura lógica y reutiliza esa misma clave en cada reintento.",
+      "doc_url": "https://totemstudio.ai/developers/errors#idempotency_key_required"
+    },
+    "idempotency_key_reused": {
+      "status": 409,
+      "title": "Idempotency key reused",
+      "x-title-es": "Clave de idempotencia reutilizada",
+      "action": "fix_request",
+      "description": "This key was already used with a different body, resource or selected team.",
+      "x-description-es": "Esta clave ya se utilizó con otro cuerpo, recurso o equipo seleccionado.",
+      "fix": "Keep the original key for retries of its original request; use a new key for a new logical write.",
+      "x-fix-es": "Conserva la clave original para reintentar su petición original; usa una nueva para otra escritura lógica.",
+      "doc_url": "https://totemstudio.ai/developers/errors#idempotency_key_reused"
+    },
+    "idempotency_in_progress": {
+      "status": 409,
+      "title": "Write in progress",
+      "x-title-es": "Escritura en curso",
+      "action": "retry_after",
+      "description": "An identical write with this idempotency key is still being processed.",
+      "x-description-es": "Una escritura idéntica con esta clave de idempotencia todavía se está procesando.",
+      "fix": "Wait for Retry-After, then retry with the same key and exactly the same request.",
+      "x-fix-es": "Espera el tiempo de Retry-After y reintenta con la misma clave y exactamente la misma petición.",
+      "doc_url": "https://totemstudio.ai/developers/errors#idempotency_in_progress"
+    },
+    "outcome_unknown": {
+      "status": 409,
+      "title": "Write outcome unknown",
+      "x-title-es": "Resultado de escritura desconocido",
+      "action": "contact_support",
+      "description": "An earlier attempt may have committed its effect, but Totem cannot safely prove its outcome.",
+      "x-description-es": "Un intento anterior puede haber confirmado su efecto, pero Totem no puede demostrar con seguridad su resultado.",
+      "fix": "Do not retry automatically or generate a new key; reconcile the resource and contact support with Totem-Request-Id.",
+      "x-fix-es": "No reintentes automáticamente ni generes otra clave; comprueba el recurso y contacta con soporte indicando Totem-Request-Id.",
+      "doc_url": "https://totemstudio.ai/developers/errors#outcome_unknown"
+    },
+    "version_conflict": {
+      "status": 412,
+      "title": "Lead version conflict",
+      "x-title-es": "Conflicto de versión del lead",
+      "action": "fix_request",
+      "description": "The strong If-Match validator no longer names the current public version of this lead.",
+      "x-description-es": "El validador fuerte If-Match ya no identifica la versión pública actual de este lead.",
+      "fix": "Read the lead again, reconcile your intended changes, then send its new ETag in If-Match.",
+      "x-fix-es": "Vuelve a leer el lead, concilia los cambios deseados y envía su nuevo ETag en If-Match.",
+      "doc_url": "https://totemstudio.ai/developers/errors#version_conflict"
+    },
+    "ambiguous_identity": {
+      "status": 409,
+      "title": "Ambiguous lead identity",
+      "x-title-es": "Identidad de lead ambigua",
+      "action": "fix_request",
+      "description": "The supplied phone, email or integration external id resolves to conflicting lead identities.",
+      "x-description-es": "El teléfono, correo o identificador externo de integración resuelve identidades de lead en conflicto.",
+      "fix": "Resolve the conflicting identities explicitly in the CRM; this endpoint never silently merges them.",
+      "x-fix-es": "Resuelve expresamente las identidades en conflicto en el CRM; este endpoint nunca las fusiona en silencio.",
+      "doc_url": "https://totemstudio.ai/developers/errors#ambiguous_identity"
+    },
+    "inbound_not_enabled": {
+      "status": 403,
+      "title": "Inbound intake not enabled",
+      "x-title-es": "Entrada inbound no habilitada",
+      "action": "check_credentials",
+      "description": "The principal does not hold the separate inbound intake capability requested by this write.",
+      "x-description-es": "El principal no tiene la capacidad independiente de entrada inbound solicitada por esta escritura.",
+      "fix": "Use origin import for inert CRM synchronization or ask an administrator to explicitly enable inbound intake.",
+      "x-fix-es": "Usa origin import para sincronización CRM inerte o pide a un administrador que habilite expresamente la entrada inbound.",
+      "doc_url": "https://totemstudio.ai/developers/errors#inbound_not_enabled"
+    },
+    "consent_required": {
+      "status": 403,
+      "title": "Consent required",
+      "x-title-es": "Falta el consentimiento",
+      "action": "fix_request",
+      "description": "This effect requires explicit consent evidence that this request does not provide.",
+      "x-description-es": "Este efecto requiere evidencia explícita de consentimiento que la petición no proporciona.",
+      "fix": "Collect the person’s explicit consent with its notice and capture evidence before requesting this effect.",
+      "x-fix-es": "Recoge el consentimiento explícito de la persona con su aviso y evidencia de captura antes de solicitar este efecto.",
+      "doc_url": "https://totemstudio.ai/developers/errors#consent_required"
+    },
     "invalid_request": {
       "status": 400,
       "title": "Invalid request",
@@ -9531,11 +11754,11 @@
       "status": 403,
       "title": "Insufficient scope",
       "x-title-es": "Permisos insuficientes",
-      "action": "contact_support",
-      "description": "The key lacks a permission this endpoint needs. Every v1.0a key holds the full read set, so this should not happen.",
-      "x-description-es": "A la clave le falta un permiso que necesita este endpoint. Todas las claves de la versión 1.0a tienen el conjunto completo de lectura, así que no debería ocurrir.",
-      "fix": "Contact support and quote the `Totem-Request-Id` of the response.",
-      "x-fix-es": "Escribe a soporte e indica el `Totem-Request-Id` de la respuesta.",
+      "action": "check_credentials",
+      "description": "The key lacks a permission this endpoint needs; CRM writes and note-content reads require separate explicit grants.",
+      "x-description-es": "A la clave le falta un permiso que necesita este endpoint; escribir en CRM y leer contenido de notas requieren autorizaciones explícitas independientes.",
+      "fix": "Use an explicitly authorized integration profile or ask an administrator to review its grants; never broaden an old read key implicitly.",
+      "x-fix-es": "Usa un perfil de integración autorizado expresamente o pide a un administrador que revise sus permisos; nunca amplíes implícitamente una clave anterior de lectura.",
       "doc_url": "https://totemstudio.ai/developers/errors#insufficient_scope"
     },
     "plan_not_entitled": {

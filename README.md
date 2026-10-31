@@ -1,7 +1,7 @@
 # Totem Studio TypeScript SDK · Beta
 
 The official server-side SDK for the [Totem API](https://totemstudio.ai/developers).
-It covers every operation of the read-only API: leads, boards, activities,
+It covers the API’s reads and guarded CRM writes: leads, notes, boards, activities,
 calls, conversations, bookings, notifications, teams, members, services and the changes feed.
 
 Requires **Node.js 22.12 or later** (the first release line where `require()`
@@ -18,19 +18,19 @@ npm install @totemstudioai/sdk@beta
 ```
 
 The `beta` tag selects the current npm beta release, **0.2.0-beta.1**.
-GitHub release **0.2.0-beta.2** is available below; its npm publication is pending.
+This checkout prepares **0.3.0-beta.1** for API 1.0b; publication is pending.
 To pin the published npm version, use `npm install @totemstudioai/sdk@0.2.0-beta.1`.
 
-Alternatively, install the **0.2.0-beta.2** release tarball from GitHub. It
+After publication, install the **0.3.0-beta.1** release tarball from GitHub. It
 contains the built package, so it needs no Git, no build step and no install
 scripts, and it works with `ignore-scripts`. Download the tarball and its
 checksum, check it, then install the file you checked:
 
 ```sh
-curl -fLO https://github.com/totem-studio/totem-studio-typescript/releases/download/v0.2.0-beta.2/totemstudioai-sdk-0.2.0-beta.2.tgz
-curl -fLO https://github.com/totem-studio/totem-studio-typescript/releases/download/v0.2.0-beta.2/totemstudioai-sdk-0.2.0-beta.2.tgz.sha256
-shasum -a 256 -c totemstudioai-sdk-0.2.0-beta.2.tgz.sha256
-npm install ./totemstudioai-sdk-0.2.0-beta.2.tgz
+curl -fLO https://github.com/totem-studio/totem-studio-typescript/releases/download/v0.3.0-beta.1/totemstudioai-sdk-0.3.0-beta.1.tgz
+curl -fLO https://github.com/totem-studio/totem-studio-typescript/releases/download/v0.3.0-beta.1/totemstudioai-sdk-0.3.0-beta.1.tgz.sha256
+shasum -a 256 -c totemstudioai-sdk-0.3.0-beta.1.tgz.sha256
+npm install ./totemstudioai-sdk-0.3.0-beta.1.tgz
 ```
 
 `sha256sum -c` works as well as `shasum -a 256 -c`. The checksum shows that
@@ -49,7 +49,7 @@ allow `@totemstudioai/sdk`, or the install succeeds without a `dist/` and the
 import fails.
 
 ```sh
-npm install github:totem-studio/totem-studio-typescript#v0.2.0-beta.2
+npm install github:totem-studio/totem-studio-typescript#v0.3.0-beta.1
 ```
 
 TypeScript projects need `module`/`moduleResolution` `nodenext` (or
@@ -100,6 +100,13 @@ the authority for request validation and access control. A `baseUrl` on
 | `client.leads.get(id)` | `GET /leads/{id}` |
 | `client.leads.search({ email })` or `({ phone })` | `POST /leads/search` |
 | `client.leads.activities(id, query?)` | `GET /leads/{id}/activities` |
+| `client.leads.upsert(body, options?)` | `POST /leads` |
+| `client.leads.update(id, body, options)` | `PATCH /leads/{id}` |
+| `client.leads.archive(id, body, options)` | `POST /leads/{id}/archive` |
+| `client.leads.notes(id, query?)` | `GET /leads/{id}/notes` |
+| `client.leads.addNote(id, body, options?)` | `POST /leads/{id}/notes` |
+| `client.leads.updateNote(id, note, body, options)` | `PATCH /leads/{id}/notes/{note}` |
+| `client.leads.deleteNote(id, note, options)` | `DELETE /leads/{id}/notes/{note}` |
 | `client.calls.list(query?)`, `client.calls.get(id)` | `GET /calls`, `GET /calls/{id}` |
 | `client.conversations.list(query?)`, `client.conversations.get(id)` | `GET /conversations`, `GET /conversations/{id}` |
 | `client.bookings.list(query?)`, `client.bookings.get(id)` | `GET /bookings`, `GET /bookings/{id}` |
@@ -107,13 +114,61 @@ the authority for request validation and access control. A `baseUrl` on
 | `client.sync.changes(query?)` | `GET /sync/changes` |
 | `client.health()` | `GET /health` |
 
-Each method takes optional request settings as its final argument:
+Read methods take optional request settings as their final argument:
 `{ signal, timeoutMs }`, plus `team` on collection routes (the ones that read
 the `Totem-Team` header). Detail routes such as `client.leads.get(id)` take the
 team from the record's id, so they do not accept `team`: when you expect a
 record of a particular team, compare its `team` field with the one you expect.
 Optional settings and query values accept `undefined`, and a cursor accepts
 `null`, so `client.leads.list({ cursor: page.next_cursor })` works as written.
+
+## CRM writes and notes
+
+Existing read keys remain read-only. An administrator must grant `crm:write`;
+reading note bodies also requires the separate explicit note-content grant and
+`crm:notes:read`. Import uses `origin: 'import'` and never arms outreach.
+`origin: 'inbound'` needs its separate intake capability and a phone supplied by
+the person. Declaring inbound never implies WhatsApp consent. This Beta’s
+automatic intake accepts ordinary mobile/fixed-line destinations in the team’s
+stored default country; unknown, special-rate or foreign destinations remain
+saved and withheld. The durable recipient fence allows one armed intake per
+billing family/phone in seven days, with an additional 500/day principal cap.
+
+Upsert applies supplied pipeline fields when creating a lead. An existing
+identity keeps every nonempty human contact value and only fills missing
+contact details; import never revives it or re-arms outreach. To change its
+board, stage, tags, priority, value or assignees, use conditional PATCH. A
+conflicting existing pipeline value returns 400 instead of being ignored.
+
+```ts
+const result = await client.requestWithResponse('leads.upsert', {
+  body: { origin: 'import', email: 'ada@example.com', external_id: 'crm-123' },
+  idempotencyKey: 'source-event-456',
+});
+if (result.data.object === 'lead_mutation') {
+  const ifMatch = result.headers.get('ETag');
+  if (!ifMatch) throw new Error('Missing lead ETag');
+  await client.leads.update(result.data.lead.id, { name: 'Ada' }, { ifMatch });
+}
+```
+
+Every declared write automatically gets one UUID **per logical SDK call** and
+reuses it for all retries. Supply and persist `idempotencyKey` when the same
+source event can run across calls or process restarts. Upsert may return 201
+(created), 200 (existing) or a 200 `lead_validation` result for `validate_only`.
+The SDK never retries `outcome_unknown`, even if a proxy gives it a transient
+HTTP status; reconcile that write before proceeding.
+
+Update/archive require the current strong lead ETag in `ifMatch`; note
+update/delete require the note’s own strong ETag. Preserve the surrounding
+quotes. A stale validator returns 412: re-read and reconcile rather than
+blindly replacing the validator. Opt-outs can only be added by this API.
+Note writes return **metadata only**; `leads.notes` is the granted content
+read. Read bodies may contain 0–50,000 characters for existing attachment-only
+or long product notes; API note writes accept 1–20,000. Deletion returns 204 and
+resolves to `undefined`. Granted notes also appear as `lead_note` feed upserts
+and removals; existing read keys never receive that kind. Exhaustive feed
+switches must add it. See [`examples/crm.ts`](examples/crm.ts).
 
 ## Types
 
@@ -128,7 +183,7 @@ The SDK adds `Stage` (one board stage), `FeedUpsert`, `FeedRemoval`,
 `Lead.date_of_birth` is a `YYYY-MM-DD` calendar string, or `null` when no valid
 birthday is stored. It is included in lead lists, detail, search and lead
 changes. Keep it as a date-only string; converting it to a timestamp can shift
-the birthday across time zones. The public API and SDK remain read-only.
+the birthday across time zones. CRM-write keys may update date_of_birth with a YYYY-MM-DD string or clear it with null; birthday greeting settings remain private.
 
 **Enums can grow.** Totem can add a value to any response field with a fixed
 set of values, such as `Lead['status']` or `Call['outcome']`, in any version.
@@ -301,7 +356,7 @@ Each request has a **30 second deadline** by default (`timeoutMs`, on the client
 or per request). It covers every attempt, retry wait and body read, and holds
 even when a custom `fetch` ignores its signal.
 
-The client retries network failures and HTTP `408`, `429`, `500`, `502`, `503`
+Read operations (including POST search) and writes declaring idempotency retry network failures and HTTP `408`, `429`, `500`, `502`, `503`
 and `504` up to **two times** by default (`maxRetries`, 0–5). Its own backoff
 doubles from 250 ms with jitter: 125–250 ms before the first retry, 250–500 ms
 before the second. It waits out a server's `Retry-After` (whole seconds or an
@@ -345,8 +400,8 @@ and `npm run health`. The generator has no compiler-library peer dependency. It
 fails with a named error instead of silently weakening types on any construct
 it cannot translate: unknown keywords, type arrays combined with structure,
 `required` names that are not properties, path-level or cookie parameters,
-headers other than `Totem-Team`, non-scalar query values, optional or `$ref`
-request bodies, and success responses other than one JSON `200`.
+undeclared header kinds (only `Totem-Team`, `Idempotency-Key` and `If-Match` are supported), non-scalar query values, optional or `$ref`
+request bodies, missing effect metadata, and success responses outside JSON 200/201/202 or bodyless 204.
 `CONTRACT_SHA256` identifies the exact contract, and `SDK_VERSION` the package
 version, used to generate this release.
 
@@ -360,8 +415,9 @@ fails when they do not resolve once the release exists. See
 ### Live test
 
 Use a **Totem-owned test team with fictitious contacts** and a dedicated API
-key. This script performs read-only requests; it does not create, revoke or
-rotate any credentials or mutate team data.
+key. The default `read` profile performs read-only requests and excludes the seven
+CRM/content operations explicitly in its receipt. The script never creates,
+revokes or rotates credentials.
 
 ```sh
 chmod 600 /secure/path/sdk-smoke.key
@@ -371,6 +427,14 @@ TOTEM_LIVE_FIXTURES_FILE=/secure/path/fixtures.json \
 TOTEM_SMOKE_RECEIPT=/secure/path/receipt.json \
 npm run test:live
 ```
+
+To exercise all 27 operations, set `TOTEM_SMOKE_PROFILE=crm` with a dedicated
+CRM-write key that also has the explicit note-content grant. Add unique
+`crmEmail` (ending in `@example.invalid`) and `crmExternalId` fixtures for that
+run. This mode validates a dry run, creates an inert import, updates the lead,
+creates/reads/updates/deletes a note, proves stale validators fail and archives
+the disposable lead. Never point it at customer fixtures. It fails rather
+than reusing an existing import identity; choose fresh fixtures for each run.
 
 The key file contains only the key. `TOTEM_API_KEY` is supported when a secret
 manager injects it as an environment variable. Never pass keys on command lines.
@@ -401,7 +465,7 @@ partial run (recorded as `allowPartial`). A configuration problem prints
 still writes a receipt when it can.
 
 The receipt records the SDK version, contract hash, server release
-(`Totem-Release`), covered operations, checks with HTTP status and request IDs,
+(`Totem-Release`), selected profile, excluded operations, covered operations, checks with HTTP status and request IDs,
 skipped checks, the feed variants seen and, on failure, the failing operation
 or check, schema rule and schema path, and request ID. It never contains the
 key or record content. A failed or incomplete run exits nonzero. Local green

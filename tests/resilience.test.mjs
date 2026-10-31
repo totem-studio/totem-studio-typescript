@@ -14,6 +14,69 @@ import { KEY, problem, serve } from './helpers.mjs';
 const contract = JSON.parse(await readFile(new URL('../openapi.json', import.meta.url), 'utf8'));
 const list = { object: 'list', data: [], has_more: false, next_cursor: null };
 
+for (const [label, supplied] of [['automatic UUID', undefined], ['caller checkpoint key', 'crm-contact-123']]) {
+  test(`idempotent write replays one committed effect using ${label}, including a dropped-key negative control`, async context => {
+    const states = new Map();
+    const keys = [];
+    let writes = 0;
+    const baseUrl = await serve(context, request => {
+      const key = request.headers['idempotency-key'];
+      keys.push(key);
+      if (states.has(key)) return { status: 201, body: { object: 'lead_mutation', created: true, lead: { id: 'lead_ABC' } } };
+      states.set(key, true); writes++;
+      return { status: 503, headers: { 'Retry-After': '0' }, body: problem(503, 'service_unavailable') };
+    });
+    const verify = async client => {
+      const result = await client.leads.upsert({ origin: 'import', email: 'ada@example.com' }, supplied ? { idempotencyKey: supplied } : {});
+      assert.equal(result.lead.id, 'lead_ABC');
+      assert.equal(writes, 1);
+    };
+    await verify(new TotemClient({ apiKey: KEY, baseUrl, maxRetries: 1 }));
+    assert.equal(keys.length, 2);
+    assert.equal(keys[0], keys[1]);
+    if (supplied) assert.equal(keys[0], 'crm-contact-123');
+    else assert.match(keys[0], /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/);
+    states.clear(); keys.length = 0; writes = 0;
+    const corruptedKey = async (url, init) => {
+      const headers = new Headers(init.headers); headers.set('Idempotency-Key', `fault-${keys.length}`);
+      return fetch(url, { ...init, headers });
+    };
+    await assert.rejects(verify(new TotemClient({ apiKey: KEY, baseUrl, maxRetries: 1, fetch: corruptedKey })), TotemApiError);
+    assert.equal(writes, 2);
+  });
+}
+for (const status of [409, 500, 503]) {
+  test(`never blindly retries outcome_unknown even with status ${status}`, async context => {
+    let count = 0;
+    const baseUrl = await serve(context, () => { count++; return { status, headers: { 'Retry-After': '0' }, body: problem(status, 'outcome_unknown') }; });
+    await assert.rejects(new TotemClient({ apiKey: KEY, baseUrl }).leads.addNote('lead_ABC', { body: 'Asked for a proposal.' }), error => error instanceof TotemApiError && error.code === 'outcome_unknown');
+    assert.equal(count, 1);
+  });
+}
+test('read-only POST search keeps transient retry behavior', async context => {
+  let count = 0;
+  const baseUrl = await serve(context, () => ++count === 1 ? { status: 503, headers: { 'Retry-After': '0' }, body: problem(503, 'service_unavailable') } : { body: list });
+  assert.deepEqual(await new TotemClient({ apiKey: KEY, baseUrl }).leads.search({ email: 'ada@example.com' }), list);
+  assert.equal(count, 2);
+});
+test('an idempotent write honors an in-progress replay response without replacing its key', async context => {
+  const keys = [];
+  const baseUrl = await serve(context, request => {
+    keys.push(request.headers['idempotency-key']);
+    return keys.length === 1 ? { status: 409, headers: { 'Retry-After': '0' }, body: problem(409, 'idempotency_in_progress') }
+      : { status: 201, body: { object: 'lead_note_receipt', note: { id: 'note_DEF' } } };
+  });
+  assert.equal((await new TotemClient({ apiKey: KEY, baseUrl }).leads.addNote('lead_ABC', { body: 'Asked for a proposal.' })).note.id, 'note_DEF');
+  assert.equal(keys.length, 2);
+  assert.equal(keys[0], keys[1]);
+});
+test('success bodies must match a declared status and 204 resolves without JSON parsing', async () => {
+  const accepted = new TotemClient({ apiKey: KEY, fetch: async () => new Response(null, { status: 204 }) });
+  assert.equal(await accepted.leads.deleteNote('lead_ABC', 'note_DEF', { ifMatch: '"note_DEF:3"' }), undefined);
+  const undeclared = new TotemClient({ apiKey: KEY, fetch: async () => Response.json({}, { status: 202 }) });
+  await assert.rejects(undeclared.leads.upsert({ origin: 'import', email: 'ada@example.com' }), TotemProtocolError);
+});
+
 for (const [status, code, action] of [
   [400, 'invalid_request', 'fix_request'],
   [401, 'invalid_credentials', 'check_credentials'],

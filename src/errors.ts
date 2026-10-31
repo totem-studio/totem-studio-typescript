@@ -49,7 +49,7 @@ export class TotemApiError extends TotemError {
   }
 }
 
-/** The API answered in a way the contract does not allow: invalid JSON, or a list page with no progress. */
+/** The API answered outside its contract: invalid JSON/status/body, or a list page with no progress. */
 export class TotemProtocolError extends TotemError {
   readonly requestId: string | null
   constructor(message: string, requestId: string | null = null, options?: ErrorOptions) {
@@ -69,7 +69,7 @@ export class TotemTimeoutError extends TotemError {
   }
 }
 
-/** The network failed (before or during the response) and the retry budget or the deadline ran out. `cause` holds the last failure. */
+/** The network failed and retries are exhausted, exceed the deadline or are unsafe for this operation. `cause` holds the last failure. */
 export class TotemConnectionError extends TotemError {
   constructor(cause: unknown) {
     super('Totem API connection failed', { cause })

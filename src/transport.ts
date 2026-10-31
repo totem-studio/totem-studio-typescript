@@ -7,6 +7,22 @@ export interface WireInput extends RequestOptions {
   query?: Record<string, unknown> | undefined
   body?: unknown
 }
+interface WriteHeader {
+  name: 'Idempotency-Key' | 'If-Match'
+  required: boolean
+  schema: { type: 'string'; minLength?: number; maxLength?: number; pattern?: string; enum?: readonly string[] }
+}
+interface WireDefinition {
+  method: string
+  path: string
+  authenticated: boolean
+  body: boolean
+  team: boolean
+  query: readonly string[]
+  effect?: 'read' | 'write'
+  headers?: readonly WriteHeader[]
+  successResponses?: ReadonlyArray<{ status: number; body: boolean }>
+}
 const RETRYABLE = new Set([408, 429, 500, 502, 503, 504])
 /** RFC 9110 IMF-fixdate, the only HTTP-date form a server may send. */
 const IMF_FIXDATE = /^(?:Mon|Tue|Wed|Thu|Fri|Sat|Sun), \d{2} (?:Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec) \d{4} \d{2}:\d{2}:\d{2} GMT$/
@@ -18,6 +34,19 @@ function boundedNumber(value: number, name: string, min: number, max: number): n
 function teamId(value: unknown): string | undefined {
   if (value === undefined) return undefined
   if (typeof value !== 'string' || !value.trim()) throw new TypeError('team must be a nonempty team id')
+  return value
+}
+/** Validate only documented write headers; arbitrary headers can never override credentials or tenancy. */
+function writeHeaderValue(definition: WriteHeader, value: unknown): string {
+  const { name, schema } = definition
+  const maximum = schema.maxLength ?? (name === 'Idempotency-Key' ? 255 : 1024)
+  if (typeof value !== 'string' || !value.trim() || /[^\x20-\x7e]/.test(value)
+    || value.length < (schema.minLength ?? 1) || value.length > maximum
+    || schema.enum !== undefined && !schema.enum.includes(value)
+    || schema.pattern !== undefined && !new RegExp(schema.pattern).test(value)) {
+    throw new TypeError(`${name} does not match the operation's header contract`)
+  }
+  if (name === 'If-Match' && !/^"[\x21\x23-\x7e]*"$/.test(value)) throw new TypeError('If-Match must be one strong quoted ETag')
   return value
 }
 /** Delta-seconds or an IMF-fixdate (a past date means 0); anything else is ignored so the SDK's own backoff applies. */
@@ -112,7 +141,8 @@ export class Transport {
 
   async send<T>(operationId: OperationId, input: WireInput): Promise<ResponseInfo<T>> {
     if (!Object.hasOwn(operationDefinitions, operationId)) throw new TypeError('Unknown Totem API operation')
-    const definition = operationDefinitions[operationId]
+    const definition: WireDefinition = operationDefinitions[operationId]
+    if (definition.effect !== 'read' && definition.effect !== 'write') throw new TypeError('The operation must declare its read or write effect')
     if (input.body !== undefined && !definition.body) throw new TypeError('This operation does not accept a request body')
     const path = definition.path.replace(/\{([^}]+)\}/g, (_, name: string) => {
       const value = input.path?.[name]
@@ -131,6 +161,18 @@ export class Transport {
     if (definition.authenticated) headers.set('Authorization', `Bearer ${this.#apiKey}`)
     const team = teamId(input.team ?? undefined) ?? this.#team
     if (definition.team && team !== undefined) headers.set('Totem-Team', team)
+    const writeHeaders = definition.headers ?? []
+    const idempotency = writeHeaders.find(header => header.name === 'Idempotency-Key')
+    const precondition = writeHeaders.find(header => header.name === 'If-Match')
+    if (input.idempotencyKey !== undefined && !idempotency) throw new TypeError('This operation does not accept Idempotency-Key')
+    if (input.ifMatch !== undefined && !precondition) throw new TypeError('This operation does not accept If-Match')
+    if (definition.effect !== 'write' && writeHeaders.length) throw new TypeError('Read operations cannot declare write headers')
+    if (idempotency) headers.set('Idempotency-Key', writeHeaderValue(idempotency, input.idempotencyKey ?? globalThis.crypto.randomUUID()))
+    if (precondition) {
+      if (input.ifMatch !== undefined) headers.set('If-Match', writeHeaderValue(precondition, input.ifMatch))
+      else if (precondition.required) throw new TypeError('This operation requires If-Match')
+    }
+    const retryable = definition.effect === 'read' || idempotency !== undefined
     const body = input.body === undefined ? undefined : JSON.stringify(input.body)
     if (body !== undefined) headers.set('Content-Type', 'application/json')
     const timeoutMs = boundedNumber(input.timeoutMs ?? this.#timeoutMs, 'timeoutMs', 1, 2_147_483_647)
@@ -143,7 +185,7 @@ export class Transport {
     const timer = setTimeout(() => deadline.abort(new TotemTimeoutError(timeoutMs)), timeoutMs)
     /** Waits before the next attempt, or throws `error` when the attempts or the deadline cannot cover the wait. */
     const retry = async (attempt: number, wait: number, error: Error) => {
-      if (attempt >= this.#maxRetries || wait >= deadlineAt - Date.now()) throw error
+      if (!retryable || attempt >= this.#maxRetries || wait >= deadlineAt - Date.now()) throw error
       await pause(wait, signal)
     }
     try {
@@ -170,10 +212,18 @@ export class Transport {
         if (!response.ok) {
           const delay = retryAfter(response.headers.get('Retry-After'))
           const error = new TotemApiError(response.status, problemOf(text), requestId, delay)
+          if (error.code === 'outcome_unknown') throw error
           // maxRetryDelayMs bounds only the server's Retry-After; the SDK's own backoff is bounded by maxRetries and the deadline.
-          if (!RETRYABLE.has(response.status) || (delay !== null && delay > this.#maxRetryDelayMs)) throw error
+          const inProgress = error.code === 'idempotency_in_progress' && idempotency !== undefined
+          if ((!RETRYABLE.has(response.status) && !inProgress) || (delay !== null && delay > this.#maxRetryDelayMs)) throw error
           await retry(attempt, delay ?? backoff(attempt), error)
           continue
+        }
+        const success = definition.successResponses?.find(item => item.status === response.status)
+        if (!success) throw new TotemProtocolError('Totem API returned an undeclared success status', requestId)
+        if (!success.body) {
+          if (text !== '') throw new TotemProtocolError('Totem API returned a body for a no-content response', requestId)
+          return { data: undefined as T, status: response.status, requestId, headers: response.headers }
         }
         try {
           return { data: JSON.parse(text ?? '') as T, status: response.status, requestId, headers: response.headers }
