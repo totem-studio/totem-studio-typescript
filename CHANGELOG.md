@@ -3,8 +3,11 @@
 The SDK follows the Totem API Beta. Until 1.0, a minor or prerelease version
 can change types or behaviour; each entry lists what to adapt.
 
-## 0.3.0-beta.1 (prepared; publication pending)
+## 0.3.0-beta.1 (2026-11-01)
 
+- Published the verified GitHub release artifact to npm under `beta`.
+  The `latest` tag remains `0.2.0-beta.1`. Registry downloads match the
+  reviewed tarball byte for byte.
 - Generated API 1.0b types and all guarded CRM operations: identity upsert,
   conditional update/archive, note list/create/update/delete and granted note
   feed upserts/removals. Existing read-only integrations retain their profile.

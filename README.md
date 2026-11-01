@@ -17,11 +17,12 @@ on your server:
 npm install @totemstudioai/sdk@beta
 ```
 
-The `beta` tag selects the current npm beta release, **0.2.0-beta.1**.
-This checkout prepares **0.3.0-beta.1** for API 1.0b; publication is pending.
-To pin the published npm version, use `npm install @totemstudioai/sdk@0.2.0-beta.1`.
+The `beta` tag selects **0.3.0-beta.1**, with the API 1.0b CRM methods.
+To pin this release, use `npm install @totemstudioai/sdk@0.3.0-beta.1`.
+The `latest` tag remains **0.2.0-beta.1**, with the earlier read methods, so
+include `@beta` or the exact version to install the CRM release.
 
-After publication, install the **0.3.0-beta.1** release tarball from GitHub. It
+The same **0.3.0-beta.1** release tarball is also available from GitHub. It
 contains the built package, so it needs no Git, no build step and no install
 scripts, and it works with `ignore-scripts`. Download the tarball and its
 checksum, check it, then install the file you checked:
