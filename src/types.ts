@@ -1,4 +1,4 @@
-import type { Board, FeedItem, OperationContracts } from './generated/schema.js'
+import type { Board, FeedItem, Operation, OperationContracts, TaskReceipt } from './generated/schema.js'
 import type { errorCatalogue, operationDefinitions } from './generated/operations.js'
 
 /** Every component schema as a named type (`Lead`, `LeadDetail`, `FeedItem`, …), `Schemas`, `TotemErrorCode` and `ErrorAction`. */
@@ -7,6 +7,16 @@ export type OperationId = keyof OperationContracts
 export type ResponseOf<Id extends OperationId> = OperationContracts[Id]['response']
 export type QueryOf<Id extends OperationId> = OperationContracts[Id]['query']
 export type BodyOf<Id extends OperationId> = OperationContracts[Id]['body']
+/** Opaque task id returned in an operation's result. Pass it unchanged; do not parse it. */
+export type TaskId = TaskReceipt['id']
+/** Opaque operation resource id, distinct from the operation catalogue's `OperationId`. */
+export type PublicOperationId = Operation['id']
+/** Create a task with server-controlled provenance and current same-team member and lead ids. */
+export type TaskCreateBody = BodyOf<'tasks.create'>
+/** The task-completion request is an empty JSON object. */
+export type TaskCompleteBody = BodyOf<'tasks.complete'>
+/** The cancellation request is an empty JSON object. */
+export type OperationCancelBody = BodyOf<'operations.cancel'>
 /** One catalogue entry: `{ status, action, docUrl }`. */
 export type ErrorCatalogueEntry = (typeof errorCatalogue)[keyof typeof errorCatalogue]
 
@@ -34,6 +44,8 @@ export interface RequestOptions {
   idempotencyKey?: string | undefined
   /** A single strong ETag copied unchanged from the resource response. Only offered where the operation declares If-Match. */
   ifMatch?: string | undefined
+  /** Server-minted opaque taw2/tsa2 authority (at most 24,000 characters), for this request only. Forward unchanged with a service key; tenant keys cannot use it. */
+  writeContext?: string | undefined
 }
 type DeclaredHeaders<Id extends OperationId> = (typeof operationDefinitions)[Id] extends { headers: ReadonlyArray<infer Header> } ? Header : never
 type HeaderOptions<Id extends OperationId> =

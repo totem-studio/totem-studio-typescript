@@ -29,8 +29,9 @@ const SCALAR_QUERY_TYPES = new Set(['string', 'integer', 'number']);
 const TENANT_BINDINGS = new Set(['principal', 'resource_id', 'team_header', 'none']);
 const EFFECTS = new Set(['read', 'write']);
 const REQUEST_HEADERS = new Map([['idempotency-key', 'Idempotency-Key'], ['if-match', 'If-Match']]);
+const OPAQUE_ID_PREFIXES = new Map([['^task_[0-9A-Za-z]+$', 'task'], ['^op_[0-9A-Za-z]+$', 'op']]);
 /** Hand-written SDK exports; a component alias with one of these names would shadow it. */
-const RESERVED = new Set(['TotemClient', 'TotemError', 'TotemApiError', 'TotemProtocolError', 'TotemTimeoutError', 'TotemConnectionError', 'Schemas', 'OperationContracts', 'OperationId', 'ResponseOf', 'QueryOf', 'BodyOf', 'RequestOptions', 'OptionsOf', 'RequestInput', 'RequestArgs', 'ListOperationId', 'ItemsOperationId', 'ItemOf', 'ResponseInfo', 'ClientOptions', 'TotemErrorCode', 'ErrorAction', 'ErrorCatalogueEntry', 'Stage', 'FeedRemoval', 'FeedUpsert', 'FeedObjectOf', 'UnionKeys', 'ExclusiveUnion']);
+const RESERVED = new Set(['TotemClient', 'TotemError', 'TotemApiError', 'TotemProtocolError', 'TotemTimeoutError', 'TotemConnectionError', 'Schemas', 'OperationContracts', 'OperationId', 'TaskId', 'PublicOperationId', 'TaskCreateBody', 'TaskCompleteBody', 'OperationCancelBody', 'ResponseOf', 'QueryOf', 'BodyOf', 'RequestOptions', 'OptionsOf', 'RequestInput', 'RequestArgs', 'ListOperationId', 'ItemsOperationId', 'ItemOf', 'ResponseInfo', 'ClientOptions', 'TotemErrorCode', 'ErrorAction', 'ErrorCatalogueEntry', 'Stage', 'FeedRemoval', 'FeedUpsert', 'FeedObjectOf', 'UnionKeys', 'ExclusiveUnion']);
 
 /** A JSDoc block for English documentation text, or nothing. */
 function doc(...texts) {
@@ -132,7 +133,10 @@ export function generate(document, { version, sha256 }) {
       const properties = schema.properties ?? {};
       const required = schema.required ?? [];
       for (const name of required) if (!Object.hasOwn(properties, name)) fail(`required names ${name}, which is not a declared property`);
-      if (schema.additionalProperties === false && !Object.keys(properties).length) fail('An empty closed object is not supported');
+      if (schema.additionalProperties === false && !Object.keys(properties).length) {
+        parts.push('Record<string, never>');
+        return parts.join(' & ');
+      }
       const fields = Object.entries(properties).map(([key, value]) => {
         const optional = !required.includes(key);
         return `${doc(value?.description)}${quote(key)}${optional ? '?' : ''}: ${type(value, mode, closedProperties.has(key))}${optional && mode === 'request' ? ' | undefined' : ''}`;
@@ -142,6 +146,7 @@ export function generate(document, { version, sha256 }) {
     }
     else if (schema.type === 'array') parts.push(`Array<${type(schema.items ?? {}, mode)}>`);
     else if (schema.type === 'integer' || schema.type === 'number') parts.push('number');
+    else if (schema.type === 'string' && OPAQUE_ID_PREFIXES.has(schema.pattern)) parts.push('`' + OPAQUE_ID_PREFIXES.get(schema.pattern) + '_${string}`');
     else if (['string', 'boolean', 'null'].includes(schema.type)) parts.push(schema.type);
     else if (schema.type) fail(`Unsupported schema type ${schema.type}`);
     return parts.join(' & ') || 'unknown';

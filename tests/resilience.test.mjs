@@ -14,26 +14,34 @@ import { KEY, problem, serve } from './helpers.mjs';
 const contract = JSON.parse(await readFile(new URL('../openapi.json', import.meta.url), 'utf8'));
 const list = { object: 'list', data: [], has_more: false, next_cursor: null };
 
-for (const [label, supplied] of [['automatic UUID', undefined], ['caller checkpoint key', 'crm-contact-123']]) {
-  test(`idempotent write replays one committed effect using ${label}, including a dropped-key negative control`, async context => {
+const queuedTaskOperation = { object: 'operation', id: 'op_ABC', status: 'queued', endpoint: 'tasks.create', created_at: '2026-11-02T10:00:00Z', updated_at: '2026-11-02T10:00:00Z', result: null, error: null };
+for (const [route, call, acceptedStatus, responseBody, expectedBody] of [
+  ['CRM upsert', (client, options) => client.leads.upsert({ origin: 'import', email: 'ada@example.com' }, options), 201, { object: 'lead_mutation', created: true, lead: { id: 'lead_ABC' } }, '{"origin":"import","email":"ada@example.com"}'],
+  ['task create', (client, options) => client.tasks.create({ title: 'Call Ada' }, options), 202, queuedTaskOperation, '{"title":"Call Ada"}'],
+  ['task complete', (client, options) => client.tasks.complete('task_ABC', options), 202, { ...queuedTaskOperation, endpoint: 'tasks.complete' }, '{}'],
+]) for (const [label, supplied] of [['automatic UUID', undefined], ['caller checkpoint key', 'crm-contact-123']]) {
+  test(`${route} replays one committed effect using ${label}, including a dropped-key negative control`, async context => {
     const states = new Map();
     const keys = [];
+    const bodies = [];
     let writes = 0;
     const baseUrl = await serve(context, request => {
       const key = request.headers['idempotency-key'];
       keys.push(key);
-      if (states.has(key)) return { status: 201, body: { object: 'lead_mutation', created: true, lead: { id: 'lead_ABC' } } };
+      bodies.push(request.body);
+      if (states.has(key)) return { status: acceptedStatus, body: responseBody };
       states.set(key, true); writes++;
       return { status: 503, headers: { 'Retry-After': '0' }, body: problem(503, 'service_unavailable') };
     });
     const verify = async client => {
-      const result = await client.leads.upsert({ origin: 'import', email: 'ada@example.com' }, supplied ? { idempotencyKey: supplied } : {});
-      assert.equal(result.lead.id, 'lead_ABC');
+      const result = await call(client, supplied ? { idempotencyKey: supplied } : {});
+      assert.deepEqual(result, responseBody);
       assert.equal(writes, 1);
     };
     await verify(new TotemClient({ apiKey: KEY, baseUrl, maxRetries: 1 }));
     assert.equal(keys.length, 2);
     assert.equal(keys[0], keys[1]);
+    assert.deepEqual(bodies, [expectedBody, expectedBody]);
     if (supplied) assert.equal(keys[0], 'crm-contact-123');
     else assert.match(keys[0], /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/);
     states.clear(); keys.length = 0; writes = 0;
@@ -45,6 +53,29 @@ for (const [label, supplied] of [['automatic UUID', undefined], ['caller checkpo
     assert.equal(writes, 2);
   });
 }
+for (const [label, response, ErrorType] of [
+  ['transient HTTP response', () => Response.json(problem(503, 'service_unavailable'), { status: 503, headers: { 'Retry-After': '0' } }), TotemApiError],
+  ['unknown network outcome', () => { throw new TypeError('network response lost'); }, TotemConnectionError],
+]) {
+  test(`cancellation sends one request on ${label} without an undeclared retry key`, async () => {
+    const requests = [];
+    const client = new TotemClient({ apiKey: KEY, team: 'team_SELECTED', maxRetries: 5, fetch: async (url, init) => { requests.push({ url: String(url), init }); return response(); } });
+    await assert.rejects(client.operations.cancel('op_ABC'), ErrorType);
+    assert.equal(requests.length, 1);
+    assert.equal(requests[0].url, 'https://api.totemstudio.ai/v1/operations/op_ABC/cancel');
+    assert.equal(requests[0].init.body, '{}');
+    assert.equal(requests[0].init.headers.get('Totem-Team'), 'team_SELECTED');
+    assert.equal(requests[0].init.headers.get('Content-Type'), 'application/json');
+    assert.equal(requests[0].init.headers.get('Idempotency-Key'), null);
+  });
+}
+test('reading an operation preserves its unknown outcome and never repeats the original effect', async context => {
+  const requests = [];
+  const operation = { ...queuedTaskOperation, status: 'outcome_unknown', error: { code: 'outcome_unknown' } };
+  const baseUrl = await serve(context, request => { requests.push(request); return { body: operation }; });
+  assert.deepEqual(await new TotemClient({ apiKey: KEY, team: 'team_SELECTED', baseUrl }).operations.get('op_ABC'), operation);
+  assert.deepEqual(requests.map(({ method, url }) => [method, url]), [['GET', '/v1/operations/op_ABC']]);
+});
 for (const status of [409, 500, 503]) {
   test(`never blindly retries outcome_unknown even with status ${status}`, async context => {
     let count = 0;
@@ -75,6 +106,8 @@ test('success bodies must match a declared status and 204 resolves without JSON 
   assert.equal(await accepted.leads.deleteNote('lead_ABC', 'note_DEF', { ifMatch: '"note_DEF:3"' }), undefined);
   const undeclared = new TotemClient({ apiKey: KEY, fetch: async () => Response.json({}, { status: 202 }) });
   await assert.rejects(undeclared.leads.upsert({ origin: 'import', email: 'ada@example.com' }), TotemProtocolError);
+  const unacceptedTask = new TotemClient({ apiKey: KEY, fetch: async () => Response.json(queuedTaskOperation, { status: 200 }) });
+  await assert.rejects(unacceptedTask.tasks.create({ title: 'Call Ada' }), TotemProtocolError);
 });
 
 for (const [status, code, action] of [

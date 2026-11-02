@@ -1,7 +1,7 @@
 import { createServer } from 'node:http';
 /** A JSON fixture server. The handler returns { status, headers, body }; every answer carries a request id unless headers override it. */
 export async function serve(context, handler) {
-  const server = createServer(async (request, response) => {
+  const server = createServer({ maxHeaderSize: 65_536 }, async (request, response) => {
     let body = '';
     for await (const chunk of request) body += chunk;
     try {

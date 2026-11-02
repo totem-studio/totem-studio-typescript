@@ -51,7 +51,6 @@ const list = document => document.paths['/things'].get;
 for (const [label, mutate, message] of [
   ['a type array with properties', document => { thing(document).type = ['object', 'null']; }, /type array cannot be combined with properties/],
   ['required naming an absent property', document => { thing(document).required.push('missing'); }, /required names missing/],
-  ['an empty closed object', document => { document.components.schemas.Thing = { type: 'object', additionalProperties: false }; }, /empty closed object/],
   ['an unsupported keyword', document => { thing(document).properties.id.multipleOf = 2; }, /Unsupported JSON Schema keyword multipleOf/],
   ['an unresolved reference', document => { list(document).responses = ok200({ $ref: '#/components/schemas/Missing' }); }, /Unresolved ref/],
   ['path-item parameters', document => { document.paths['/things'].parameters = [{ name: 'q', in: 'query', schema: { type: 'string' } }]; }, /Path-level parameters/],
@@ -176,14 +175,17 @@ test('the real contract generates, with Problem.code open over the catalogue', a
 });
 test('generated types compile and behave: open responses, closed discriminators and requests', async context => {
   const document = fixture();
+  const emptyWrite = write(document);
+  emptyWrite.requestBody = { required: true, content: { 'application/json': { schema: { type: 'object', properties: {}, additionalProperties: false } } } };
   document.components.schemas.Event = { oneOf: [
     { type: 'object', properties: { type: { type: 'string', enum: ['created', 'deleted'] }, actor: { type: 'string', enum: ['human', 'ai'] } }, required: ['type', 'actor'] },
     { type: 'object', properties: { type: { const: 'moved' }, actor: { type: 'string', enum: ['human', 'ai'] }, to: { type: 'string' } }, required: ['type', 'actor', 'to'] },
   ] };
+  document.components.schemas.OpaqueIds = { type: 'object', properties: { task: { type: 'string', pattern: '^task_[0-9A-Za-z]+$' }, operation: { type: 'string', pattern: '^op_[0-9A-Za-z]+$' }, ordinary: { type: 'string', pattern: '^other_[0-9A-Za-z]+$' } }, required: ['task', 'operation', 'ordinary'] };
   const directory = await mkdtemp(join(tmpdir(), 'totem-sdk-generator-'));
   context.after(() => rm(directory, { recursive: true, force: true }));
   for (const [file, content] of Object.entries(generate(document, options))) await writeFile(join(directory, file), content);
-  await writeFile(join(directory, 'probe.ts'), `import type { Event, OperationContracts, Thing } from './schema.js'
+  await writeFile(join(directory, 'probe.ts'), `import type { Event, OpaqueIds, OperationContracts, Thing } from './schema.js'
 declare const event: Event
 const future: Thing['state'] = 'grown_later'
 const actor: Event['actor'] = 'robot'
@@ -193,7 +195,17 @@ const unknownType: Event['type'] = 'grown_later'
 // @ts-expect-error request enums stay closed
 const filter: OperationContracts['things.list']['query']['state'] = 'grown_later'
 const cursor: OperationContracts['things.list']['query'] = { limit: null, state: undefined }
-void future; void actor; void unknownType; void filter; void cursor
+const emptyBody: OperationContracts['things.write']['body'] = {}
+// @ts-expect-error an empty closed JSON object refuses extra fields
+const extraBody: OperationContracts['things.write']['body'] = { actor: 'self' }
+// @ts-expect-error an empty closed JSON object is not a primitive
+const primitiveBody: OperationContracts['things.write']['body'] = 1
+const opaqueIds: OpaqueIds = { task: 'task_ABC123', operation: 'op_DEF456', ordinary: 'any string' }
+// @ts-expect-error task ids cannot be operation ids
+const wrongTaskId: OpaqueIds['task'] = 'op_ABC123'
+// @ts-expect-error operation ids cannot be task ids
+const wrongOperationId: OpaqueIds['operation'] = 'task_DEF456'
+void future; void actor; void unknownType; void filter; void cursor; void emptyBody; void extraBody; void primitiveBody; void opaqueIds; void wrongTaskId; void wrongOperationId
 `);
   await writeFile(join(directory, 'tsconfig.json'), JSON.stringify({ compilerOptions: { strict: true, exactOptionalPropertyTypes: true, noEmit: true, module: 'NodeNext', moduleResolution: 'NodeNext', target: 'ES2023', skipLibCheck: true }, include: ['*.ts'] }));
   const tsc = new URL('../node_modules/typescript/bin/tsc', import.meta.url);

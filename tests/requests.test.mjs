@@ -3,6 +3,8 @@
  * content type, User-Agent and server-only credentials. A per-request team
  * wins over the client default on collection routes and is never sent on
  * detail routes. Configuration and input guards refuse before any request.
+ * Server-minted write context stays on its explicit request and its retries;
+ * it never replaces the bearer credential or becomes client-wide state.
  * The fetch, default or custom, is called unbound and may answer synchronously.
  */
 import test from 'node:test';
@@ -38,6 +40,10 @@ const routes = [
   ['notifications', client => client.notifications.list({ limit: 2, status: 'new' }), 'GET', '/v1/notifications?limit=2&status=new', true],
   ['lead notifications', client => client.notifications.list({ lead: 'lead_ABC' }), 'GET', '/v1/notifications?lead=lead_ABC', true],
   ['notification', client => client.notifications.get('ntf_ABC'), 'GET', '/v1/notifications/ntf_ABC', false],
+  ['create task', client => client.tasks.create({ title: 'Call Ada', lead_id: 'lead_ABC' }), 'POST', '/v1/tasks', true, '{"title":"Call Ada","lead_id":"lead_ABC"}', 202],
+  ['complete task', client => client.tasks.complete('task_ABC'), 'POST', '/v1/tasks/task_ABC/complete', true, '{}', 202],
+  ['operation', client => client.operations.get('op_ABC'), 'GET', '/v1/operations/op_ABC', true],
+  ['cancel operation', client => client.operations.cancel('op_ABC'), 'POST', '/v1/operations/op_ABC/cancel', true, '{}'],
   ['changes', client => client.sync.changes({ limit: 1 }), 'GET', '/v1/sync/changes?limit=1', true],
   ['health', client => client.health(), 'GET', '/v1/health', false],
 ];
@@ -57,6 +63,73 @@ for (const [label, call, method, url, team, body = '', status = 200] of routes) 
     assert.equal(requests[0].headers['totem-team'], team ? 'team_SDK' : undefined);
   });
 }
+test('accepted task operation preserves 202, its opaque result and support headers without polling', async context => {
+  const requests = [];
+  const operation = { object: 'operation', id: 'op_ABC', status: 'queued', endpoint: 'tasks.create', created_at: '2026-11-02T10:00:00Z', updated_at: '2026-11-02T10:00:00Z', result: null, error: null };
+  const baseUrl = await serve(context, request => { requests.push(request); return { status: 202, body: operation }; });
+  const client = new TotemClient({ apiKey: KEY, team: 'team_DEFAULT', baseUrl });
+  const response = await client.requestWithResponse('tasks.create', { body: { title: 'Call Ada' }, team: 'team_SELECTED', idempotencyKey: 'task-call-ada' });
+  assert.deepEqual(response.data, operation);
+  assert.equal(response.status, 202);
+  assert.equal(response.requestId, 'req_fixture_01');
+  assert.equal(response.headers.get('Totem-Request-Id'), 'req_fixture_01');
+  assert.equal(requests.length, 1);
+  assert.equal(requests[0].headers['totem-team'], 'team_SELECTED');
+  assert.equal(requests[0].headers['idempotency-key'], 'task-call-ada');
+});
+for (const prefix of ['taw2', 'tsa2']) {
+  test(`${prefix} context stays on its task request and retries, with a dropped-proof negative control`, async context => {
+    const writeContext = `${prefix}.ZmljdGl0aW91cw.${'s'.repeat(43)}`;
+    const requests = [];
+    const operation = { object: 'operation', id: 'op_ABC', status: 'queued', endpoint: 'tasks.create', created_at: '2026-11-02T10:00:00Z', updated_at: '2026-11-02T10:00:00Z', result: null, error: null };
+    const baseUrl = await serve(context, request => {
+      requests.push(request);
+      if (request.url !== '/v1/tasks') return { body: { identity: 'service' } };
+      if (request.headers['x-totem-write-context'] !== writeContext || request.headers.authorization !== `Bearer ${KEY}`) return { status: 401, body: problem(401, 'invalid_credentials') };
+      return requests.length === 1 ? { status: 503, headers: { 'Retry-After': '0' }, body: problem(503, 'service_unavailable') } : { status: 202, body: operation };
+    });
+    const verify = async client => {
+      assert.deepEqual(await client.tasks.create({ title: 'Call Ada' }, { writeContext, idempotencyKey: 'context-call-ada' }), operation);
+      assert.equal(requests.length, 2);
+      assert.deepEqual(requests.map(request => request.headers['idempotency-key']), ['context-call-ada', 'context-call-ada']);
+      assert.deepEqual(requests.map(request => request.body), ['{"title":"Call Ada"}', '{"title":"Call Ada"}']);
+    };
+    const client = new TotemClient({ apiKey: KEY, team: 'team_SELECTED', baseUrl, maxRetries: 1 });
+    await verify(client);
+    await client.me.get();
+    await client.operations.get('op_ABC');
+    assert.deepEqual(requests.slice(2).map(request => request.headers['x-totem-write-context']), [undefined, undefined]);
+    assert.deepEqual(requests.slice(2).map(request => request.headers.authorization), [`Bearer ${KEY}`, `Bearer ${KEY}`]);
+    requests.length = 0;
+    const droppedProof = (url, init) => { const headers = new Headers(init.headers); headers.delete('X-Totem-Write-Context'); return fetch(url, { ...init, headers }); };
+    await assert.rejects(verify(new TotemClient({ apiKey: KEY, team: 'team_SELECTED', baseUrl, maxRetries: 1, fetch: droppedProof })), error => error instanceof TotemApiError && error.code === 'invalid_credentials');
+    assert.equal(requests.length, 1);
+  });
+}
+for (const [label, writeContext] of [
+  ['empty', ''], ['blank', ' '], ['wrong version', `taw1.e30.${'s'.repeat(43)}`],
+  ['missing payload', `tsa2..${'s'.repeat(43)}`], ['short signature', `taw2.e30.${'s'.repeat(42)}`],
+  ['extra component', `taw2.e30.${'s'.repeat(43)}.extra`], ['line break', `taw2.e30.${'s'.repeat(43)}\n`],
+  ['oversized', `tsa2.${'a'.repeat(23_952)}.${'s'.repeat(43)}`], ['null', null], ['non-string', 123],
+]) {
+  test(`malformed ${label} write context is refused before fetch without exposing it`, async () => {
+    let requests = 0;
+    const client = new TotemClient({ apiKey: KEY, fetch: () => { requests++; return Response.json({}); } });
+    await assert.rejects(client.tasks.create({ title: 'Call Ada' }, { writeContext }), error => error instanceof TypeError && error.message === 'writeContext must be a bounded opaque taw2/tsa2 server context');
+    assert.equal(requests, 0);
+  });
+}
+test('a 24,000-character write context is forwarded unchanged only when explicitly supplied', async context => {
+  const writeContext = `taw2.${'a'.repeat(23_951)}.${'s'.repeat(43)}`;
+  const requests = [];
+  const baseUrl = await serve(context, request => { requests.push(request); return { status: 202, body: { id: 'op_ABC' } }; });
+  const client = new TotemClient({ apiKey: KEY, baseUrl, writeContext });
+  await client.tasks.create({ title: 'Call Ada' }, { writeContext });
+  await client.tasks.create({ title: 'Call Ada' });
+  assert.equal(writeContext.length, 24_000);
+  assert.equal(requests[0].headers['x-totem-write-context'], writeContext);
+  assert.equal(requests[1].headers['x-totem-write-context'], undefined);
+});
 for (const [label, options] of [
   ['missing validator', {}],
   ['weak validator', { ifMatch: 'W/"lead_ABC:7"' }],

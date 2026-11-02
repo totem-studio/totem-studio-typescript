@@ -14,6 +14,8 @@ import { ResponseValidationError, VALIDATION_CODES, validateResponse } from './s
 
 const FIXTURE_FIELDS = ['teamId', 'leadId', 'callId', 'conversationId', 'bookingId', 'notificationId', 'searchEmail', 'foreignLeadId', 'foreignTeamId', 'crmEmail', 'crmExternalId'];
 const SYNC_PAGE_BUDGET = 5;
+const READ_PROFILE_SCOPES = ['teams:read', 'crm:read', 'calls:read', 'messages:read', 'calendar:read'];
+const PROFILE_TAGS = new Set(['account', 'leads', 'calls', 'conversations', 'bookings', 'notifications', 'sync']);
 const SAFE_SCHEMA_PATH = /^\$(?:\.[A-Za-z0-9_]+|\[\d+\]|\.\*)*$/;
 const safeRelease = value => typeof value === 'string' && /^[0-9a-f]{7,40}$/.test(value) ? value : null;
 
@@ -78,8 +80,18 @@ async function main() {
   const schema = JSON.parse(await readFile(new URL('../openapi.json', import.meta.url), 'utf8'));
   const checks = [];
   const covered = new Set();
-  const expectedOperations = Object.keys(operationDefinitions).filter(id => profile === 'crm'
-    || operationDefinitions[id].effect === 'read' && id !== 'leads.notes');
+  const scopes = new Set([...READ_PROFILE_SCOPES, ...(profile === 'crm' ? ['crm:write', 'crm:notes:read'] : [])]);
+  const expectedOperations = Object.keys(operationDefinitions).filter(id => {
+    const definition = operationDefinitions[id];
+    const operation = schema.paths[definition.path]?.[definition.method.toLowerCase()];
+    // Operation status/cancellation inherits the original action's authority;
+    // an empty scope list is not a grant for these read/CRM acceptance profiles.
+    if (!Array.isArray(operation?.tags) || !operation.tags.length || !operation.tags.every(tag => PROFILE_TAGS.has(tag))
+      || !Array.isArray(operation['x-totem-scopes']) || !operation['x-totem-scopes'].every(scope => scopes.has(scope))) return false;
+    return operation['x-totem-effect'] === 'read'
+      || profile === 'crm' && operation['x-totem-effect'] === 'write'
+      && operation.tags.includes('leads') && operation['x-totem-scopes'].includes('crm:write');
+  });
   const excludedOperations = Object.keys(operationDefinitions).filter(id => !expectedOperations.includes(id));
   const responses = new Map();
   const skippedChecks = [];
@@ -91,6 +103,7 @@ async function main() {
   const safeRequestId = value => typeof value === 'string' && /^req_[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(value) && !value.includes(apiKey) ? value : null;
   async function run(id, input = {}) {
     current = { operation: id, requestId: null };
+    assert.ok(expectedOperations.includes(id), 'Operation is outside the selected smoke profile');
     const result = await client.requestWithResponse(id, input);
     current.requestId = safeRequestId(result.requestId);
     if (id === 'health') serverRelease = safeRelease(result.headers.get('Totem-Release'));

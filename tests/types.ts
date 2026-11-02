@@ -8,7 +8,7 @@
 import { TotemClient, TotemApiError, errorCatalogue, isFeedRemoval } from '../src/index.js'
 import type {
   Activity, Booking, ErrorAction, FeedItem, FeedObjectOf, FeedRemoval, FeedUpsert, Health, ItemOf, Lead, LeadAttribution, LeadList,
-  LeadResponse, Me, Notification, NotificationList, ResponseOf, Stage, TotemErrorCode,
+  LeadResponse, Me, Notification, NotificationList, Operation, OperationCancelBody, OperationId, PublicOperationId, ResponseOf, Stage, TaskCompleteBody, TaskCreateBody, TaskId, TaskReceipt, TotemErrorCode,
 } from '../src/index.js'
 
 declare const client: TotemClient
@@ -43,6 +43,42 @@ client.items('leads.notes', { path: { id: 'lead_ABC' } })
 client.leads.updateNote('lead_ABC', 'note_DEF', { body: 'Updated.' }, { ifMatch: '"note_DEF:3"' })
 const deletion: Promise<void> = client.leads.deleteNote('lead_ABC', 'note_DEF', { ifMatch: '"note_DEF:3"' })
 void deletion
+const taskBody: TaskCreateBody = { title: 'Call Ada', priority: 'high', lead_id: 'lead_ABC', assigned_to_ids: ['mem_DEF'], owner_id: null, due_at: null, reminders: { enabled: true, offsets_minutes: [15] } }
+const taskId: TaskId = 'task_ABC'
+const operationId: PublicOperationId = 'op_DEF'
+const catalogueId: OperationId = 'tasks.create'
+const emptyCompletion: TaskCompleteBody = {}
+const emptyCancellation: OperationCancelBody = {}
+const taskOperation: Promise<Operation> = client.tasks.create(taskBody, { team: 'team_A', idempotencyKey: 'task-call-ada' })
+client.tasks.complete(taskId, { team: 'team_A', idempotencyKey: 'complete-ada' })
+client.operations.get(operationId, { team: 'team_A' })
+client.operations.cancel(operationId, { team: 'team_A' })
+client.tasks.create({ title: 'Call Ada' }, { writeContext: maybe })
+// @ts-expect-error execution authority is request-scoped, never client-wide
+void new TotemClient({ apiKey: 'tsk_live_fictitious', writeContext: 'taw2.opaque.signature' })
+const receiptTaskId: TaskId = ({} as TaskReceipt).id
+const returnedOperationId: PublicOperationId = ({} as Operation).id
+client.tasks.complete(receiptTaskId)
+client.operations.get(returnedOperationId)
+// @ts-expect-error a task needs its title
+client.tasks.create({ priority: 'high' })
+// @ts-expect-error task provenance is controlled by the server
+client.tasks.create({ title: 'Call Ada', source: 'internal' })
+// @ts-expect-error task priority is a closed request enum
+client.tasks.create({ title: 'Call Ada', priority: 'critical' })
+// @ts-expect-error task ids and operation ids are distinct
+client.tasks.complete(operationId)
+// @ts-expect-error task ids and operation ids are distinct
+client.operations.get(taskId)
+// @ts-expect-error cancellation does not declare an idempotency header
+client.operations.cancel(operationId, { idempotencyKey: 'cancel-ada' })
+// @ts-expect-error reading an operation does not accept write headers
+client.operations.get(operationId, { idempotencyKey: 'poll-ada' })
+// @ts-expect-error task completion only permits an empty JSON body
+const extraCompletion: TaskCompleteBody = { actor: 'self' }
+// @ts-expect-error operation cancellation only permits an empty JSON body
+const extraCancellation: OperationCancelBody = { force: true }
+void taskOperation; void catalogueId; void emptyCompletion; void emptyCancellation; void extraCompletion; void extraCancellation
 // @ts-expect-error origin is mandatory for every upsert
 client.leads.upsert({ email: 'ada@example.com' })
 // @ts-expect-error opt-outs cannot be cleared by the public API

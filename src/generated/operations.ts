@@ -1,7 +1,7 @@
 /** Generated from openapi.json and package.json. Do not edit; run npm run generate. */
 import type { ErrorAction, TotemErrorCode } from './schema.js'
 
-export const CONTRACT_SHA256 = '1ae805da1fc9f40f542b454bbedbf34d41be25d109e4ca12e767bb61d7440a41'
+export const CONTRACT_SHA256 = '49e5c1b98d64cbff027ac151a5148ffe7c4972d3b09114e650679de64afb26e3'
 export const SDK_VERSION = '0.3.0-beta.1'
 export const DEFAULT_BASE_URL = "https://api.totemstudio.ai/v1"
 export const operationDefinitions = {
@@ -394,6 +394,92 @@ export const operationDefinitions = {
         }
       }
     ],
+    "successResponses": [
+      {
+        "status": 200,
+        "body": true
+      }
+    ],
+    "query": []
+  },
+  "tasks.create": {
+    "method": "POST",
+    "path": "/tasks",
+    "authenticated": true,
+    "body": true,
+    "team": true,
+    "effect": "write",
+    "headers": [
+      {
+        "name": "Idempotency-Key",
+        "required": true,
+        "schema": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 255,
+          "pattern": "^[\\x21-\\x7e]+$"
+        }
+      }
+    ],
+    "successResponses": [
+      {
+        "status": 202,
+        "body": true
+      }
+    ],
+    "query": []
+  },
+  "tasks.complete": {
+    "method": "POST",
+    "path": "/tasks/{id}/complete",
+    "authenticated": true,
+    "body": true,
+    "team": true,
+    "effect": "write",
+    "headers": [
+      {
+        "name": "Idempotency-Key",
+        "required": true,
+        "schema": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 255,
+          "pattern": "^[\\x21-\\x7e]+$"
+        }
+      }
+    ],
+    "successResponses": [
+      {
+        "status": 202,
+        "body": true
+      }
+    ],
+    "query": []
+  },
+  "operations.get": {
+    "method": "GET",
+    "path": "/operations/{id}",
+    "authenticated": true,
+    "body": false,
+    "team": true,
+    "effect": "read",
+    "headers": [],
+    "successResponses": [
+      {
+        "status": 200,
+        "body": true
+      }
+    ],
+    "query": []
+  },
+  "operations.cancel": {
+    "method": "POST",
+    "path": "/operations/{id}/cancel",
+    "authenticated": true,
+    "body": true,
+    "team": true,
+    "effect": "write",
+    "headers": [],
     "successResponses": [
       {
         "status": 200,

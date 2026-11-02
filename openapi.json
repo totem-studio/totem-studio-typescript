@@ -2,7 +2,7 @@
   "openapi": "3.1.0",
   "info": {
     "title": "Totem API",
-    "version": "1.0b",
+    "version": "1.0.0-rc.1",
     "summary": "Totem Studio CRM reads and guarded writes, explicit note-content access, calls, conversations, bookings, business notifications and a changes feed.",
     "x-summary-es": "Lecturas y escrituras protegidas de CRM de Totem Studio, acceso explícito al contenido de notas, llamadas, conversaciones, citas, avisos de negocio y un feed de cambios.",
     "x-totem-stability": "beta",
@@ -31,6 +31,16 @@
       "name": "leads",
       "description": "Leads and clients, their activities, and the boards and stages they move through.",
       "x-description-es": "Los leads y los clientes, sus actividades y los tableros y etapas por los que pasan."
+    },
+    {
+      "name": "tasks",
+      "description": "Create and complete same-team tasks through durable operations with explicitly granted task access.",
+      "x-description-es": "Crea y completa tareas del equipo mediante operaciones duraderas con permiso explícito de tareas."
+    },
+    {
+      "name": "operations",
+      "description": "Track durable operations and request cancellation before their effect begins.",
+      "x-description-es": "Consulta operaciones duraderas y solicita su cancelación antes de que comience el efecto."
     },
     {
       "name": "calls",
@@ -2878,6 +2888,555 @@
         "x-totem-rate-class": "write",
         "x-totem-effect": "write",
         "x-totem-tenant-binding": "resource_id",
+        "x-totem-stability": "beta"
+      }
+    },
+    "/tasks": {
+      "post": {
+        "operationId": "tasks.create",
+        "tags": [
+          "tasks"
+        ],
+        "summary": "Create a task",
+        "x-summary-es": "Crea una tarea",
+        "description": "Accepts a same-team task request as a durable operation. Follow its operation id until completion; retries with the same Idempotency-Key return the same logical operation. The server fixes task provenance and actor; current members and lead ownership are checked again before execution.",
+        "x-description-es": "Acepta una tarea del equipo como operación duradera. Consulta su identificador hasta completarse; los reintentos con el mismo Idempotency-Key devuelven la misma operación lógica. El servidor fija origen y actor; los miembros y el lead actuales se comprueban de nuevo antes de ejecutar.",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/TotemTeam"
+          },
+          {
+            "name": "Idempotency-Key",
+            "in": "header",
+            "required": true,
+            "description": "One unique visible-ASCII key per logical write; reuse exactly on retries and never retry outcome_unknown automatically.",
+            "x-description-es": "Una clave ASCII visible única por escritura lógica; reutilízala exactamente al reintentar y nunca reintentes outcome_unknown automáticamente.",
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 255,
+              "pattern": "^[\\x21-\\x7e]+$"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "title": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 300,
+                    "description": "Task title, up to 300 characters.",
+                    "x-description-es": "Título de la tarea, hasta 300 caracteres."
+                  },
+                  "body_markdown": {
+                    "description": "Task description in Markdown.",
+                    "x-description-es": "Descripción de la tarea en Markdown.",
+                    "type": "string",
+                    "maxLength": 50000
+                  },
+                  "priority": {
+                    "description": "Task priority; defaults to none.",
+                    "x-description-es": "Prioridad de la tarea; por defecto none.",
+                    "type": "string",
+                    "enum": [
+                      "none",
+                      "low",
+                      "medium",
+                      "high",
+                      "urgent"
+                    ]
+                  },
+                  "start_at": {
+                    "anyOf": [
+                      {
+                        "type": "string",
+                        "format": "date-time",
+                        "description": "UTC start time, or null for no start time.",
+                        "x-description-es": "Inicio en UTC, o null para omitirlo."
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ]
+                  },
+                  "due_at": {
+                    "anyOf": [
+                      {
+                        "type": "string",
+                        "format": "date-time",
+                        "description": "UTC due time, or null for no deadline.",
+                        "x-description-es": "Vencimiento en UTC, o null para no fijar un plazo."
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ]
+                  },
+                  "assigned_to_ids": {
+                    "description": "Current team members assigned to this task.",
+                    "x-description-es": "Miembros actuales del equipo asignados a esta tarea.",
+                    "maxItems": 50,
+                    "type": "array",
+                    "items": {
+                      "type": "string",
+                      "pattern": "^mem_[0-9A-Za-z]+$",
+                      "description": "A current member of the selected team, using the id returned by members.list.",
+                      "x-description-es": "Un miembro actual del equipo seleccionado, con el identificador devuelto por members.list."
+                    }
+                  },
+                  "owner_id": {
+                    "anyOf": [
+                      {
+                        "type": "string",
+                        "pattern": "^mem_[0-9A-Za-z]+$",
+                        "description": "A current member of the selected team, using the id returned by members.list.",
+                        "x-description-es": "Un miembro actual del equipo seleccionado, con el identificador devuelto por members.list."
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ]
+                  },
+                  "lead_id": {
+                    "anyOf": [
+                      {
+                        "type": "string",
+                        "pattern": "^lead_[0-9A-Za-z]+$",
+                        "description": "A current lead of the selected team, or null for an unlinked task.",
+                        "x-description-es": "Un lead actual del equipo seleccionado, o null para una tarea sin lead."
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ]
+                  },
+                  "tags": {
+                    "description": "Task tags, up to 30 entries of 50 characters.",
+                    "x-description-es": "Etiquetas de la tarea, hasta 30 entradas de 50 caracteres.",
+                    "maxItems": 30,
+                    "type": "array",
+                    "items": {
+                      "type": "string",
+                      "minLength": 1,
+                      "maxLength": 50
+                    }
+                  },
+                  "reminders": {
+                    "description": "Reminder preferences, or null for no reminder configuration.",
+                    "x-description-es": "Preferencias de recordatorio, o null para no configurarlos.",
+                    "anyOf": [
+                      {
+                        "type": "object",
+                        "properties": {
+                          "enabled": {
+                            "type": "boolean",
+                            "description": "Whether this task has reminders enabled.",
+                            "x-description-es": "Indica si la tarea tiene recordatorios activados."
+                          },
+                          "offsets_minutes": {
+                            "maxItems": 5,
+                            "type": "array",
+                            "items": {
+                              "type": "integer",
+                              "minimum": 0,
+                              "maximum": 43200
+                            },
+                            "description": "Up to five offsets before the due time, each from 0 to 43,200 minutes.",
+                            "x-description-es": "Hasta cinco anticipaciones al vencimiento, de 0 a 43.200 minutos cada una."
+                          }
+                        },
+                        "required": [
+                          "enabled",
+                          "offsets_minutes"
+                        ],
+                        "additionalProperties": false
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ]
+                  }
+                },
+                "required": [
+                  "title"
+                ],
+                "additionalProperties": false,
+                "description": "Create one open task in the selected team. Member and lead ids must belong to that team; task source and actor are set by the server.",
+                "x-description-es": "Crea una tarea abierta en el equipo seleccionado. Los miembros y el lead deben pertenecer a ese equipo; el servidor fija el origen y el actor."
+              }
+            }
+          }
+        },
+        "responses": {
+          "202": {
+            "description": "Create a task",
+            "x-description-es": "Crea una tarea",
+            "headers": {
+              "Totem-Request-Id": {
+                "$ref": "#/components/headers/TotemRequestId"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Operation"
+                },
+                "example": {
+                  "object": "operation",
+                  "id": "op_m3yGe1tkVy6hn3m9LH9m7e640wg0O",
+                  "status": "queued",
+                  "endpoint": "tasks.create",
+                  "created_at": "2026-10-01T09:30:00.000Z",
+                  "updated_at": "2026-10-01T09:30:00.000Z",
+                  "result": null,
+                  "error": null
+                }
+              }
+            }
+          },
+          "default": {
+            "$ref": "#/components/responses/Problem"
+          }
+        },
+        "x-totem-errors": [
+          "invalid_request",
+          "secret_key_in_browser",
+          "invalid_credentials",
+          "key_expired",
+          "insufficient_scope",
+          "plan_not_entitled",
+          "ip_not_allowed",
+          "capability_disabled",
+          "rate_limited",
+          "internal_error",
+          "api_disabled",
+          "service_unavailable",
+          "team_required",
+          "team_not_accessible",
+          "team_state_restricted",
+          "sector_restricted",
+          "capture_not_ready",
+          "idempotency_key_required",
+          "idempotency_key_reused",
+          "idempotency_in_progress",
+          "outcome_unknown",
+          "quota_exceeded"
+        ],
+        "x-totem-scopes": [
+          "tasks:write"
+        ],
+        "x-totem-rate-class": "write",
+        "x-totem-effect": "write",
+        "x-totem-tenant-binding": "team_header",
+        "x-totem-stability": "beta"
+      }
+    },
+    "/tasks/{id}/complete": {
+      "post": {
+        "operationId": "tasks.complete",
+        "tags": [
+          "tasks"
+        ],
+        "summary": "Complete a task",
+        "x-summary-es": "Completa una tarea",
+        "description": "Accepts completion of a task in the selected team as a durable operation. Completing a task already done is safe. The opaque task id and current execution authority are checked before any mutation; selecting a team never authorizes a task from another team.",
+        "x-description-es": "Acepta completar una tarea del equipo seleccionado como operación duradera. Completar una tarea ya finalizada es seguro. El identificador opaco y la autorización actual se comprueban antes de cambiar datos; seleccionar un equipo nunca autoriza tareas de otro equipo.",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "description": "The task's public id.",
+            "x-description-es": "El identificador público de la tarea.",
+            "schema": {
+              "type": "string",
+              "pattern": "^task_[0-9A-Za-z]+$"
+            }
+          },
+          {
+            "$ref": "#/components/parameters/TotemTeam"
+          },
+          {
+            "name": "Idempotency-Key",
+            "in": "header",
+            "required": true,
+            "description": "One unique visible-ASCII key per logical write; reuse exactly on retries and never retry outcome_unknown automatically.",
+            "x-description-es": "Una clave ASCII visible única por escritura lógica; reutilízala exactamente al reintentar y nunca reintentes outcome_unknown automáticamente.",
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 255,
+              "pattern": "^[\\x21-\\x7e]+$"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {},
+                "additionalProperties": false,
+                "description": "Complete the task named in the path. The JSON body is empty; source and authority are server-controlled.",
+                "x-description-es": "Completa la tarea indicada en la ruta. El cuerpo JSON está vacío; el servidor controla el origen y la autorización."
+              }
+            }
+          }
+        },
+        "responses": {
+          "202": {
+            "description": "Complete a task",
+            "x-description-es": "Completa una tarea",
+            "headers": {
+              "Totem-Request-Id": {
+                "$ref": "#/components/headers/TotemRequestId"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Operation"
+                },
+                "example": {
+                  "object": "operation",
+                  "id": "op_m40A600NVGDQxS7yvCzppa74RKZcs",
+                  "status": "succeeded",
+                  "endpoint": "tasks.complete",
+                  "created_at": "2026-10-01T09:30:00.000Z",
+                  "updated_at": "2026-10-01T09:30:01.000Z",
+                  "result": {
+                    "object": "task_receipt",
+                    "id": "task_m3wNC3n7WfzycfQJlLJiPi53sB5Dr",
+                    "status": "done"
+                  },
+                  "error": null
+                }
+              }
+            }
+          },
+          "default": {
+            "$ref": "#/components/responses/Problem"
+          }
+        },
+        "x-totem-errors": [
+          "invalid_request",
+          "secret_key_in_browser",
+          "invalid_credentials",
+          "key_expired",
+          "insufficient_scope",
+          "plan_not_entitled",
+          "ip_not_allowed",
+          "capability_disabled",
+          "rate_limited",
+          "internal_error",
+          "api_disabled",
+          "service_unavailable",
+          "team_required",
+          "team_not_accessible",
+          "team_state_restricted",
+          "sector_restricted",
+          "capture_not_ready",
+          "idempotency_key_required",
+          "idempotency_key_reused",
+          "idempotency_in_progress",
+          "outcome_unknown",
+          "quota_exceeded",
+          "resource_missing"
+        ],
+        "x-totem-scopes": [
+          "tasks:write"
+        ],
+        "x-totem-rate-class": "write",
+        "x-totem-effect": "write",
+        "x-totem-tenant-binding": "team_header",
+        "x-totem-stability": "beta"
+      }
+    },
+    "/operations/{id}": {
+      "get": {
+        "operationId": "operations.get",
+        "tags": [
+          "operations"
+        ],
+        "summary": "Get an operation",
+        "x-summary-es": "Consulta una operación",
+        "description": "Returns one operation owned by this integration and selected team. The caller must still hold the original operation’s scope and current execution authority; an empty catalogue scope never grants access by itself.",
+        "x-description-es": "Devuelve una operación de esta integración y del equipo seleccionado. La clave debe conservar el permiso y la autorización actuales de la operación original; una lista vacía de permisos en el catálogo no concede acceso por sí misma.",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "description": "The operation's public id.",
+            "x-description-es": "El identificador público de la operación.",
+            "schema": {
+              "type": "string",
+              "pattern": "^op_[0-9A-Za-z]+$"
+            }
+          },
+          {
+            "$ref": "#/components/parameters/TotemTeam"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Get an operation",
+            "x-description-es": "Consulta una operación",
+            "headers": {
+              "Totem-Request-Id": {
+                "$ref": "#/components/headers/TotemRequestId"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Operation"
+                },
+                "example": {
+                  "object": "operation",
+                  "id": "op_m3yGe1tkVy6hn3m9LH9m7e640wg0O",
+                  "status": "queued",
+                  "endpoint": "tasks.create",
+                  "created_at": "2026-10-01T09:30:00.000Z",
+                  "updated_at": "2026-10-01T09:30:00.000Z",
+                  "result": null,
+                  "error": null
+                }
+              }
+            }
+          },
+          "default": {
+            "$ref": "#/components/responses/Problem"
+          }
+        },
+        "x-totem-errors": [
+          "invalid_request",
+          "secret_key_in_browser",
+          "invalid_credentials",
+          "key_expired",
+          "insufficient_scope",
+          "plan_not_entitled",
+          "ip_not_allowed",
+          "capability_disabled",
+          "rate_limited",
+          "internal_error",
+          "api_disabled",
+          "service_unavailable",
+          "team_required",
+          "team_not_accessible",
+          "team_state_restricted",
+          "sector_restricted",
+          "capture_not_ready",
+          "resource_missing"
+        ],
+        "x-totem-scopes": [],
+        "x-totem-rate-class": "read",
+        "x-totem-effect": "read",
+        "x-totem-tenant-binding": "team_header",
+        "x-totem-stability": "beta"
+      }
+    },
+    "/operations/{id}/cancel": {
+      "post": {
+        "operationId": "operations.cancel",
+        "tags": [
+          "operations"
+        ],
+        "summary": "Cancel an operation before its effect",
+        "x-summary-es": "Cancela una operación antes de su efecto",
+        "description": "Requests cancellation of this integration’s operation in the selected team, subject to its original current scope and authority. Cancellation prevents an effect only before it begins; a running effect may already have happened. Repeating the request is safe.",
+        "x-description-es": "Solicita cancelar una operación de esta integración y del equipo seleccionado, con sus permisos y autorización actuales originales. La cancelación evita el efecto solo antes de comenzar; un efecto en ejecución puede haber ocurrido ya. Repetir la solicitud es seguro.",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "description": "The operation's public id.",
+            "x-description-es": "El identificador público de la operación.",
+            "schema": {
+              "type": "string",
+              "pattern": "^op_[0-9A-Za-z]+$"
+            }
+          },
+          {
+            "$ref": "#/components/parameters/TotemTeam"
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {},
+                "additionalProperties": false,
+                "description": "Request cancellation of this operation. The JSON body is empty.",
+                "x-description-es": "Solicita cancelar esta operación. El cuerpo JSON está vacío."
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Cancel an operation before its effect",
+            "x-description-es": "Cancela una operación antes de su efecto",
+            "headers": {
+              "Totem-Request-Id": {
+                "$ref": "#/components/headers/TotemRequestId"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Operation"
+                },
+                "example": {
+                  "object": "operation",
+                  "id": "op_m3yGe1tkVy6hn3m9LH9m7e640wg0O",
+                  "status": "cancelled",
+                  "endpoint": "tasks.create",
+                  "created_at": "2026-10-01T09:30:00.000Z",
+                  "updated_at": "2026-10-01T09:30:01.000Z",
+                  "result": null,
+                  "error": null
+                }
+              }
+            }
+          },
+          "default": {
+            "$ref": "#/components/responses/Problem"
+          }
+        },
+        "x-totem-errors": [
+          "invalid_request",
+          "secret_key_in_browser",
+          "invalid_credentials",
+          "key_expired",
+          "insufficient_scope",
+          "plan_not_entitled",
+          "ip_not_allowed",
+          "capability_disabled",
+          "rate_limited",
+          "internal_error",
+          "api_disabled",
+          "service_unavailable",
+          "team_required",
+          "team_not_accessible",
+          "team_state_restricted",
+          "sector_restricted",
+          "capture_not_ready",
+          "resource_missing"
+        ],
+        "x-totem-scopes": [],
+        "x-totem-rate-class": "write",
+        "x-totem-effect": "write",
+        "x-totem-tenant-binding": "team_header",
         "x-totem-stability": "beta"
       }
     },
@@ -10896,7 +11455,8 @@
                 "messages:read",
                 "calendar:read",
                 "crm:write",
-                "crm:notes:read"
+                "crm:notes:read",
+                "tasks:write"
               ]
             },
             "description": "The key’s explicitly granted scopes; old read-only keys never gain writes or note content implicitly.",
@@ -11301,6 +11861,124 @@
           }
         ]
       },
+      "Operation": {
+        "type": "object",
+        "properties": {
+          "object": {
+            "type": "string",
+            "const": "operation",
+            "description": "Always operation.",
+            "x-description-es": "Siempre operation."
+          },
+          "id": {
+            "type": "string",
+            "pattern": "^op_[0-9A-Za-z]+$",
+            "description": "Opaque durable operation id.",
+            "x-description-es": "Identificador opaco de la operación duradera."
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "queued",
+              "running",
+              "succeeded",
+              "failed",
+              "cancelled",
+              "outcome_unknown"
+            ],
+            "description": "Durable operation state; outcome_unknown must be reconciled before repeating the effect.",
+            "x-description-es": "Estado duradero de la operación; outcome_unknown exige conciliar el resultado antes de repetir el efecto."
+          },
+          "endpoint": {
+            "type": "string",
+            "enum": [
+              "tasks.create",
+              "tasks.complete"
+            ],
+            "description": "The original task endpoint executed by this operation.",
+            "x-description-es": "Endpoint de tareas original ejecutado por esta operación."
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time",
+            "description": "When this operation was accepted, in UTC.",
+            "x-description-es": "Cuándo se aceptó esta operación, en UTC."
+          },
+          "updated_at": {
+            "type": "string",
+            "format": "date-time",
+            "description": "When its current state was recorded, in UTC.",
+            "x-description-es": "Cuándo se registró su estado actual, en UTC."
+          },
+          "result": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/TaskReceipt"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Minimal public task receipt after success, otherwise null.",
+            "x-description-es": "Justificante público mínimo de la tarea tras completarse correctamente; en otro caso null."
+          },
+          "error": {
+            "anyOf": [
+              {
+                "type": "object",
+                "properties": {
+                  "code": {
+                    "type": "string",
+                    "enum": [
+                      "authorization_failed",
+                      "configuration_missing",
+                      "input_expired",
+                      "invalid_input",
+                      "resource_missing",
+                      "execution_failed",
+                      "outcome_unknown"
+                    ],
+                    "description": "Closed failure code without provider text, task content or credentials.",
+                    "x-description-es": "Código cerrado de fallo sin texto del proveedor, contenido de tareas ni credenciales."
+                  }
+                },
+                "required": [
+                  "code"
+                ]
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Safe failure information, or null.",
+            "x-description-es": "Información segura del fallo, o null."
+          }
+        },
+        "required": [
+          "object",
+          "id",
+          "status",
+          "endpoint",
+          "created_at",
+          "updated_at",
+          "result",
+          "error"
+        ],
+        "description": "Durable operation status, available only to its current authorized integration and team.",
+        "x-description-es": "Estado de la operación duradera, disponible solo para su integración y equipo actualmente autorizados.",
+        "examples": [
+          {
+            "object": "operation",
+            "id": "op_m3yGe1tkVy6hn3m9LH9m7e640wg0O",
+            "status": "queued",
+            "endpoint": "tasks.create",
+            "created_at": "2026-10-01T09:30:00.000Z",
+            "updated_at": "2026-10-01T09:30:00.000Z",
+            "result": null,
+            "error": null
+          }
+        ]
+      },
       "Problem": {
         "type": "object",
         "properties": {
@@ -11398,6 +12076,46 @@
             "code": "resource_missing",
             "request_id": "req_0f6b2c1e-8d4a-4b7e-9c3f-5a2d1e7b9c40",
             "doc_url": "https://totemstudio.ai/developers/errors#resource_missing"
+          }
+        ]
+      },
+      "TaskReceipt": {
+        "type": "object",
+        "properties": {
+          "object": {
+            "type": "string",
+            "const": "task_receipt",
+            "description": "Always task_receipt.",
+            "x-description-es": "Siempre task_receipt."
+          },
+          "id": {
+            "type": "string",
+            "pattern": "^task_[0-9A-Za-z]+$",
+            "description": "Opaque task id bound to its team and incarnation; never parse it.",
+            "x-description-es": "Identificador opaco de tarea ligado a su equipo y encarnación; no lo interpretes."
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "open",
+              "done"
+            ],
+            "description": "Task state recorded by the completed operation.",
+            "x-description-es": "Estado de la tarea registrado por la operación completada."
+          }
+        },
+        "required": [
+          "object",
+          "id",
+          "status"
+        ],
+        "description": "Minimal task receipt without task content or internal ids.",
+        "x-description-es": "Justificante mínimo de tarea sin contenido ni identificadores internos.",
+        "examples": [
+          {
+            "object": "task_receipt",
+            "id": "task_m3wNC3n7WfzycfQJlLJiPi53sB5Dr",
+            "status": "open"
           }
         ]
       },

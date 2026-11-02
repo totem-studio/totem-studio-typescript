@@ -6,6 +6,8 @@
  * invalid-credentials check presents a well-formed key with the real lookup id
  * and another secret, so an edge that skips the secret check fails it. No key,
  * including that one, and no record value ever reaches its output or receipt.
+ * Read/CRM profiles never execute task or dynamically authorized operation routes;
+ * widening the metadata classifier makes the literal coverage oracles red.
  */
 import test from 'node:test';
 import assert from 'node:assert/strict';
@@ -36,7 +38,9 @@ async function runSmoke(context, handler, { fixtures, env = {}, key = LIVE_KEY, 
   await writeFile(keyFile, key, { mode: keyMode });
   if (fixtures !== undefined) await writeFile(fixturesFile, typeof fixtures === 'string' ? fixtures : JSON.stringify(fixtures));
   const presented = new Set();
+  const requests = [];
   const baseUrl = await serve(context, request => {
+    requests.push({ method: request.method, url: request.url });
     const token = bearer(request.headers.authorization);
     if (token) presented.add(token);
     return handler(request);
@@ -55,7 +59,7 @@ async function runSmoke(context, handler, { fixtures, env = {}, key = LIVE_KEY, 
     assert.equal(output.includes(token), false);
     assert.equal(receiptText.includes(token), false);
   }
-  return { exitCode, output, receipt: JSON.parse(receiptText), receiptText, presented };
+  return { exitCode, output, receipt: JSON.parse(receiptText), receiptText, presented, requests };
 }
 const problem = (status, code) => ({ status, headers: { 'Totem-Request-Id': REQUEST_ID }, body: { type: `https://totemstudio.ai/developers/errors#${code}`, title: 'Request refused', status, code, request_id: REQUEST_ID, doc_url: `https://totemstudio.ai/developers/errors#${code}` } });
 /**
@@ -140,8 +144,9 @@ test('explicit CRM profile validates writes, content, conditional updates and de
   const result = await runSmoke(context, crmEdge(), { fixtures: { ...FOREIGN, crmEmail: 'sdk-smoke-123@example.invalid', crmExternalId: 'sdk-smoke-123' }, env: { TOTEM_SMOKE_PROFILE: 'crm' } });
   assert.equal(result.exitCode, 0, result.output);
   assert.equal(result.receipt.profile, 'crm');
-  assert.deepEqual(result.receipt.excludedOperations, []);
+  assert.deepEqual(result.receipt.excludedOperations.toSorted(), ['operations.cancel', 'operations.get', 'tasks.complete', 'tasks.create']);
   assert.equal(result.receipt.coveredOperations.length, 27);
+  assert.equal(result.requests.some(({ url }) => /^\/v1\/(?:tasks|operations)(?:\/|\?|$)/.test(url)), false);
   assert.equal(result.receipt.checks.some(check => check.operation === 'leads.deleteNote' && check.status === 204), true);
   assert.equal(result.receiptText.includes('SDK CRM smoke updated note.'), false);
 });
@@ -161,10 +166,20 @@ test('default live runner covers the read profile and tenant checks without muta
   assert.equal(result.exitCode, 0, result.output);
   assert.equal(result.receipt.passed, true);
   assert.equal(result.receipt.failure, null);
-  const operations = Object.values(document.paths).flatMap(Object.values);
-  assert.deepEqual(new Set(result.receipt.coveredOperations), new Set(operations.filter(operation => operation['x-totem-effect'] === 'read' && operation.operationId !== 'leads.notes').map(operation => operation.operationId)));
+  assert.deepEqual(result.receipt.coveredOperations.toSorted(), [
+    'boards.list', 'booking_services.list', 'bookings.get', 'bookings.list', 'calls.get', 'calls.list',
+    'conversations.get', 'conversations.list', 'health', 'leads.activities', 'leads.get', 'leads.list',
+    'leads.search', 'me.get', 'members.list', 'notifications.get', 'notifications.list', 'sync.changes', 'teams.get', 'teams.list',
+  ]);
   assert.equal(result.receipt.profile, 'read');
-  assert.equal(result.receipt.excludedOperations.length, 7);
+  assert.equal(result.receipt.coveredOperations.length, 20);
+  assert.deepEqual(result.receipt.excludedOperations.toSorted(), [
+    'leads.addNote', 'leads.archive', 'leads.deleteNote', 'leads.notes', 'leads.update', 'leads.updateNote', 'leads.upsert',
+    'operations.cancel', 'operations.get', 'tasks.complete', 'tasks.create',
+  ]);
+  assert.equal(result.receipt.excludedOperations.length, 11);
+  assert.equal(result.requests.some(({ url }) => /^\/v1\/(?:tasks|operations)(?:\/|\?|$)/.test(url)), false);
+  assert.equal(result.requests.some(({ method, url }) => method !== 'GET' && url !== '/v1/leads/search'), false);
   const labels = result.receipt.checks.filter(check => check.check).map(check => check.check);
   assert.deepEqual(labels, ['invalid credentials', 'invalid limit', 'search requires one identifier', 'team required on a multi-team key', 'foreign lead isolation', 'foreign team isolation']);
   assert.deepEqual(result.receipt.skippedChecks, []);

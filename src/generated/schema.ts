@@ -1236,7 +1236,7 @@ export interface Schemas {
 /** The teams this key reads today. Their details are in `GET /v1/teams`. */
 "teams": Array<string>;
 /** The key’s explicitly granted scopes; old read-only keys never gain writes or note content implicitly. */
-"scopes": Array<(("teams:read" | "crm:read" | "calls:read" | "messages:read" | "calendar:read" | "crm:write" | "crm:notes:read") | (string & {}))>
+"scopes": Array<(("teams:read" | "crm:read" | "calls:read" | "messages:read" | "calendar:read" | "crm:write" | "crm:notes:read" | "tasks:write") | (string & {}))>
 };
 /** A team member, by display name only: Totem exports no email, phone or role. */
 "Member": {
@@ -1304,6 +1304,28 @@ export interface Schemas {
 /** Opaque cursor for the next page, or null on the last page. Never parse it. */
 "next_cursor": (string | null)
 };
+/** Durable operation status, available only to its current authorized integration and team. */
+"Operation": {
+/** Always operation. */
+"object": "operation";
+/** Opaque durable operation id. */
+"id": `op_${string}`;
+/** Durable operation state; outcome_unknown must be reconciled before repeating the effect. */
+"status": (("queued" | "running" | "succeeded" | "failed" | "cancelled" | "outcome_unknown") | (string & {}));
+/** The original task endpoint executed by this operation. */
+"endpoint": (("tasks.create" | "tasks.complete") | (string & {}));
+/** When this operation was accepted, in UTC. */
+"created_at": string;
+/** When its current state was recorded, in UTC. */
+"updated_at": string;
+/** Minimal public task receipt after success, otherwise null. */
+"result": (Schemas["TaskReceipt"] | null);
+/** Safe failure information, or null. */
+"error": ({
+/** Closed failure code without provider text, task content or credentials. */
+"code": (("authorization_failed" | "configuration_missing" | "input_expired" | "invalid_input" | "resource_missing" | "execution_failed" | "outcome_unknown") | (string & {}))
+} | null)
+};
 /** An error, as `application/problem+json` (RFC 9457). */
 "Problem": {
 /** A link to this error's entry in the docs; equal to `doc_url`. */
@@ -1320,6 +1342,15 @@ export interface Schemas {
 "param"?: string;
 /** The docs entry for this code: when it happens and what to do. */
 "doc_url": string
+};
+/** Minimal task receipt without task content or internal ids. */
+"TaskReceipt": {
+/** Always task_receipt. */
+"object": "task_receipt";
+/** Opaque task id bound to its team and incarnation; never parse it. */
+"id": `task_${string}`;
+/** Task state recorded by the completed operation. */
+"status": (("open" | "done") | (string & {}))
 };
 /** A team this key reads, with its time zone and default country. */
 "Team": {
@@ -1686,6 +1717,71 @@ export interface OperationContracts {
 "external_id"?: string | undefined
 } };
 /**
+ * Create a task
+ *
+ * Accepts a same-team task request as a durable operation. Follow its operation id until completion; retries with the same Idempotency-Key return the same logical operation. The server fixes task provenance and actor; current members and lead ownership are checked again before execution.
+ */
+"tasks.create": { response: Schemas["Operation"]; query: {
+
+}; path: {
+
+}; body: {
+/** Task title, up to 300 characters. */
+"title": string;
+/** Task description in Markdown. */
+"body_markdown"?: string | undefined;
+/** Task priority; defaults to none. */
+"priority"?: ("none" | "low" | "medium" | "high" | "urgent") | undefined;
+"start_at"?: (string | null) | undefined;
+"due_at"?: (string | null) | undefined;
+/** Current team members assigned to this task. */
+"assigned_to_ids"?: Array<string> | undefined;
+"owner_id"?: (string | null) | undefined;
+"lead_id"?: (string | null) | undefined;
+/** Task tags, up to 30 entries of 50 characters. */
+"tags"?: Array<string> | undefined;
+/** Reminder preferences, or null for no reminder configuration. */
+"reminders"?: ({
+/** Whether this task has reminders enabled. */
+"enabled": boolean;
+/** Up to five offsets before the due time, each from 0 to 43,200 minutes. */
+"offsets_minutes": Array<number>
+} | null) | undefined
+} };
+/**
+ * Complete a task
+ *
+ * Accepts completion of a task in the selected team as a durable operation. Completing a task already done is safe. The opaque task id and current execution authority are checked before any mutation; selecting a team never authorizes a task from another team.
+ */
+"tasks.complete": { response: Schemas["Operation"]; query: {
+
+}; path: {
+/** The task's public id. */
+"id": `task_${string}`
+}; body: Record<string, never> };
+/**
+ * Get an operation
+ *
+ * Returns one operation owned by this integration and selected team. The caller must still hold the original operation’s scope and current execution authority; an empty catalogue scope never grants access by itself.
+ */
+"operations.get": { response: Schemas["Operation"]; query: {
+
+}; path: {
+/** The operation's public id. */
+"id": `op_${string}`
+}; body: never };
+/**
+ * Cancel an operation before its effect
+ *
+ * Requests cancellation of this integration’s operation in the selected team, subject to its original current scope and authority. Cancellation prevents an effect only before it begins; a running effect may already have happened. Repeating the request is safe.
+ */
+"operations.cancel": { response: Schemas["Operation"]; query: {
+
+}; path: {
+/** The operation's public id. */
+"id": `op_${string}`
+}; body: Record<string, never> };
+/**
  * List calls
  *
  * Returns a page of the team's calls, each with its direction, start time, duration and a normalized outcome, and linked to its lead when there is one. Pass `lead` for one lead's calls. Recordings and transcripts are not exported.
@@ -1879,8 +1975,12 @@ export type MemberList = Schemas["MemberList"]
 export type Notification = Schemas["Notification"]
 /** A page of Notification objects, in a stable order that carries no meaning. */
 export type NotificationList = Schemas["NotificationList"]
+/** Durable operation status, available only to its current authorized integration and team. */
+export type Operation = Schemas["Operation"]
 /** An error, as `application/problem+json` (RFC 9457). */
 export type Problem = Schemas["Problem"]
+/** Minimal task receipt without task content or internal ids. */
+export type TaskReceipt = Schemas["TaskReceipt"]
 /** A team this key reads, with its time zone and default country. */
 export type Team = Schemas["Team"]
 /** Every Team object, in one response: this list is never paged. */

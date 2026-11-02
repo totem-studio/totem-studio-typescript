@@ -36,6 +36,13 @@ function teamId(value: unknown): string | undefined {
   if (typeof value !== 'string' || !value.trim()) throw new TypeError('team must be a nonempty team id')
   return value
 }
+function writeContextValue(value: unknown): string | undefined {
+  if (value === undefined) return undefined
+  if (typeof value !== 'string' || value.length > 24_000 || !/^(?:taw2|tsa2)\.[A-Za-z0-9_-]+\.[A-Za-z0-9_-]{43}$/.test(value)) {
+    throw new TypeError('writeContext must be a bounded opaque taw2/tsa2 server context')
+  }
+  return value
+}
 /** Validate only documented write headers; arbitrary headers can never override credentials or tenancy. */
 function writeHeaderValue(definition: WriteHeader, value: unknown): string {
   const { name, schema } = definition
@@ -159,6 +166,8 @@ export class Transport {
     if (input.signal !== undefined && !(input.signal instanceof AbortSignal)) throw new TypeError('signal must be an AbortSignal')
     const headers = new Headers({ Accept: 'application/json', 'User-Agent': `@totemstudioai/sdk/${SDK_VERSION}` })
     if (definition.authenticated) headers.set('Authorization', `Bearer ${this.#apiKey}`)
+    const writeContext = writeContextValue(input.writeContext)
+    if (writeContext !== undefined) headers.set('X-Totem-Write-Context', writeContext)
     const team = teamId(input.team ?? undefined) ?? this.#team
     if (definition.team && team !== undefined) headers.set('Totem-Team', team)
     const writeHeaders = definition.headers ?? []

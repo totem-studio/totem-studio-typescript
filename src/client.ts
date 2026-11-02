@@ -2,7 +2,7 @@ import { TotemProtocolError } from './errors.js'
 import { Transport, type WireInput } from './transport.js'
 import type {
   ActivityList, BodyOf, Booking, BookingList, Call, CallList, ClientOptions, Conversation, ConversationList, FeedPage, Health, ItemOf, ItemsOperationId,
-  LeadDetail, LeadList, ListOperationId, Me, Notification, NotificationList, OperationId, OptionsOf, QueryOf, RequestArgs, ResponseInfo, ResponseOf, BoardList, Team,
+  LeadDetail, LeadList, ListOperationId, Me, Notification, NotificationList, Operation, OperationId, OptionsOf, PublicOperationId, QueryOf, RequestArgs, ResponseInfo, ResponseOf, BoardList, TaskCreateBody, TaskId, Team,
 } from './types.js'
 
 /** Server-side client for the Totem API. Every method returns its documented response body; errors are `TotemError` subclasses. */
@@ -88,6 +88,18 @@ export class TotemClient {
     list: (query: QueryOf<'notifications.list'> = {}, options: OptionsOf<'notifications.list'> = {}): Promise<NotificationList> => this.request('notifications.list', { ...options, query }),
     /** One notification. `GET /notifications/{id}` */
     get: (id: string, options: OptionsOf<'notifications.get'> = {}): Promise<Notification> => this.request('notifications.get', { ...options, path: { id } }),
+  }
+  readonly tasks = {
+    /** Accept a task request. Follow the returned operation id for its result; keep the idempotency key across application retries. */
+    create: (body: TaskCreateBody, options: OptionsOf<'tasks.create'> = {}): Promise<Operation> => this.request('tasks.create', { ...options, body }),
+    /** Accept completion of this task in the selected team. The operation result carries its final task receipt. */
+    complete: (id: TaskId, options: OptionsOf<'tasks.complete'> = {}): Promise<Operation> => this.request('tasks.complete', { ...options, path: { id }, body: {} }),
+  }
+  readonly operations = {
+    /** Read this integration's operation in the selected team, under its current original authority. */
+    get: (id: PublicOperationId, options: OptionsOf<'operations.get'> = {}): Promise<Operation> => this.request('operations.get', { ...options, path: { id } }),
+    /** Request cancellation before the effect begins. A running effect may already have happened; this call is never automatically retried. */
+    cancel: (id: PublicOperationId, options: OptionsOf<'operations.cancel'> = {}): Promise<Operation> => this.request('operations.cancel', { ...options, path: { id }, body: {} }),
   }
   readonly sync = {
     /** The next page of one team's changes feed. Save its `next_cursor` after applying it, even when the page is empty. `GET /sync/changes` */
