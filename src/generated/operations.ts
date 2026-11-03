@@ -1,7 +1,7 @@
 /** Generated from openapi.json and package.json. Do not edit; run npm run generate. */
 import type { ErrorAction, TotemErrorCode } from './schema.js'
 
-export const CONTRACT_SHA256 = '49e5c1b98d64cbff027ac151a5148ffe7c4972d3b09114e650679de64afb26e3'
+export const CONTRACT_SHA256 = 'e86cfb8d9cd7d75ef8cce061bdebbec0d5b58a4a92423b4eaa1c9c49d1467a6e'
 export const SDK_VERSION = '0.3.0-beta.1'
 export const DEFAULT_BASE_URL = "https://api.totemstudio.ai/v1"
 export const operationDefinitions = {
@@ -328,6 +328,59 @@ export const operationDefinitions = {
     ],
     "query": []
   },
+  "leads.customValues": {
+    "method": "GET",
+    "path": "/leads/{id}/custom-values",
+    "authenticated": true,
+    "body": false,
+    "team": false,
+    "effect": "read",
+    "headers": [],
+    "successResponses": [
+      {
+        "status": 200,
+        "body": true
+      }
+    ],
+    "query": []
+  },
+  "leads.updateCustomValues": {
+    "method": "PATCH",
+    "path": "/leads/{id}/custom-values",
+    "authenticated": true,
+    "body": true,
+    "team": false,
+    "effect": "write",
+    "headers": [
+      {
+        "name": "Idempotency-Key",
+        "required": true,
+        "schema": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 255,
+          "pattern": "^[\\x21-\\x7e]+$"
+        }
+      },
+      {
+        "name": "If-Match",
+        "required": true,
+        "schema": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 300,
+          "pattern": "^\"lcv_[a-f0-9]{64}\"$"
+        }
+      }
+    ],
+    "successResponses": [
+      {
+        "status": 200,
+        "body": true
+      }
+    ],
+    "query": []
+  },
   "leads.deleteNote": {
     "method": "DELETE",
     "path": "/leads/{id}/notes/{note}",
@@ -432,6 +485,54 @@ export const operationDefinitions = {
   "tasks.complete": {
     "method": "POST",
     "path": "/tasks/{id}/complete",
+    "authenticated": true,
+    "body": true,
+    "team": true,
+    "effect": "write",
+    "headers": [
+      {
+        "name": "Idempotency-Key",
+        "required": true,
+        "schema": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 255,
+          "pattern": "^[\\x21-\\x7e]+$"
+        }
+      }
+    ],
+    "successResponses": [
+      {
+        "status": 202,
+        "body": true
+      }
+    ],
+    "query": []
+  },
+  "notifications.list": {
+    "method": "GET",
+    "path": "/notifications",
+    "authenticated": true,
+    "body": false,
+    "team": true,
+    "effect": "read",
+    "headers": [],
+    "successResponses": [
+      {
+        "status": 200,
+        "body": true
+      }
+    ],
+    "query": [
+      "limit",
+      "cursor",
+      "lead",
+      "status"
+    ]
+  },
+  "notifications.create": {
+    "method": "POST",
+    "path": "/notifications",
     "authenticated": true,
     "body": true,
     "team": true,
@@ -596,27 +697,6 @@ export const operationDefinitions = {
     ],
     "query": []
   },
-  "notifications.list": {
-    "method": "GET",
-    "path": "/notifications",
-    "authenticated": true,
-    "body": false,
-    "team": true,
-    "effect": "read",
-    "headers": [],
-    "successResponses": [
-      {
-        "status": 200,
-        "body": true
-      }
-    ],
-    "query": [
-      "limit",
-      "cursor",
-      "lead",
-      "status"
-    ]
-  },
   "notifications.get": {
     "method": "GET",
     "path": "/notifications/{id}",
@@ -671,6 +751,8 @@ export const operationDefinitions = {
 } as const
 /** The contract's error catalogue: HTTP status, recommended action and docs entry for each code. */
 export const errorCatalogue = {
+/** Stored custom values contain duplicate names or ambiguous legacy rows. */
+"custom_values_review_required": { status: 409, action: "fix_request", docUrl: "https://totemstudio.ai/developers/errors#custom_values_review_required" },
 /** This write requires an Idempotency-Key header before it can have an effect. */
 "idempotency_key_required": { status: 400, action: "fix_request", docUrl: "https://totemstudio.ai/developers/errors#idempotency_key_required" },
 /** This key was already used with a different body, resource or selected team. */

@@ -8,6 +8,8 @@
  * including that one, and no record value ever reaches its output or receipt.
  * Read/CRM profiles never execute task or dynamically authorized operation routes;
  * widening the metadata classifier makes the literal coverage oracles red.
+ * The explicit tasks profile observes durable receipts without retrying effects;
+ * wrong replay IDs, ambiguous/stuck states and private fields are HTTP faults.
  */
 import test from 'node:test';
 import assert from 'node:assert/strict';
@@ -140,11 +142,115 @@ function crmEdge({ acceptStale = false, leakReceipt = false } = {}) {
   } });
 }
 
+/** Stateful task provider boundary; the real runner, client and schema validator are unchanged. */
+function tasksEdge({ wrongReplay = false, state = 'succeeded', stateFor = 'create', leakReceipt = false,
+  undoOnCancel = false, wrongCompletedTask = false } = {}) {
+  const stats = { creates: [], completes: [], createEffects: 0, completeEffects: 0, polls: 0, cancellations: 0 };
+  const operations = new Map(), pollCounts = new Map();
+  const response = (body, status = 200) => ({ status, headers: { 'Totem-Request-Id': REQUEST_ID }, body });
+  const wire = (id, endpoint, status = 'queued') => ({ object: 'operation', id, status, endpoint,
+    created_at: '2026-11-02T10:00:00.000Z', updated_at: '2026-11-02T10:00:00.000Z',
+    result: status === 'succeeded' ? { object: 'task_receipt', id: 'task_Acceptance', status: endpoint === 'tasks.create' ? 'open' : 'done' } : null,
+    error: ['failed', 'outcome_unknown'].includes(status) ? { code: status === 'failed' ? 'execution_failed' : 'outcome_unknown' } : null });
+  const handler = edge({ override: ({ operation, request, url }) => {
+    const id = operation.operationId;
+    if (id === 'me.get') return response({ ...example('/me'), scopes: [...example('/me').scopes, 'tasks:write'] });
+    if (!operation.tags.some(tag => tag === 'tasks' || tag === 'operations')) return undefined;
+    if (request.headers['x-totem-write-context'] !== undefined) return problem(400, 'invalid_request');
+    if (id === 'tasks.create' || id === 'tasks.complete') {
+      const key = request.headers['idempotency-key'];
+      if (!key) return problem(400, 'idempotency_key_required');
+      const body = JSON.parse(request.body);
+      const create = id === 'tasks.create', calls = create ? stats.creates : stats.completes;
+      calls.push({ key, body });
+      if (create ? Object.keys(body).length !== 1 || body.title !== 'SDK tasks smoke'
+        : request.url !== '/v1/tasks/task_Acceptance/complete' || Object.keys(body).length !== 0) return problem(400, 'invalid_request');
+      const operationId = create ? 'op_Create' : 'op_Complete';
+      if (calls.length === 1) {
+        if (create) stats.createEffects++;
+        else stats.completeEffects++;
+        operations.set(operationId, wire(operationId, id));
+      } else if (key !== calls[0].key || JSON.stringify(body) !== JSON.stringify(calls[0].body)) return problem(409, 'idempotency_key_reused');
+      const value = wire(create && wrongReplay && calls.length > 1 ? 'op_WrongReplay' : operationId, id);
+      return response(leakReceipt ? { ...value, private_context: 'taw2.PRIVATE_CONTEXT.proof', private_body: body.title } : value, 202);
+    }
+    const operationId = url.pathname.split('/')[3], previous = operations.get(operationId);
+    if (!previous) return problem(404, 'resource_missing');
+    if (id === 'operations.cancel') {
+      stats.cancellations++;
+      return response(undoOnCancel ? { ...previous, status: 'cancelled', result: null } : previous);
+    }
+    stats.polls++;
+    const count = (pollCounts.get(operationId) ?? 0) + 1;
+    pollCounts.set(operationId, count);
+    const selectedState = previous.endpoint === `tasks.${stateFor}` ? state : 'succeeded';
+    const status = selectedState === 'succeeded' && count === 1 ? 'running' : selectedState;
+    const value = wire(operationId, previous.endpoint, status);
+    if (wrongCompletedTask && previous.endpoint === 'tasks.complete' && value.result) value.result.id = 'task_Foreign';
+    operations.set(operationId, value);
+    return response(value);
+  } });
+  return { handler, stats };
+}
+
+const TASK_FIXTURES = { ...FOREIGN, teamId: TEAM, taskCreateKey: 'sdk-acceptance-stable-create' };
+
+test('explicit tasks profile verifies replay, bounded completion and finished cancellation without new-effect retries or content logs', async context => {
+  const boundary = tasksEdge();
+  const result = await runSmoke(context, boundary.handler, { fixtures: TASK_FIXTURES, env: { TOTEM_SMOKE_PROFILE: 'tasks' } });
+  assert.equal(result.exitCode, 0, result.output);
+  assert.equal(result.receipt.profile, 'tasks');
+  assert.equal(result.receipt.coveredOperations.length, 24);
+  assert.deepEqual(result.receipt.excludedOperations.toSorted(), ['leads.addNote', 'leads.archive', 'leads.customValues', 'leads.deleteNote', 'leads.notes', 'leads.update', 'leads.updateCustomValues', 'leads.updateNote', 'leads.upsert', 'notifications.create']);
+  assert.deepEqual(boundary.stats.creates.map(item => item.key), ['sdk-acceptance-stable-create', 'sdk-acceptance-stable-create']);
+  assert.deepEqual(boundary.stats.completes.map(item => item.key), ['sdk-acceptance-stable-create.complete']);
+  assert.deepEqual([boundary.stats.createEffects, boundary.stats.completeEffects, boundary.stats.polls, boundary.stats.cancellations], [1, 1, 4, 1]);
+  for (const value of ['SDK tasks smoke', TASK_FIXTURES.taskCreateKey, 'task_Acceptance', 'op_Create', 'op_Complete', 'taw2.PRIVATE_CONTEXT.proof']) {
+    assert.equal((result.output + result.receiptText).includes(value), false);
+  }
+});
+
+for (const [label, fault, failure, expectedCheck] of [
+  ['wrong replay identity', { wrongReplay: true }, 'expectation_failed', 'task create replay'],
+  ['unknown effect', { state: 'outcome_unknown' }, 'expectation_failed', 'task operation progress'],
+  ['failed effect', { state: 'failed' }, 'expectation_failed', 'task operation progress'],
+  ['stuck running effect', { state: 'running' }, 'expectation_failed', 'task operation progress'],
+  ['unknown completion', { state: 'outcome_unknown', stateFor: 'complete' }, 'expectation_failed', 'task operation progress'],
+  ['wrong completed task', { wrongCompletedTask: true }, 'expectation_failed', 'task completion'],
+  ['private receipt fields', { leakReceipt: true }, 'response_schema_mismatch', null],
+  ['cancellation claims undo', { undoOnCancel: true }, 'expectation_failed', 'completed task cancellation'],
+]) {
+  test(`tasks runner detects HTTP boundary fault: ${label}`, async context => {
+    const boundary = tasksEdge(fault);
+    const result = await runSmoke(context, boundary.handler, { fixtures: TASK_FIXTURES, env: { TOTEM_SMOKE_PROFILE: 'tasks' } });
+    assert.equal(result.exitCode, 1);
+    assert.equal(result.receipt.failure.code, failure);
+    assert.equal(result.receipt.failure.check, expectedCheck);
+    assert.equal(boundary.stats.createEffects, 1);
+    assert.ok(boundary.stats.creates.length <= 2);
+    assert.ok(new Set(boundary.stats.creates.map(item => item.key)).size <= 1);
+    assert.equal(boundary.stats.completeEffects, fault.undoOnCancel || fault.wrongCompletedTask || fault.stateFor === 'complete' ? 1 : 0);
+    if (fault.state === 'running') assert.equal(boundary.stats.polls, 20);
+    for (const value of ['SDK tasks smoke', TASK_FIXTURES.taskCreateKey, 'taw2.PRIVATE_CONTEXT.proof']) {
+      assert.equal((result.output + result.receiptText).includes(value), false);
+    }
+  });
+}
+
+test('tasks profile refuses missing explicit disposable-team or stable-key fixtures before HTTP', async context => {
+  for (const fixtures of [{ ...FOREIGN, taskCreateKey: 'stable' }, { ...FOREIGN, teamId: TEAM }]) {
+    const result = await runSmoke(context, edge(), { fixtures, env: { TOTEM_SMOKE_PROFILE: 'tasks' } });
+    assert.equal(result.exitCode, 1);
+    assert.equal(result.receipt.failure.reason, 'tasks_fixtures_required');
+    assert.equal(result.requests.length, 0);
+  }
+});
+
 test('explicit CRM profile validates writes, content, conditional updates and deletion without leaking content', async context => {
   const result = await runSmoke(context, crmEdge(), { fixtures: { ...FOREIGN, crmEmail: 'sdk-smoke-123@example.invalid', crmExternalId: 'sdk-smoke-123' }, env: { TOTEM_SMOKE_PROFILE: 'crm' } });
   assert.equal(result.exitCode, 0, result.output);
   assert.equal(result.receipt.profile, 'crm');
-  assert.deepEqual(result.receipt.excludedOperations.toSorted(), ['operations.cancel', 'operations.get', 'tasks.complete', 'tasks.create']);
+  assert.deepEqual(result.receipt.excludedOperations.toSorted(), ['leads.customValues', 'leads.updateCustomValues', 'notifications.create', 'operations.cancel', 'operations.get', 'tasks.complete', 'tasks.create']);
   assert.equal(result.receipt.coveredOperations.length, 27);
   assert.equal(result.requests.some(({ url }) => /^\/v1\/(?:tasks|operations)(?:\/|\?|$)/.test(url)), false);
   assert.equal(result.receipt.checks.some(check => check.operation === 'leads.deleteNote' && check.status === 204), true);
@@ -174,10 +280,10 @@ test('default live runner covers the read profile and tenant checks without muta
   assert.equal(result.receipt.profile, 'read');
   assert.equal(result.receipt.coveredOperations.length, 20);
   assert.deepEqual(result.receipt.excludedOperations.toSorted(), [
-    'leads.addNote', 'leads.archive', 'leads.deleteNote', 'leads.notes', 'leads.update', 'leads.updateNote', 'leads.upsert',
-    'operations.cancel', 'operations.get', 'tasks.complete', 'tasks.create',
+    'leads.addNote', 'leads.archive', 'leads.customValues', 'leads.deleteNote', 'leads.notes', 'leads.update', 'leads.updateCustomValues', 'leads.updateNote', 'leads.upsert',
+    'notifications.create', 'operations.cancel', 'operations.get', 'tasks.complete', 'tasks.create',
   ]);
-  assert.equal(result.receipt.excludedOperations.length, 11);
+  assert.equal(result.receipt.excludedOperations.length, 14);
   assert.equal(result.requests.some(({ url }) => /^\/v1\/(?:tasks|operations)(?:\/|\?|$)/.test(url)), false);
   assert.equal(result.requests.some(({ method, url }) => method !== 'GET' && url !== '/v1/leads/search'), false);
   const labels = result.receipt.checks.filter(check => check.check).map(check => check.check);

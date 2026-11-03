@@ -60,6 +60,10 @@ export class TotemClient {
     archive: (id: string, body: BodyOf<'leads.archive'>, options: OptionsOf<'leads.archive'>): Promise<ResponseOf<'leads.archive'>> => this.request('leads.archive', { ...options, path: { id }, body }),
     /** Read note bodies only with an explicit note-content grant. */
     notes: (id: string, query: QueryOf<'leads.notes'> = {}, options: OptionsOf<'leads.notes'> = {}): Promise<ResponseOf<'leads.notes'>> => this.request('leads.notes', { ...options, path: { id }, query }),
+    /** Read exact-name custom values with their independent content grant. Use requestWithResponse to retain the separate ETag. */
+    customValues: (id: string, options: OptionsOf<'leads.customValues'> = {}): Promise<ResponseOf<'leads.customValues'>> => this.request('leads.customValues', { ...options, path: { id } }),
+    /** Set/remove exact custom-value names against the current custom-values ETag; the receipt contains no content. */
+    updateCustomValues: (id: string, body: BodyOf<'leads.updateCustomValues'>, options: OptionsOf<'leads.updateCustomValues'>): Promise<ResponseOf<'leads.updateCustomValues'>> => this.request('leads.updateCustomValues', { ...options, path: { id }, body }),
     /** Update a note against its current strong note ETag; receipt has no body. */
     updateNote: (id: string, note: string, body: BodyOf<'leads.updateNote'>, options: OptionsOf<'leads.updateNote'>): Promise<ResponseOf<'leads.updateNote'>> => this.request('leads.updateNote', { ...options, path: { id, note }, body }),
     /** Delete only this note against its current strong ETag. Success resolves to undefined. */
@@ -84,6 +88,8 @@ export class TotemClient {
     get: (id: string, options: OptionsOf<'bookings.get'> = {}): Promise<Booking> => this.request('bookings.get', { ...options, path: { id } }),
   }
   readonly notifications = {
+    /** Accept an ordinary team notification. Reconcile its operation before repeating an uncertain effect. */
+    create: (body: BodyOf<'notifications.create'>, options: OptionsOf<'notifications.create'> = {}): Promise<Operation> => this.request('notifications.create', { ...options, body }),
     /** A page of the team's notifications; filter by at most one of `lead` and `status`. `GET /notifications` */
     list: (query: QueryOf<'notifications.list'> = {}, options: OptionsOf<'notifications.list'> = {}): Promise<NotificationList> => this.request('notifications.list', { ...options, query }),
     /** One notification. `GET /notifications/{id}` */

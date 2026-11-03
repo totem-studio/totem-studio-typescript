@@ -50,9 +50,12 @@ const routes = [
 for (const [label, call, method, url, team, body = '', status = 200] of routes) {
   test(`wire route: ${label}`, async context => {
     const requests = [];
-    const baseUrl = await serve(context, request => { requests.push(request); return { status, body: { result: 'accepted' } }; });
+    const response = ['create task', 'complete task', 'operation', 'cancel operation'].includes(label)
+      ? { object: 'operation', id: 'op_ABC', status: 'queued', endpoint: label === 'complete task' ? 'tasks.complete' : 'tasks.create',
+        created_at: '2026-11-02T10:00:00Z', updated_at: '2026-11-02T10:00:00Z', result: null, error: null } : { result: 'accepted' };
+    const baseUrl = await serve(context, request => { requests.push(request); return { status, body: response }; });
     const client = new TotemClient({ apiKey: KEY, team: 'team_SDK', baseUrl, maxRetries: 0 });
-    assert.deepEqual(await call(client), status === 204 ? undefined : { result: 'accepted' });
+    assert.deepEqual(await call(client), status === 204 ? undefined : response);
     assert.equal(requests.length, 1);
     assert.equal(requests[0].method, method);
     assert.equal(requests[0].url, url);
@@ -77,6 +80,55 @@ test('accepted task operation preserves 202, its opaque result and support heade
   assert.equal(requests[0].headers['totem-team'], 'team_SELECTED');
   assert.equal(requests[0].headers['idempotency-key'], 'task-call-ada');
 });
+test('notification creation preserves its accepted operation, team and stable retry key', async context => {
+  const requests = [];
+  const operation = { object: 'operation', id: 'op_Notice', status: 'queued', endpoint: 'notifications.create',
+    created_at: '2026-11-02T10:00:00Z', updated_at: '2026-11-02T10:00:00Z', result: null, error: null };
+  const baseUrl = await serve(context, request => {
+    requests.push(request);
+    if (request.headers['totem-team'] !== 'team_SELECTED') return { status: 404, body: problem(404, 'team_not_accessible') };
+    return requests.length === 1 ? { status: 503, headers: { 'Retry-After': '0' }, body: problem(503, 'service_unavailable') } : { status: 202, body: operation };
+  });
+  const client = new TotemClient({ apiKey: KEY, team: 'team_DEFAULT', baseUrl, maxRetries: 1 });
+  const body = { note: 'Please review this request', department_id: 'sales', notify: false };
+  assert.deepEqual(await client.notifications.create(body, { team: 'team_SELECTED', idempotencyKey: 'notice-one' }), operation);
+  assert.equal(requests.length, 2);
+  for (const request of requests) {
+    assert.equal(request.method, 'POST');
+    assert.equal(request.url, '/v1/notifications');
+    assert.equal(request.headers['idempotency-key'], 'notice-one');
+    assert.equal(request.body, '{"note":"Please review this request","department_id":"sales","notify":false}');
+  }
+  const wrongTeam = (url, init) => { const headers = new Headers(init.headers); headers.set('Totem-Team', 'team_FOREIGN'); return fetch(url, { ...init, headers }); };
+  await assert.rejects(new TotemClient({ apiKey: KEY, baseUrl, fetch: wrongTeam }).notifications.create(body, { team: 'team_SELECTED' }),
+    error => error instanceof TotemApiError && error.code === 'team_not_accessible');
+});
+test('custom values retain a separate snapshot validator and write-only receipt over HTTP', async context => {
+  const etag = '"lcv_' + 'a'.repeat(64) + '"';
+  const requests = [];
+  const receipt = { object: 'lead_custom_values_receipt', lead: 'lead_ABC', changed: true, set_count: 1, removed_count: 0 };
+  const baseUrl = await serve(context, request => {
+    requests.push(request);
+    return { headers: { ETag: etag }, body: request.method === 'GET'
+      ? { object: 'lead_custom_values', lead: 'lead_ABC', values: [{ name: 'service', label: 'Service', value: 'Repair' }] } : receipt };
+  });
+  const client = new TotemClient({ apiKey: KEY, baseUrl, team: 'team_DEFAULT' });
+  const read = await client.requestWithResponse('leads.customValues', { path: { id: 'lead_ABC' } });
+  assert.equal(read.headers.get('ETag'), etag);
+  assert.deepEqual(await client.leads.customValues('lead_ABC'), read.data);
+  assert.deepEqual(await client.leads.updateCustomValues('lead_ABC', { set: [{ name: 'service', label: 'Service', value: 'Repair' }] },
+    { ifMatch: etag, idempotencyKey: 'custom-values-one' }), receipt);
+  assert.equal(requests[2].url, '/v1/leads/lead_ABC/custom-values');
+  assert.equal(requests[2].method, 'PATCH');
+  assert.equal(requests[2].headers['if-match'], etag);
+  assert.equal(requests[2].headers['idempotency-key'], 'custom-values-one');
+  assert.equal(requests[2].headers['totem-team'], undefined);
+  assert.equal(requests[2].body, '{"set":[{"name":"service","label":"Service","value":"Repair"}]}');
+  for (const ifMatch of ['"lead_ABC:7"', 'W/' + etag, '*']) {
+    await assert.rejects(client.leads.updateCustomValues('lead_ABC', { remove: ['service'] }, { ifMatch }), TypeError);
+  }
+  assert.equal(requests.length, 3);
+});
 for (const prefix of ['taw2', 'tsa2']) {
   test(`${prefix} context stays on its task request and retries, with a dropped-proof negative control`, async context => {
     const writeContext = `${prefix}.ZmljdGl0aW91cw.${'s'.repeat(43)}`;
@@ -84,7 +136,7 @@ for (const prefix of ['taw2', 'tsa2']) {
     const operation = { object: 'operation', id: 'op_ABC', status: 'queued', endpoint: 'tasks.create', created_at: '2026-11-02T10:00:00Z', updated_at: '2026-11-02T10:00:00Z', result: null, error: null };
     const baseUrl = await serve(context, request => {
       requests.push(request);
-      if (request.url !== '/v1/tasks') return { body: { identity: 'service' } };
+      if (request.url !== '/v1/tasks') return { body: request.url.startsWith('/v1/operations/') ? operation : { identity: 'service' } };
       if (request.headers['x-totem-write-context'] !== writeContext || request.headers.authorization !== `Bearer ${KEY}`) return { status: 401, body: problem(401, 'invalid_credentials') };
       return requests.length === 1 ? { status: 503, headers: { 'Retry-After': '0' }, body: problem(503, 'service_unavailable') } : { status: 202, body: operation };
     });
@@ -122,7 +174,9 @@ for (const [label, writeContext] of [
 test('a 24,000-character write context is forwarded unchanged only when explicitly supplied', async context => {
   const writeContext = `taw2.${'a'.repeat(23_951)}.${'s'.repeat(43)}`;
   const requests = [];
-  const baseUrl = await serve(context, request => { requests.push(request); return { status: 202, body: { id: 'op_ABC' } }; });
+  const baseUrl = await serve(context, request => { requests.push(request); return { status: 202, body: {
+    object: 'operation', id: 'op_ABC', status: 'queued', endpoint: 'tasks.create', created_at: '2026-11-02T10:00:00Z', updated_at: '2026-11-02T10:00:00Z', result: null, error: null,
+  } }; });
   const client = new TotemClient({ apiKey: KEY, baseUrl, writeContext });
   await client.tasks.create({ title: 'Call Ada' }, { writeContext });
   await client.tasks.create({ title: 'Call Ada' });

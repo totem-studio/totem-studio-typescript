@@ -1577,18 +1577,32 @@
                 "type": "object",
                 "properties": {
                   "phone": {
-                    "description": "Phone supplied by the person in E.164 format.",
-                    "x-description-es": "Teléfono facilitado por la persona en formato E.164.",
-                    "type": "string",
-                    "pattern": "^\\+[1-9][0-9]{6,14}$"
+                    "description": "E.164 contact phone, or null to clear it without arming outreach.",
+                    "x-description-es": "Teléfono E.164 del contacto, o null para borrarlo sin activar contactos.",
+                    "anyOf": [
+                      {
+                        "type": "string",
+                        "pattern": "^\\+[1-9][0-9]{6,14}$"
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ]
                   },
                   "email": {
-                    "description": "Contact email address.",
-                    "x-description-es": "Correo electrónico del contacto.",
-                    "type": "string",
-                    "maxLength": 254,
-                    "format": "email",
-                    "pattern": "^(?:[A-Za-z0-9_'+\\-]+\\.)*[A-Za-z0-9_'+\\-]*[A-Za-z0-9_+-]@(?:[A-Za-z0-9][A-Za-z0-9\\-]*\\.)+[A-Za-z]{2,}$"
+                    "description": "Contact email address, or null to clear it without arming outreach.",
+                    "x-description-es": "Correo del contacto, o null para borrarlo sin activar contactos.",
+                    "anyOf": [
+                      {
+                        "type": "string",
+                        "maxLength": 254,
+                        "format": "email",
+                        "pattern": "^(?:[A-Za-z0-9_'+\\-]+\\.)*[A-Za-z0-9_'+\\-]*[A-Za-z0-9_+-]@(?:[A-Za-z0-9][A-Za-z0-9\\-]*\\.)+[A-Za-z]{2,}$"
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ]
                   },
                   "name": {
                     "type": "string",
@@ -1598,25 +1612,50 @@
                     "x-description-es": "Nombre o nombre visible."
                   },
                   "surname": {
-                    "type": "string",
-                    "minLength": 1,
-                    "maxLength": 200,
-                    "description": "Surname.",
-                    "x-description-es": "Apellidos."
+                    "description": "Surname, or null to clear it. Omission preserves the current value.",
+                    "x-description-es": "Apellidos, o null para borrarlos. Su ausencia conserva el valor actual.",
+                    "anyOf": [
+                      {
+                        "type": "string",
+                        "minLength": 1,
+                        "maxLength": 200,
+                        "description": "Surname.",
+                        "x-description-es": "Apellidos."
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ]
                   },
                   "company": {
-                    "type": "string",
-                    "minLength": 1,
-                    "maxLength": 300,
-                    "description": "Company name.",
-                    "x-description-es": "Nombre de empresa."
+                    "description": "Company name, or null to clear it.",
+                    "x-description-es": "Nombre de empresa, o null para borrarlo.",
+                    "anyOf": [
+                      {
+                        "type": "string",
+                        "minLength": 1,
+                        "maxLength": 300,
+                        "description": "Company name.",
+                        "x-description-es": "Nombre de empresa."
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ]
                   },
                   "website": {
-                    "description": "Contact website; it is stored without fetching it.",
-                    "x-description-es": "Web del contacto; se guarda sin realizar ninguna descarga.",
-                    "type": "string",
-                    "maxLength": 2048,
-                    "format": "uri"
+                    "description": "Contact website, or null to clear it; it is never fetched.",
+                    "x-description-es": "Web del contacto, o null para borrarla; nunca se descarga.",
+                    "anyOf": [
+                      {
+                        "type": "string",
+                        "maxLength": 2048,
+                        "format": "uri"
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ]
                   },
                   "board": {
                     "type": "string",
@@ -1653,11 +1692,18 @@
                     ]
                   },
                   "estimated_value": {
-                    "description": "Estimated value in major units, without an implied currency.",
-                    "x-description-es": "Valor estimado en unidades principales, sin una moneda implícita.",
-                    "type": "number",
-                    "minimum": 0,
-                    "maximum": 1000000000000
+                    "description": "Estimated value in major units, or null to remove the optional value; omission preserves it.",
+                    "x-description-es": "Valor estimado en unidades principales, o null para eliminar el valor opcional; su ausencia lo conserva.",
+                    "anyOf": [
+                      {
+                        "type": "number",
+                        "minimum": 0,
+                        "maximum": 1000000000000
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ]
                   },
                   "assignees": {
                     "description": "Assigned team members, replacing the previous editable set.",
@@ -2619,6 +2665,268 @@
         "x-totem-stability": "beta"
       }
     },
+    "/leads/{id}/custom-values": {
+      "get": {
+        "operationId": "leads.customValues",
+        "tags": [
+          "leads"
+        ],
+        "summary": "Read named lead custom values",
+        "x-summary-es": "Lee los valores personalizados de un lead",
+        "description": "Requires the independent current custom-value content grant; exact names identify fields and current customFields override legacy formFields. Returns its own strong ETag, bound to the complete current snapshot and lead incarnation. Merged, erased and ambiguous duplicate-name sources are refused.",
+        "x-description-es": "Requiere la autorización independiente y vigente del contenido de valores personalizados; los nombres exactos identifican campos y customFields actuales prevalecen sobre formFields antiguos. Devuelve su propio ETag fuerte, ligado a la instantánea completa y encarnación del lead. Se rechazan fuentes fusionadas, borradas o con nombres duplicados ambiguos.",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "description": "The lead's public id.",
+            "x-description-es": "El identificador público del lead.",
+            "schema": {
+              "type": "string",
+              "pattern": "^lead_[0-9A-Za-z]+$"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Read named lead custom values",
+            "x-description-es": "Lee los valores personalizados de un lead",
+            "headers": {
+              "Totem-Request-Id": {
+                "$ref": "#/components/headers/TotemRequestId"
+              },
+              "ETag": {
+                "$ref": "#/components/headers/CustomValuesEtag"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LeadCustomValues"
+                },
+                "example": {
+                  "object": "lead_custom_values",
+                  "lead": "lead_r72EfbRNUzuqORFJR0O8HxAwEXd93jGUTYMaMMXKSF0QbLS8CiUKJpEP34LFQG",
+                  "values": [
+                    {
+                      "name": "boat_type",
+                      "label": "Boat type",
+                      "value": "Sailboat",
+                      "source": "manual"
+                    }
+                  ]
+                }
+              }
+            }
+          },
+          "default": {
+            "$ref": "#/components/responses/Problem"
+          }
+        },
+        "x-totem-errors": [
+          "invalid_request",
+          "secret_key_in_browser",
+          "invalid_credentials",
+          "key_expired",
+          "insufficient_scope",
+          "plan_not_entitled",
+          "ip_not_allowed",
+          "capability_disabled",
+          "rate_limited",
+          "internal_error",
+          "api_disabled",
+          "service_unavailable",
+          "resource_missing",
+          "team_state_restricted",
+          "sector_restricted",
+          "capture_not_ready",
+          "quota_exceeded",
+          "custom_values_review_required"
+        ],
+        "x-totem-scopes": [
+          "crm:custom_values:read"
+        ],
+        "x-totem-rate-class": "sync",
+        "x-totem-effect": "read",
+        "x-totem-tenant-binding": "resource_id",
+        "x-totem-stability": "beta"
+      },
+      "patch": {
+        "operationId": "leads.updateCustomValues",
+        "tags": [
+          "leads"
+        ],
+        "summary": "Set or remove named lead custom values",
+        "x-summary-es": "Modifica o elimina valores personalizados de un lead",
+        "description": "Changes up to 50 distinct exact names using the custom-values ETag in If-Match even for no-op requests; omitted values and unknown row attributes remain unchanged, while touched legacy values are migrated or removed atomically. Separate write permission never exports values: the receipt contains counts and a fresh ETag only. Retry the same logical write with the same Idempotency-Key; a replay renders current metadata without restoring old content.",
+        "x-description-es": "Cambia hasta 50 nombres exactos distintos usando el ETag de valores personalizados en If-Match incluso sin cambios; los valores omitidos y atributos desconocidos se conservan, mientras los valores antiguos afectados se migran o eliminan atómicamente. El permiso de escritura independiente nunca exporta valores: el recibo solo contiene recuentos y un ETag nuevo. Reintenta la misma escritura lógica con el mismo Idempotency-Key; una repetición devuelve metadatos actuales sin restaurar contenido anterior.",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "description": "The lead's public id.",
+            "x-description-es": "El identificador público del lead.",
+            "schema": {
+              "type": "string",
+              "pattern": "^lead_[0-9A-Za-z]+$"
+            }
+          },
+          {
+            "name": "Idempotency-Key",
+            "in": "header",
+            "required": true,
+            "description": "One unique visible-ASCII key per logical write; reuse exactly on retries and never retry outcome_unknown automatically.",
+            "x-description-es": "Una clave ASCII visible única por escritura lógica; reutilízala exactamente al reintentar y nunca reintentes outcome_unknown automáticamente.",
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 255,
+              "pattern": "^[\\x21-\\x7e]+$"
+            }
+          },
+          {
+            "name": "If-Match",
+            "in": "header",
+            "required": true,
+            "description": "The current strong resource ETag, including its quotes; weak tags, wildcards, lists and another resource’s validator are refused.",
+            "x-description-es": "El ETag fuerte actual del recurso, con sus comillas; se rechazan etiquetas débiles, comodines, listas y validadores de otro recurso.",
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 300,
+              "pattern": "^\"lcv_[a-f0-9]{64}\"$"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "set": {
+                    "description": "Set these exact names; omitted fields remain unchanged.",
+                    "x-description-es": "Fija estos nombres exactos; los campos omitidos se conservan.",
+                    "maxItems": 50,
+                    "type": "array",
+                    "items": {
+                      "type": "object",
+                      "properties": {
+                        "name": {
+                          "type": "string",
+                          "minLength": 1,
+                          "maxLength": 100,
+                          "description": "Exact stable field name; names are never inferred from labels.",
+                          "x-description-es": "Nombre exacto y estable; nunca se deduce de la etiqueta."
+                        },
+                        "label": {
+                          "type": "string",
+                          "maxLength": 200,
+                          "description": "Human-readable label.",
+                          "x-description-es": "Etiqueta legible."
+                        },
+                        "value": {
+                          "type": "string",
+                          "maxLength": 2000,
+                          "description": "Exact string value; an empty string is a stored value, not deletion.",
+                          "x-description-es": "Valor de texto exacto; un texto vacío se guarda y no elimina el campo."
+                        }
+                      },
+                      "required": [
+                        "name",
+                        "label",
+                        "value"
+                      ],
+                      "additionalProperties": false
+                    }
+                  },
+                  "remove": {
+                    "description": "Remove these exact names, including legacy copies.",
+                    "x-description-es": "Elimina estos nombres exactos, incluidas sus copias antiguas.",
+                    "maxItems": 50,
+                    "type": "array",
+                    "items": {
+                      "type": "string",
+                      "minLength": 1,
+                      "maxLength": 100
+                    }
+                  }
+                },
+                "additionalProperties": false,
+                "description": "Targeted custom-value patch, protected by its own strong If-Match validator.",
+                "x-description-es": "Cambio específico de valores, protegido por su propio validador fuerte If-Match."
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Set or remove named lead custom values",
+            "x-description-es": "Modifica o elimina valores personalizados de un lead",
+            "headers": {
+              "Totem-Request-Id": {
+                "$ref": "#/components/headers/TotemRequestId"
+              },
+              "ETag": {
+                "$ref": "#/components/headers/CustomValuesEtag"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LeadCustomValuesReceipt"
+                },
+                "example": {
+                  "object": "lead_custom_values_receipt",
+                  "lead": "lead_r72EfbRNUzuqORFJR0O8HxAwEXd93jGUTYMaMMXKSF0QbLS8CiUKJpEP34LFQG",
+                  "changed": true,
+                  "set_count": 1,
+                  "removed_count": 0
+                }
+              }
+            }
+          },
+          "default": {
+            "$ref": "#/components/responses/Problem"
+          }
+        },
+        "x-totem-errors": [
+          "invalid_request",
+          "secret_key_in_browser",
+          "invalid_credentials",
+          "key_expired",
+          "insufficient_scope",
+          "plan_not_entitled",
+          "ip_not_allowed",
+          "capability_disabled",
+          "rate_limited",
+          "internal_error",
+          "api_disabled",
+          "service_unavailable",
+          "resource_missing",
+          "team_state_restricted",
+          "sector_restricted",
+          "capture_not_ready",
+          "idempotency_key_required",
+          "idempotency_key_reused",
+          "idempotency_in_progress",
+          "outcome_unknown",
+          "quota_exceeded",
+          "version_conflict",
+          "custom_values_review_required"
+        ],
+        "x-totem-scopes": [
+          "crm:custom_values:write"
+        ],
+        "x-totem-rate-class": "write",
+        "x-totem-effect": "write",
+        "x-totem-tenant-binding": "resource_id",
+        "x-totem-stability": "beta"
+      }
+    },
     "/leads/{id}/notes/{note}": {
       "patch": {
         "operationId": "leads.updateNote",
@@ -3254,6 +3562,294 @@
         ],
         "x-totem-rate-class": "write",
         "x-totem-effect": "write",
+        "x-totem-tenant-binding": "team_header",
+        "x-totem-stability": "beta"
+      }
+    },
+    "/notifications": {
+      "post": {
+        "operationId": "notifications.create",
+        "tags": [
+          "notifications"
+        ],
+        "summary": "Create a team notification",
+        "x-summary-es": "Crea una notificación del equipo",
+        "description": "Accepts an ordinary business notification as a durable operation; the server validates current lead ownership, routing and recipient access before saving the card and its existing delivery outboxes together. Exact recent chat alerts may merge without a second delivery. Reuse the same Idempotency-Key after an uncertain acknowledgement; technical/system alerts remain private.",
+        "x-description-es": "Acepta una notificación ordinaria de negocio como operación duradera; el servidor valida el lead, las rutas y los destinatarios actuales antes de guardar la tarjeta y sus colas existentes de entrega de forma atómica. Las alertas de chat recientes exactas pueden fusionarse sin otra entrega. Reutiliza el mismo Idempotency-Key tras una confirmación incierta; las alertas técnicas/de sistema siguen siendo privadas.",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/TotemTeam"
+          },
+          {
+            "name": "Idempotency-Key",
+            "in": "header",
+            "required": true,
+            "description": "One unique visible-ASCII key per logical write; reuse exactly on retries and never retry outcome_unknown automatically.",
+            "x-description-es": "Una clave ASCII visible única por escritura lógica; reutilízala exactamente al reintentar y nunca reintentes outcome_unknown automáticamente.",
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 255,
+              "pattern": "^[\\x21-\\x7e]+$"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "note": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 5000,
+                    "description": "Business notification text, up to 5,000 characters; it must not be blank.",
+                    "x-description-es": "Texto de la notificación de negocio, hasta 5.000 caracteres; no puede estar vacío."
+                  },
+                  "title": {
+                    "description": "Optional notification delivery title.",
+                    "x-description-es": "Título opcional de entrega de la notificación.",
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 200
+                  },
+                  "lead_id": {
+                    "type": "string",
+                    "pattern": "^lead_[0-9A-Za-z]+$",
+                    "description": "Optional current lead belonging to the selected team.",
+                    "x-description-es": "Lead actual opcional del equipo seleccionado."
+                  },
+                  "department_id": {
+                    "description": "Existing business department routing key. An unavailable department follows the team’s current fallback route.",
+                    "x-description-es": "Clave de ruta de un departamento de negocio existente. Un departamento no disponible usa la ruta alternativa actual del equipo.",
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 128
+                  },
+                  "notify": {
+                    "description": "Queue the team’s configured delivery plan; defaults to true. Delivery is not promised by acceptance.",
+                    "x-description-es": "Encola el plan de entrega configurado del equipo; por defecto true. La aceptación no promete la entrega.",
+                    "type": "boolean"
+                  },
+                  "status": {
+                    "description": "Initial inbox status; defaults to new.",
+                    "x-description-es": "Estado inicial en la bandeja; por defecto new.",
+                    "type": "string",
+                    "enum": [
+                      "new",
+                      "archived"
+                    ]
+                  }
+                },
+                "required": [
+                  "note"
+                ],
+                "additionalProperties": false,
+                "description": "Create an ordinary team notification. Phone numbers, channel/source identity, recipients, technical errors and operation ids cannot be supplied.",
+                "x-description-es": "Crea una notificación ordinaria del equipo. No admite teléfonos, identidad de canal/origen, destinatarios, errores técnicos ni identificadores de operación."
+              }
+            }
+          }
+        },
+        "responses": {
+          "202": {
+            "description": "Create a team notification",
+            "x-description-es": "Crea una notificación del equipo",
+            "headers": {
+              "Totem-Request-Id": {
+                "$ref": "#/components/headers/TotemRequestId"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Operation"
+                },
+                "example": {
+                  "object": "operation",
+                  "id": "op_m3yGe1tkVy6hn3m9LH9m7e640wg0O",
+                  "status": "queued",
+                  "endpoint": "notifications.create",
+                  "created_at": "2026-10-01T09:30:00.000Z",
+                  "updated_at": "2026-10-01T09:30:00.000Z",
+                  "result": null,
+                  "error": null
+                }
+              }
+            }
+          },
+          "default": {
+            "$ref": "#/components/responses/Problem"
+          }
+        },
+        "x-totem-errors": [
+          "invalid_request",
+          "secret_key_in_browser",
+          "invalid_credentials",
+          "key_expired",
+          "insufficient_scope",
+          "plan_not_entitled",
+          "ip_not_allowed",
+          "capability_disabled",
+          "rate_limited",
+          "internal_error",
+          "api_disabled",
+          "service_unavailable",
+          "team_required",
+          "team_not_accessible",
+          "team_state_restricted",
+          "sector_restricted",
+          "capture_not_ready",
+          "idempotency_key_required",
+          "idempotency_key_reused",
+          "idempotency_in_progress",
+          "outcome_unknown",
+          "quota_exceeded"
+        ],
+        "x-totem-scopes": [
+          "notifications:write"
+        ],
+        "x-totem-rate-class": "write",
+        "x-totem-effect": "write",
+        "x-totem-tenant-binding": "team_header",
+        "x-totem-stability": "beta"
+      },
+      "get": {
+        "operationId": "notifications.list",
+        "tags": [
+          "notifications"
+        ],
+        "summary": "List notifications",
+        "x-summary-es": "Lista las notificaciones",
+        "description": "Returns a page of business notifications with their summary and linked records; pass either `lead` or `status` to filter. Personal notes, technical alerts and notices whose linked source was erased are excluded. Reading never marks notices read; use the changes feed for updates and removals.",
+        "x-description-es": "Devuelve una página de avisos de negocio con su resumen y registros asociados; envía `lead` o `status` para filtrar. Se excluyen las notas personales, los avisos técnicos y los avisos cuyo origen vinculado se suprimió. Consultar nunca marca avisos como leídos; usa el feed de cambios para recibir actualizaciones y eliminaciones.",
+        "parameters": [
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "description": "Items per page, 1–100. Defaults to 25.",
+            "x-description-es": "Elementos por página, de 1 a 100. Por defecto, 25.",
+            "schema": {
+              "default": 25,
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 100
+            }
+          },
+          {
+            "name": "cursor",
+            "in": "query",
+            "required": false,
+            "description": "The `next_cursor` of the previous page. Omit it for the first page.",
+            "x-description-es": "El `next_cursor` de la página anterior. Omítelo en la primera página.",
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 512
+            }
+          },
+          {
+            "name": "lead",
+            "in": "query",
+            "required": false,
+            "description": "Only the notifications linked to this lead: every item's `lead` is this id. A lead of another team, or one that does not exist, matches nothing.",
+            "x-description-es": "Solo las notificaciones vinculadas a este lead: el `lead` de cada elemento es este identificador. Un lead de otro equipo, o que no existe, no coincide con nada.",
+            "schema": {
+              "type": "string",
+              "pattern": "^lead_[0-9A-Za-z]+$"
+            }
+          },
+          {
+            "name": "status",
+            "in": "query",
+            "required": false,
+            "description": "Only notices with this status. At most one of `lead` and `status`.",
+            "x-description-es": "Solo avisos con este estado. Como máximo uno de `lead` y `status`.",
+            "schema": {
+              "type": "string",
+              "enum": [
+                "new",
+                "read",
+                "archived"
+              ]
+            }
+          },
+          {
+            "$ref": "#/components/parameters/TotemTeam"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "List notifications",
+            "x-description-es": "Lista las notificaciones",
+            "headers": {
+              "Totem-Request-Id": {
+                "$ref": "#/components/headers/TotemRequestId"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/NotificationList"
+                },
+                "example": {
+                  "object": "list",
+                  "data": [
+                    {
+                      "id": "ntf_m3mtwDFyaDSKmhf9rg7Ps201S8Jc4",
+                      "object": "notification",
+                      "livemode": false,
+                      "team": "team_r9uYrIW4gSFJJ6hZQ9ip1UIpPaAD1CF7NR",
+                      "lead": "lead_r72EfbRNUzuqORFJR0O8HxAwEXd93jGUTYMaMMXKSF0QbLS8CiUKJpEP34LFQG",
+                      "call": null,
+                      "conversation": "conv_m3GhGjRHmFbww1g10oqOp7j3gWqPJ",
+                      "summary": "Alex requests a call from a person about the appointment.",
+                      "status": "new",
+                      "source": "chat",
+                      "handoff_reason": null,
+                      "created_at": "2026-10-01T08:58:00.000Z",
+                      "version": 1,
+                      "updated_at": "2026-10-01T08:58:30.000Z"
+                    }
+                  ],
+                  "has_more": false,
+                  "next_cursor": null
+                }
+              }
+            }
+          },
+          "default": {
+            "$ref": "#/components/responses/Problem"
+          }
+        },
+        "x-totem-errors": [
+          "invalid_request",
+          "secret_key_in_browser",
+          "invalid_credentials",
+          "key_expired",
+          "insufficient_scope",
+          "plan_not_entitled",
+          "ip_not_allowed",
+          "capability_disabled",
+          "rate_limited",
+          "internal_error",
+          "api_disabled",
+          "service_unavailable",
+          "team_required",
+          "team_not_accessible",
+          "team_state_restricted",
+          "sector_restricted",
+          "capture_not_ready",
+          "quota_exceeded"
+        ],
+        "x-totem-scopes": [
+          "crm:read"
+        ],
+        "x-totem-rate-class": "sync",
+        "x-totem-effect": "read",
         "x-totem-tenant-binding": "team_header",
         "x-totem-stability": "beta"
       }
@@ -4075,145 +4671,6 @@
         "x-totem-stability": "beta"
       }
     },
-    "/notifications": {
-      "get": {
-        "operationId": "notifications.list",
-        "tags": [
-          "notifications"
-        ],
-        "summary": "List notifications",
-        "x-summary-es": "Lista las notificaciones",
-        "description": "Returns a page of business notifications with their summary and linked records; pass either `lead` or `status` to filter. Personal notes, technical alerts and notices whose linked source was erased are excluded. Reading never marks notices read; use the changes feed for updates and removals.",
-        "x-description-es": "Devuelve una página de avisos de negocio con su resumen y registros asociados; envía `lead` o `status` para filtrar. Se excluyen las notas personales, los avisos técnicos y los avisos cuyo origen vinculado se suprimió. Consultar nunca marca avisos como leídos; usa el feed de cambios para recibir actualizaciones y eliminaciones.",
-        "parameters": [
-          {
-            "name": "limit",
-            "in": "query",
-            "required": false,
-            "description": "Items per page, 1–100. Defaults to 25.",
-            "x-description-es": "Elementos por página, de 1 a 100. Por defecto, 25.",
-            "schema": {
-              "default": 25,
-              "type": "integer",
-              "minimum": 1,
-              "maximum": 100
-            }
-          },
-          {
-            "name": "cursor",
-            "in": "query",
-            "required": false,
-            "description": "The `next_cursor` of the previous page. Omit it for the first page.",
-            "x-description-es": "El `next_cursor` de la página anterior. Omítelo en la primera página.",
-            "schema": {
-              "type": "string",
-              "minLength": 1,
-              "maxLength": 512
-            }
-          },
-          {
-            "name": "lead",
-            "in": "query",
-            "required": false,
-            "description": "Only the notifications linked to this lead: every item's `lead` is this id. A lead of another team, or one that does not exist, matches nothing.",
-            "x-description-es": "Solo las notificaciones vinculadas a este lead: el `lead` de cada elemento es este identificador. Un lead de otro equipo, o que no existe, no coincide con nada.",
-            "schema": {
-              "type": "string",
-              "pattern": "^lead_[0-9A-Za-z]+$"
-            }
-          },
-          {
-            "name": "status",
-            "in": "query",
-            "required": false,
-            "description": "Only notices with this status. At most one of `lead` and `status`.",
-            "x-description-es": "Solo avisos con este estado. Como máximo uno de `lead` y `status`.",
-            "schema": {
-              "type": "string",
-              "enum": [
-                "new",
-                "read",
-                "archived"
-              ]
-            }
-          },
-          {
-            "$ref": "#/components/parameters/TotemTeam"
-          }
-        ],
-        "responses": {
-          "200": {
-            "description": "List notifications",
-            "x-description-es": "Lista las notificaciones",
-            "headers": {
-              "Totem-Request-Id": {
-                "$ref": "#/components/headers/TotemRequestId"
-              }
-            },
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/NotificationList"
-                },
-                "example": {
-                  "object": "list",
-                  "data": [
-                    {
-                      "id": "ntf_m3mtwDFyaDSKmhf9rg7Ps201S8Jc4",
-                      "object": "notification",
-                      "livemode": false,
-                      "team": "team_r9uYrIW4gSFJJ6hZQ9ip1UIpPaAD1CF7NR",
-                      "lead": "lead_r72EfbRNUzuqORFJR0O8HxAwEXd93jGUTYMaMMXKSF0QbLS8CiUKJpEP34LFQG",
-                      "call": null,
-                      "conversation": "conv_m3GhGjRHmFbww1g10oqOp7j3gWqPJ",
-                      "summary": "Alex requests a call from a person about the appointment.",
-                      "status": "new",
-                      "source": "chat",
-                      "handoff_reason": null,
-                      "created_at": "2026-10-01T08:58:00.000Z",
-                      "version": 1,
-                      "updated_at": "2026-10-01T08:58:30.000Z"
-                    }
-                  ],
-                  "has_more": false,
-                  "next_cursor": null
-                }
-              }
-            }
-          },
-          "default": {
-            "$ref": "#/components/responses/Problem"
-          }
-        },
-        "x-totem-errors": [
-          "invalid_request",
-          "secret_key_in_browser",
-          "invalid_credentials",
-          "key_expired",
-          "insufficient_scope",
-          "plan_not_entitled",
-          "ip_not_allowed",
-          "capability_disabled",
-          "rate_limited",
-          "internal_error",
-          "api_disabled",
-          "service_unavailable",
-          "team_required",
-          "team_not_accessible",
-          "team_state_restricted",
-          "sector_restricted",
-          "capture_not_ready",
-          "quota_exceeded"
-        ],
-        "x-totem-scopes": [
-          "crm:read"
-        ],
-        "x-totem-rate-class": "sync",
-        "x-totem-effect": "read",
-        "x-totem-tenant-binding": "team_header",
-        "x-totem-stability": "beta"
-      }
-    },
     "/notifications/{id}": {
       "get": {
         "operationId": "notifications.get",
@@ -4600,6 +5057,14 @@
       }
     },
     "headers": {
+      "CustomValuesEtag": {
+        "description": "Opaque strong validator of the current custom-values snapshot and lead incarnation. Send it unchanged as If-Match for custom-value updates; an ordinary lead ETag cannot authorize them.",
+        "x-description-es": "Validador fuerte opaco de la instantánea actual de valores personalizados y encarnación del lead. Envíalo sin cambios en If-Match para modificarlos; un ETag ordinario del lead no los autoriza.",
+        "schema": {
+          "type": "string",
+          "pattern": "^\"lcv_[a-f0-9]{64}\"$"
+        }
+      },
       "NoteEtag": {
         "description": "Strong validator of this note version, including quotes; send it unchanged as If-Match when updating or deleting the note.",
         "x-description-es": "Validador fuerte de esta versión de la nota, con comillas; envíalo sin cambios en If-Match al actualizar o borrar la nota.",
@@ -9734,6 +10199,145 @@
           }
         ]
       },
+      "LeadCustomValues": {
+        "type": "object",
+        "properties": {
+          "object": {
+            "type": "string",
+            "const": "lead_custom_values",
+            "description": "Always lead_custom_values.",
+            "x-description-es": "Siempre lead_custom_values."
+          },
+          "lead": {
+            "type": "string",
+            "pattern": "^lead_[0-9A-Za-z]+$",
+            "description": "Owning lead.",
+            "x-description-es": "Lead propietario."
+          },
+          "values": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "name": {
+                  "type": "string",
+                  "minLength": 1,
+                  "maxLength": 100,
+                  "description": "Exact stable field name; names are never inferred from labels.",
+                  "x-description-es": "Nombre exacto y estable; nunca se deduce de la etiqueta."
+                },
+                "label": {
+                  "type": "string",
+                  "maxLength": 200,
+                  "description": "Human-readable label.",
+                  "x-description-es": "Etiqueta legible."
+                },
+                "value": {
+                  "type": "string",
+                  "maxLength": 2000,
+                  "description": "Exact string value; an empty string is a stored value, not deletion.",
+                  "x-description-es": "Valor de texto exacto; un texto vacío se guarda y no elimina el campo."
+                },
+                "source": {
+                  "description": "Stored provenance, when known.",
+                  "x-description-es": "Procedencia guardada, si se conoce.",
+                  "type": "string",
+                  "enum": [
+                    "form",
+                    "call_extraction",
+                    "manual",
+                    "csv"
+                  ]
+                }
+              },
+              "required": [
+                "name",
+                "label",
+                "value"
+              ],
+              "description": "One explicitly granted lead custom value.",
+              "x-description-es": "Un valor personalizado del lead con autorización explícita."
+            },
+            "description": "Current exact-name values; requires the separate content-read grant.",
+            "x-description-es": "Valores actuales por nombre exacto; requieren la autorización independiente de lectura de contenido."
+          }
+        },
+        "required": [
+          "object",
+          "lead",
+          "values"
+        ],
+        "description": "Custom values with a separate opaque ETag in the response header.",
+        "x-description-es": "Valores personalizados con un ETag opaco independiente en la cabecera de respuesta.",
+        "examples": [
+          {
+            "object": "lead_custom_values",
+            "lead": "lead_r72EfbRNUzuqORFJR0O8HxAwEXd93jGUTYMaMMXKSF0QbLS8CiUKJpEP34LFQG",
+            "values": [
+              {
+                "name": "boat_type",
+                "label": "Boat type",
+                "value": "Sailboat",
+                "source": "manual"
+              }
+            ]
+          }
+        ]
+      },
+      "LeadCustomValuesReceipt": {
+        "type": "object",
+        "properties": {
+          "object": {
+            "type": "string",
+            "const": "lead_custom_values_receipt",
+            "description": "Always lead_custom_values_receipt.",
+            "x-description-es": "Siempre lead_custom_values_receipt."
+          },
+          "lead": {
+            "type": "string",
+            "pattern": "^lead_[0-9A-Za-z]+$",
+            "description": "Owning lead.",
+            "x-description-es": "Lead propietario."
+          },
+          "changed": {
+            "type": "boolean",
+            "description": "Whether this logical request changed stored custom values.",
+            "x-description-es": "Si esta petición lógica cambió los valores guardados."
+          },
+          "set_count": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 50,
+            "description": "Exact names set by this logical request.",
+            "x-description-es": "Nombres exactos fijados por esta petición lógica."
+          },
+          "removed_count": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 50,
+            "description": "Existing exact names removed by this logical request.",
+            "x-description-es": "Nombres exactos existentes eliminados por esta petición lógica."
+          }
+        },
+        "required": [
+          "object",
+          "lead",
+          "changed",
+          "set_count",
+          "removed_count"
+        ],
+        "description": "Content-free mutation receipt; the response ETag reflects the current source even on replay.",
+        "x-description-es": "Justificante sin contenido; el ETag refleja el origen actual incluso en una repetición.",
+        "examples": [
+          {
+            "object": "lead_custom_values_receipt",
+            "lead": "lead_r72EfbRNUzuqORFJR0O8HxAwEXd93jGUTYMaMMXKSF0QbLS8CiUKJpEP34LFQG",
+            "changed": true,
+            "set_count": 1,
+            "removed_count": 0
+          }
+        ]
+      },
       "LeadDetail": {
         "type": "object",
         "properties": {
@@ -11406,6 +12010,12 @@
             "description": "Public id of the integration.",
             "x-description-es": "Identificador público de la integración."
           },
+          "principal_kind": {
+            "type": "string",
+            "const": "automation_service",
+            "description": "Present only for a hosted service identity. Its empty team list grants no team access; each operation still requires its signed execution context.",
+            "x-description-es": "Solo aparece en una identidad de servicio alojado. Su lista vacía no concede acceso a equipos; cada operación sigue necesitando su contexto de ejecución firmado."
+          },
           "livemode": {
             "type": "boolean",
             "description": "`true` for a real key; `false` in example data.",
@@ -11456,7 +12066,10 @@
                 "calendar:read",
                 "crm:write",
                 "crm:notes:read",
-                "tasks:write"
+                "tasks:write",
+                "notifications:write",
+                "crm:custom_values:read",
+                "crm:custom_values:write"
               ]
             },
             "description": "The key’s explicitly granted scopes; old read-only keys never gain writes or note content implicitly.",
@@ -11861,6 +12474,46 @@
           }
         ]
       },
+      "NotificationReceipt": {
+        "type": "object",
+        "properties": {
+          "object": {
+            "type": "string",
+            "const": "notification_receipt",
+            "description": "Always notification_receipt.",
+            "x-description-es": "Siempre notification_receipt."
+          },
+          "id": {
+            "type": "string",
+            "pattern": "^ntf_[0-9A-Za-z]+$",
+            "description": "Opaque notification id bound to its team and incarnation.",
+            "x-description-es": "Identificador opaco de notificación ligado a su equipo y encarnación."
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "new",
+              "archived"
+            ],
+            "description": "Notification status recorded by the operation.",
+            "x-description-es": "Estado de la notificación registrado por la operación."
+          }
+        },
+        "required": [
+          "object",
+          "id",
+          "status"
+        ],
+        "description": "Minimal notification receipt without its content, recipients or internal source references.",
+        "x-description-es": "Justificante mínimo de notificación sin contenido, destinatarios ni referencias internas de origen.",
+        "examples": [
+          {
+            "object": "notification_receipt",
+            "id": "ntf_m3mtwDFyaDSKmhf9rg7Ps201S8Jc4",
+            "status": "new"
+          }
+        ]
+      },
       "Operation": {
         "type": "object",
         "properties": {
@@ -11893,10 +12546,11 @@
             "type": "string",
             "enum": [
               "tasks.create",
-              "tasks.complete"
+              "tasks.complete",
+              "notifications.create"
             ],
-            "description": "The original task endpoint executed by this operation.",
-            "x-description-es": "Endpoint de tareas original ejecutado por esta operación."
+            "description": "The original endpoint executed by this operation.",
+            "x-description-es": "Endpoint original ejecutado por esta operación."
           },
           "created_at": {
             "type": "string",
@@ -11913,14 +12567,21 @@
           "result": {
             "anyOf": [
               {
-                "$ref": "#/components/schemas/TaskReceipt"
+                "anyOf": [
+                  {
+                    "$ref": "#/components/schemas/TaskReceipt"
+                  },
+                  {
+                    "$ref": "#/components/schemas/NotificationReceipt"
+                  }
+                ]
               },
               {
                 "type": "null"
               }
             ],
-            "description": "Minimal public task receipt after success, otherwise null.",
-            "x-description-es": "Justificante público mínimo de la tarea tras completarse correctamente; en otro caso null."
+            "description": "Minimal public resource receipt after success, otherwise null.",
+            "x-description-es": "Justificante público mínimo del recurso tras completarse correctamente; en otro caso null."
           },
           "error": {
             "anyOf": [
@@ -12004,6 +12665,7 @@
               {
                 "type": "string",
                 "enum": [
+                  "custom_values_review_required",
                   "idempotency_key_required",
                   "idempotency_key_reused",
                   "idempotency_in_progress",
@@ -12322,6 +12984,17 @@
     "TEAM_CACHE_TTL_MS": 30000
   },
   "x-totem-errors": {
+    "custom_values_review_required": {
+      "status": 409,
+      "title": "Custom values require review",
+      "x-title-es": "Los valores personalizados requieren revisión",
+      "action": "fix_request",
+      "description": "Stored custom values contain duplicate names or ambiguous legacy rows.",
+      "x-description-es": "Los valores personalizados guardados contienen nombres duplicados o filas antiguas ambiguas.",
+      "fix": "Reconcile duplicate names and label-only legacy rows in Totem, then read a fresh custom-values ETag before retrying.",
+      "x-fix-es": "Revisa los nombres duplicados y las filas antiguas que solo tienen etiqueta en Totem; después lee un ETag nuevo de valores personalizados antes de reintentar.",
+      "doc_url": "https://totemstudio.ai/developers/errors#custom_values_review_required"
+    },
     "idempotency_key_required": {
       "status": 400,
       "title": "Idempotency key required",

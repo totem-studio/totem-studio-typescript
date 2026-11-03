@@ -111,8 +111,17 @@ client.request('notifications.get')
 client.request('notifications.update', { path: { id: 'ntf_ABC' } })
 // @ts-expect-error notification status request enum stays closed
 client.notifications.list({ status: 'pending' })
-// @ts-expect-error notification creation is not exposed
+client.notifications.create({ note: 'Please review', department_id: 'sales', notify: false }, { team: 'team_A' })
+// @ts-expect-error notification creation requires note, not an invented summary field
 client.notifications.create({ summary: 'Call the lead' })
+client.leads.customValues('lead_ABC')
+client.leads.updateCustomValues('lead_ABC', { set: [{ name: 'service', label: 'Service', value: 'Repair' }], remove: ['obsolete'] }, { ifMatch: '"lcv_snapshot"' })
+// @ts-expect-error custom-value writes require their separate If-Match validator
+client.leads.updateCustomValues('lead_ABC', { remove: ['obsolete'] })
+// @ts-expect-error custom values store exact strings, never implicit numeric coercions
+client.leads.updateCustomValues('lead_ABC', { set: [{ name: 'budget', label: 'Budget', value: 100 }] }, { ifMatch: '"lcv_snapshot"' })
+// @ts-expect-error public custom value writes cannot select source provenance
+client.leads.updateCustomValues('lead_ABC', { set: [{ name: 'service', label: 'Service', value: 'Repair', source: 'form' }] }, { ifMatch: '"lcv_snapshot"' })
 // @ts-expect-error resource paths are required
 client.request('leads.get')
 // @ts-expect-error search bodies are required

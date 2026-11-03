@@ -171,6 +171,23 @@ resolves to `undefined`. Granted notes also appear as `lead_note` feed upserts
 and removals; existing read keys never receive that kind. Exhaustive feed
 switches must add it. See [`examples/crm.ts`](examples/crm.ts).
 
+Custom values use separate `crm:custom_values:read` and
+`crm:custom_values:write` scopes. Reading values needs its own explicit content
+grant; note permission does not grant access. `leads.customValues(id)` reads
+exact field names and strings. To update them, retain the **custom-values**
+ETag from `requestWithResponse('leads.customValues', { path: { id } })`, then
+call `leads.updateCustomValues(id, { set: [{ name, label, value }], remove: [] },
+{ ifMatch })`. The ordinary lead ETag cannot authorize this update. Omitted
+fields remain unchanged; empty strings are values and `remove` deletes the
+exact named value, including legacy copies. The write receipt contains counts,
+without values; duplicate or ambiguous stored names require review.
+
+`notifications.create({ note, notify: false })` accepts an ordinary team
+notification under `notifications:write`. It returns a durable operation,
+like task creation. Observe it with `operations.get`; the final result is a
+minimal `notification_receipt`, without the note or recipient details. Acceptance
+does not promise delivery. Source identity and recipients are selected by Totem.
+
 ## Types
 
 All wire types are generated from the checked-in `openapi.json`, with each
@@ -344,6 +361,10 @@ Every error the SDK raises extends `TotemError`:
   code and parameter name only, never a value or response text.
 - `TotemProtocolError`: a response the contract does not allow, such as
   invalid JSON (with the parse error as `cause`) or a repeated cursor.
+- `TotemUnknownOutcomeError`: a durable write returned a malformed or unrelated
+  operation receipt. It extends `TotemProtocolError`, has `code: 'outcome_unknown'`,
+  and keeps the original `idempotencyKey` and `requestId` for reconciliation.
+  It carries no response body or parse cause and is never retried automatically.
 - `TotemTimeoutError`: the request's own `timeoutMs` deadline passed.
 - `TotemConnectionError`: the network failed and retries could not recover;
   `cause` holds the last failure. A connection reset in the middle of a
@@ -372,7 +393,10 @@ retried. Set `maxRetries: 0` to manage retries yourself.
 `baseUrl` can target another HTTPS API deployment. HTTP is accepted only on
 loopback for local tests. A custom `fetch` is available for trusted server
 instrumentation and HTTP boundary tests; it receives the secret and must be
-trusted accordingly. Successful responses are typed at compile time; live
+trusted accordingly. Successful responses are typed at compile time; durable
+operations additionally validate receipt identity without rejecting additive
+fields or future string enums. A success whose receipt was withdrawn for privacy
+can legitimately return `result: null`. Live
 response validation is performed by the smoke script rather than added to each
 production request.
 
@@ -416,9 +440,11 @@ fails when they do not resolve once the release exists. See
 ### Live test
 
 Use a **Totem-owned test team with fictitious contacts** and a dedicated API
-key. The default `read` profile performs read-only requests and excludes the seven
-CRM/content operations explicitly in its receipt. The script never creates,
+key. The default `read` profile performs read-only requests and lists excluded
+CRM/content and task/operation routes explicitly in its receipt. The script never creates,
 revokes or rotates credentials.
+Notification creation and custom-value routes are also explicitly excluded
+from these existing profiles; their new runtime acceptance is a separate release check.
 
 ```sh
 chmod 600 /secure/path/sdk-smoke.key
@@ -429,13 +455,25 @@ TOTEM_SMOKE_RECEIPT=/secure/path/receipt.json \
 npm run test:live
 ```
 
-To exercise all 27 operations, set `TOTEM_SMOKE_PROFILE=crm` with a dedicated
+To exercise the 27 CRM-profile operations, set `TOTEM_SMOKE_PROFILE=crm` with a dedicated
 CRM-write key that also has the explicit note-content grant. Add unique
 `crmEmail` (ending in `@example.invalid`) and `crmExternalId` fixtures for that
 run. This mode validates a dry run, creates an inert import, updates the lead,
 creates/reads/updates/deletes a note, proves stale validators fail and archives
 the disposable lead. Never point it at customer fixtures. It fails rather
 than reusing an existing import identity; choose fresh fixtures for each run.
+
+For task acceptance, use `TOTEM_SMOKE_PROFILE=tasks` with the base read scopes
+and explicit `tasks:write`. Set an explicit `TOTEM_TEAM_ID` (or fixture `teamId`)
+for a **Totem-owned disposable team**, and add `taskCreateKey` to the fixture
+JSON, for example `"taskCreateKey": "sdk-task-acceptance-001"`. This profile
+creates one fixed fictitious task, replays the identical create key/body, checks
+the same operation ID, completes the task and verifies that cancelling completed
+work does not claim to undo it. It leaves that completed task in the test team.
+Reusing the fixture key resumes the same intent; never replace it to recover an
+uncertain outcome. Each create/completion is observed through at most 20 GETs,
+500 ms apart. Failed, unknown or unconfirmed outcomes fail the run without
+submitting another effect. The tasks profile excludes CRM writes and note content.
 
 The key file contains only the key. `TOTEM_API_KEY` is supported when a secret
 manager injects it as an environment variable. Never pass keys on command lines.
@@ -447,7 +485,8 @@ refuse it. That counts as one failed attempt for your key and address on the
 The script never prints or records that key.
 
 The fixture JSON may contain `teamId`, `leadId`, `callId`, `conversationId`,
-`bookingId`, `notificationId`, `searchEmail`, `foreignLeadId` and `foreignTeamId`; otherwise the
+`bookingId`, `notificationId`, `searchEmail`, `foreignLeadId` and `foreignTeamId`
+(plus the selected write profile's fixtures described above); otherwise the
 script selects the first captured record in each collection, and it needs
 representative records for complete route coverage. `foreignLeadId` (a lead of
 a team the key does not read) adds the cross-team `404 resource_missing` check;

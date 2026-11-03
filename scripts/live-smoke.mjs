@@ -1,5 +1,5 @@
 /**
- * Exercise the selected read-only or explicit CRM profile on a Totem-owned test team; never
+ * Exercise the selected read-only, CRM or tasks profile on a Totem-owned test team; never
  * logs credentials or records. Responses are validated closed-world (an
  * undeclared field fails). Diagnostics are closed: operation ids, check
  * labels, schema codes, schema-derived paths, request ids and the server
@@ -12,8 +12,9 @@ import { operationDefinitions } from '../dist/generated/operations.js';
 import { parseSecretKey, wrongSecretKey } from './key-format.mjs';
 import { ResponseValidationError, VALIDATION_CODES, validateResponse } from './schema-validation.mjs';
 
-const FIXTURE_FIELDS = ['teamId', 'leadId', 'callId', 'conversationId', 'bookingId', 'notificationId', 'searchEmail', 'foreignLeadId', 'foreignTeamId', 'crmEmail', 'crmExternalId'];
+const FIXTURE_FIELDS = ['teamId', 'leadId', 'callId', 'conversationId', 'bookingId', 'notificationId', 'searchEmail', 'foreignLeadId', 'foreignTeamId', 'crmEmail', 'crmExternalId', 'taskCreateKey'];
 const SYNC_PAGE_BUDGET = 5;
+const TASK_POLL_BUDGET = 20;
 const READ_PROFILE_SCOPES = ['teams:read', 'crm:read', 'calls:read', 'messages:read', 'calendar:read'];
 const PROFILE_TAGS = new Set(['account', 'leads', 'calls', 'conversations', 'bookings', 'notifications', 'sync']);
 const SAFE_SCHEMA_PATH = /^\$(?:\.[A-Za-z0-9_]+|\[\d+\]|\.\*)*$/;
@@ -29,7 +30,7 @@ class FixtureMissingError extends Error {
 
 async function configuration() {
   const profile = process.env.TOTEM_SMOKE_PROFILE || 'read';
-  if (!['read', 'crm'].includes(profile)) throw new SmokeConfigError('profile_invalid');
+  if (!['read', 'crm', 'tasks'].includes(profile)) throw new SmokeConfigError('profile_invalid');
   const keyFile = process.env.TOTEM_API_KEY_FILE;
   let apiKey = process.env.TOTEM_API_KEY;
   if (keyFile) {
@@ -52,6 +53,8 @@ async function configuration() {
   try { new TotemClient(common); } catch { throw new SmokeConfigError('base_url_invalid'); }
   if (profile === 'crm' && (!fixtures.crmEmail || !/^[A-Za-z0-9._+-]+@example\.invalid$/.test(fixtures.crmEmail)
     || !fixtures.crmExternalId || fixtures.crmExternalId.length > 200)) throw new SmokeConfigError('crm_fixtures_required');
+  if (profile === 'tasks' && (!/^team_[A-Za-z0-9]+$/.test(process.env.TOTEM_TEAM_ID || fixtures.teamId || '')
+    || !fixtures.taskCreateKey || !/^[\x21-\x7e]{1,200}$/.test(fixtures.taskCreateKey))) throw new SmokeConfigError('tasks_fixtures_required');
   return { apiKey, fixtures, common, profile };
 }
 
@@ -80,17 +83,24 @@ async function main() {
   const schema = JSON.parse(await readFile(new URL('../openapi.json', import.meta.url), 'utf8'));
   const checks = [];
   const covered = new Set();
-  const scopes = new Set([...READ_PROFILE_SCOPES, ...(profile === 'crm' ? ['crm:write', 'crm:notes:read'] : [])]);
+  const scopes = new Set([...READ_PROFILE_SCOPES, ...(profile === 'crm' ? ['crm:write', 'crm:notes:read'] : []), ...(profile === 'tasks' ? ['tasks:write'] : [])]);
+  const tags = new Set([...PROFILE_TAGS, ...(profile === 'tasks' ? ['tasks', 'operations'] : [])]);
   const expectedOperations = Object.keys(operationDefinitions).filter(id => {
     const definition = operationDefinitions[id];
     const operation = schema.paths[definition.path]?.[definition.method.toLowerCase()];
     // Operation status/cancellation inherits the original action's authority;
     // an empty scope list is not a grant for these read/CRM acceptance profiles.
-    if (!Array.isArray(operation?.tags) || !operation.tags.length || !operation.tags.every(tag => PROFILE_TAGS.has(tag))
+    if (!Array.isArray(operation?.tags) || !operation.tags.length || !operation.tags.every(tag => tags.has(tag))
       || !Array.isArray(operation['x-totem-scopes']) || !operation['x-totem-scopes'].every(scope => scopes.has(scope))) return false;
+    // These routes inherit the owned task operation's current authority. Only
+    // the tasks profile deliberately exercises that dynamic operation family.
+    if (operation.tags.includes('operations')) return profile === 'tasks'
+      && operation['x-totem-tenant-binding'] === 'team_header';
     return operation['x-totem-effect'] === 'read'
       || profile === 'crm' && operation['x-totem-effect'] === 'write'
-      && operation.tags.includes('leads') && operation['x-totem-scopes'].includes('crm:write');
+      && operation.tags.includes('leads') && operation['x-totem-scopes'].includes('crm:write')
+      || profile === 'tasks' && operation['x-totem-effect'] === 'write'
+      && operation.tags.includes('tasks') && operation['x-totem-scopes'].includes('tasks:write');
   });
   const excludedOperations = Object.keys(operationDefinitions).filter(id => !expectedOperations.includes(id));
   const responses = new Map();
@@ -154,11 +164,29 @@ async function main() {
       if (!feed.has_more && page > 1) return;
     }
   }
+  /** Observation never retries an effect, and ambiguity never gets a new key. */
+  async function completedTaskOperation(id, endpoint) {
+    for (let poll = 0; poll < TASK_POLL_BUDGET; poll++) {
+      const operation = await run('operations.get', { path: { id } });
+      current = { check: 'task operation progress', requestId: current.requestId };
+      assert.equal(operation.id, id);
+      assert.equal(operation.endpoint, endpoint);
+      if (operation.status === 'succeeded') {
+        assert.equal(operation.result?.object, 'task_receipt');
+        assert.equal(operation.error, null);
+        return operation.result;
+      }
+      assert.ok(['queued', 'running'].includes(operation.status), 'Task outcome is not confirmed successful');
+      if (poll + 1 < TASK_POLL_BUDGET) await new Promise(resolve => setTimeout(resolve, 500));
+    }
+    assert.fail('Task observation budget exhausted');
+  }
   let failed = null;
   try {
     await run('health');
     const integration = await run('me.get');
     if (profile === 'crm') assert.ok(['crm:write', 'crm:notes:read'].every(scope => integration.scopes.includes(scope)), 'CRM smoke needs explicit CRM-write and note-content grants');
+    if (profile === 'tasks') assert.ok(integration.scopes.includes('tasks:write'), 'Tasks smoke needs the explicit task-write grant');
     const teams = await run('teams.list');
     const team = process.env.TOTEM_TEAM_ID || fixtures.teamId || teams.data[0]?.id;
     if (!team) throw new FixtureMissingError('teamId');
@@ -209,6 +237,33 @@ async function main() {
       await negative('stale lead write', () => client.leads.update(id, { name: 'Stale must never win.' }, { ifMatch: leadEtag }), 412, 'version_conflict');
       const archived = await run('leads.archive', { path: { id }, body: { reason: 'other', detail: 'Completed disposable SDK CRM smoke.' }, ifMatch: updatedLeadEtag });
       assert.equal(archived.lead.status, 'archived');
+    }
+    if (profile === 'tasks') {
+      const body = { title: 'SDK tasks smoke' }, idempotencyKey = fixtures.taskCreateKey;
+      const created = await run('tasks.create', { body, idempotencyKey });
+      current = { check: 'task create replay', requestId: current.requestId };
+      assert.ok(['queued', 'running', 'succeeded'].includes(created.status));
+      const replay = await run('tasks.create', { body, idempotencyKey });
+      current = { check: 'task create replay', requestId: current.requestId };
+      assert.equal(created.endpoint, 'tasks.create');
+      assert.equal(replay.endpoint, 'tasks.create');
+      assert.equal(replay.id, created.id);
+      assert.ok(['queued', 'running', 'succeeded'].includes(replay.status));
+      const task = await completedTaskOperation(created.id, 'tasks.create');
+      assert.equal(task.status, 'open');
+      const completion = await run('tasks.complete', { path: { id: task.id }, body: {}, idempotencyKey: `${idempotencyKey}.complete` });
+      current = { check: 'task completion', requestId: current.requestId };
+      assert.ok(['queued', 'running', 'succeeded'].includes(completion.status));
+      const completed = await completedTaskOperation(completion.id, 'tasks.complete');
+      current = { check: 'task completion', requestId: current.requestId };
+      assert.equal(completed.id, task.id);
+      assert.equal(completed.status, 'done');
+      const cancelled = await run('operations.cancel', { path: { id: completion.id }, body: {} });
+      current = { check: 'completed task cancellation', requestId: current.requestId };
+      assert.equal(cancelled.id, completion.id);
+      assert.equal(cancelled.endpoint, 'tasks.complete');
+      assert.equal(cancelled.status, 'succeeded', 'Cancelling completed work cannot claim its effect was undone');
+      assert.deepEqual(cancelled.result, completed);
     }
     // Well-formed, with this key's lookup id and another secret: the API must find the key and refuse the secret. Never printed or recorded.
     const badKeyClient = new TotemClient({ ...common, apiKey: wrongSecretKey(apiKey) });

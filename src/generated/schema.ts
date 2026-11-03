@@ -2,7 +2,7 @@
 type UnionKeys<T> = T extends unknown ? keyof T : never
 type ExclusiveUnion<T, All = T> = T extends unknown ? T & Partial<Record<Exclude<UnionKeys<All>, keyof T>, never>> : never
 /** Every error code the contract documents. New codes may appear: handle an unknown one by its status. */
-export type TotemErrorCode = "idempotency_key_required" | "idempotency_key_reused" | "idempotency_in_progress" | "outcome_unknown" | "version_conflict" | "ambiguous_identity" | "inbound_not_enabled" | "consent_required" | "invalid_request" | "team_required" | "secret_key_in_browser" | "invalid_credentials" | "key_expired" | "insufficient_scope" | "plan_not_entitled" | "ip_not_allowed" | "team_state_restricted" | "sector_restricted" | "capability_disabled" | "resource_missing" | "team_not_accessible" | "resync_required" | "capture_not_ready" | "sync_cursor_expired" | "rate_limited" | "quota_exceeded" | "internal_error" | "api_disabled" | "service_unavailable"
+export type TotemErrorCode = "custom_values_review_required" | "idempotency_key_required" | "idempotency_key_reused" | "idempotency_in_progress" | "outcome_unknown" | "version_conflict" | "ambiguous_identity" | "inbound_not_enabled" | "consent_required" | "invalid_request" | "team_required" | "secret_key_in_browser" | "invalid_credentials" | "key_expired" | "insufficient_scope" | "plan_not_entitled" | "ip_not_allowed" | "team_state_restricted" | "sector_restricted" | "capability_disabled" | "resource_missing" | "team_not_accessible" | "resync_required" | "capture_not_ready" | "sync_cursor_expired" | "rate_limited" | "quota_exceeded" | "internal_error" | "api_disabled" | "service_unavailable"
 /** What the caller should do about an error, from the contract's error catalogue. */
 export type ErrorAction = "fix_request" | "retry_after" | "contact_support" | "check_credentials" | "keep_and_retry" | "drop_team" | "resync" | "wait_capture" | "backoff"
 export interface Schemas {
@@ -947,6 +947,37 @@ export interface Schemas {
 /** When Totem recorded this version (UTC). It is not the time the business event happened. */
 "updated_at": string
 };
+/** Custom values with a separate opaque ETag in the response header. */
+"LeadCustomValues": {
+/** Always lead_custom_values. */
+"object": "lead_custom_values";
+/** Owning lead. */
+"lead": string;
+/** Current exact-name values; requires the separate content-read grant. */
+"values": Array<{
+/** Exact stable field name; names are never inferred from labels. */
+"name": string;
+/** Human-readable label. */
+"label": string;
+/** Exact string value; an empty string is a stored value, not deletion. */
+"value": string;
+/** Stored provenance, when known. */
+"source"?: (("form" | "call_extraction" | "manual" | "csv") | (string & {}))
+}>
+};
+/** Content-free mutation receipt; the response ETag reflects the current source even on replay. */
+"LeadCustomValuesReceipt": {
+/** Always lead_custom_values_receipt. */
+"object": "lead_custom_values_receipt";
+/** Owning lead. */
+"lead": string;
+/** Whether this logical request changed stored custom values. */
+"changed": boolean;
+/** Exact names set by this logical request. */
+"set_count": number;
+/** Existing exact names removed by this logical request. */
+"removed_count": number
+};
 /** A lead with its `attribution` and `response` facets, each with its own `version`. A facet is `null` only while Totem is still preparing it. */
 "LeadDetail": {
 /** Public id of the record. */
@@ -1224,6 +1255,8 @@ export interface Schemas {
 "object": "integration";
 /** Public id of the integration. */
 "id": string;
+/** Present only for a hosted service identity. Its empty team list grants no team access; each operation still requires its signed execution context. */
+"principal_kind"?: "automation_service";
 /** `true` for a real key; `false` in example data. */
 "livemode": boolean;
 /** The name an administrator gave the integration. */
@@ -1236,7 +1269,7 @@ export interface Schemas {
 /** The teams this key reads today. Their details are in `GET /v1/teams`. */
 "teams": Array<string>;
 /** The key’s explicitly granted scopes; old read-only keys never gain writes or note content implicitly. */
-"scopes": Array<(("teams:read" | "crm:read" | "calls:read" | "messages:read" | "calendar:read" | "crm:write" | "crm:notes:read" | "tasks:write") | (string & {}))>
+"scopes": Array<(("teams:read" | "crm:read" | "calls:read" | "messages:read" | "calendar:read" | "crm:write" | "crm:notes:read" | "tasks:write" | "notifications:write" | "crm:custom_values:read" | "crm:custom_values:write") | (string & {}))>
 };
 /** A team member, by display name only: Totem exports no email, phone or role. */
 "Member": {
@@ -1304,6 +1337,15 @@ export interface Schemas {
 /** Opaque cursor for the next page, or null on the last page. Never parse it. */
 "next_cursor": (string | null)
 };
+/** Minimal notification receipt without its content, recipients or internal source references. */
+"NotificationReceipt": {
+/** Always notification_receipt. */
+"object": "notification_receipt";
+/** Opaque notification id bound to its team and incarnation. */
+"id": string;
+/** Notification status recorded by the operation. */
+"status": (("new" | "archived") | (string & {}))
+};
 /** Durable operation status, available only to its current authorized integration and team. */
 "Operation": {
 /** Always operation. */
@@ -1312,14 +1354,28 @@ export interface Schemas {
 "id": `op_${string}`;
 /** Durable operation state; outcome_unknown must be reconciled before repeating the effect. */
 "status": (("queued" | "running" | "succeeded" | "failed" | "cancelled" | "outcome_unknown") | (string & {}));
-/** The original task endpoint executed by this operation. */
-"endpoint": (("tasks.create" | "tasks.complete") | (string & {}));
+/** The original endpoint executed by this operation. */
+"endpoint": (("tasks.create" | "tasks.complete" | "notifications.create") | (string & {}));
 /** When this operation was accepted, in UTC. */
 "created_at": string;
 /** When its current state was recorded, in UTC. */
 "updated_at": string;
-/** Minimal public task receipt after success, otherwise null. */
-"result": (Schemas["TaskReceipt"] | null);
+/** Minimal public resource receipt after success, otherwise null. */
+"result": (({
+/** Always task_receipt. */
+"object": "task_receipt";
+/** Opaque task id bound to its team and incarnation; never parse it. */
+"id": `task_${string}`;
+/** Task state recorded by the completed operation. */
+"status": ("open" | "done")
+} | {
+/** Always notification_receipt. */
+"object": "notification_receipt";
+/** Opaque notification id bound to its team and incarnation. */
+"id": string;
+/** Notification status recorded by the operation. */
+"status": ("new" | "archived")
+}) | null);
 /** Safe failure information, or null. */
 "error": ({
 /** Closed failure code without provider text, task content or credentials. */
@@ -1567,18 +1623,18 @@ export interface OperationContracts {
 /** The lead's public id. */
 "id": string
 }; body: {
-/** Phone supplied by the person in E.164 format. */
-"phone"?: string | undefined;
-/** Contact email address. */
-"email"?: string | undefined;
+/** E.164 contact phone, or null to clear it without arming outreach. */
+"phone"?: (string | null) | undefined;
+/** Contact email address, or null to clear it without arming outreach. */
+"email"?: (string | null) | undefined;
 /** First name or display name. */
 "name"?: string | undefined;
-/** Surname. */
-"surname"?: string | undefined;
-/** Company name. */
-"company"?: string | undefined;
-/** Contact website; it is stored without fetching it. */
-"website"?: string | undefined;
+/** Surname, or null to clear it. Omission preserves the current value. */
+"surname"?: (string | null) | undefined;
+/** Company name, or null to clear it. */
+"company"?: (string | null) | undefined;
+/** Contact website, or null to clear it; it is never fetched. */
+"website"?: (string | null) | undefined;
 /** Destination board belonging to the selected team. */
 "board"?: string | undefined;
 /** Destination stage belonging to the selected board and team; a move never bypasses outreach guards. */
@@ -1587,8 +1643,8 @@ export interface OperationContracts {
 "tags"?: Array<string> | undefined;
 /** Lead priority. */
 "priority"?: ("low" | "medium" | "high" | "urgent") | undefined;
-/** Estimated value in major units, without an implied currency. */
-"estimated_value"?: number | undefined;
+/** Estimated value in major units, or null to remove the optional value; omission preserves it. */
+"estimated_value"?: (number | null) | undefined;
 /** Assigned team members, replacing the previous editable set. */
 "assignees"?: Array<string> | undefined;
 /** Civil birth date, or null to clear it. */
@@ -1686,6 +1742,40 @@ export interface OperationContracts {
 "detail"?: string | undefined
 } };
 /**
+ * Read named lead custom values
+ *
+ * Requires the independent current custom-value content grant; exact names identify fields and current customFields override legacy formFields. Returns its own strong ETag, bound to the complete current snapshot and lead incarnation. Merged, erased and ambiguous duplicate-name sources are refused.
+ */
+"leads.customValues": { response: Schemas["LeadCustomValues"]; query: {
+
+}; path: {
+/** The lead's public id. */
+"id": string
+}; body: never };
+/**
+ * Set or remove named lead custom values
+ *
+ * Changes up to 50 distinct exact names using the custom-values ETag in If-Match even for no-op requests; omitted values and unknown row attributes remain unchanged, while touched legacy values are migrated or removed atomically. Separate write permission never exports values: the receipt contains counts and a fresh ETag only. Retry the same logical write with the same Idempotency-Key; a replay renders current metadata without restoring old content.
+ */
+"leads.updateCustomValues": { response: Schemas["LeadCustomValuesReceipt"]; query: {
+
+}; path: {
+/** The lead's public id. */
+"id": string
+}; body: {
+/** Set these exact names; omitted fields remain unchanged. */
+"set"?: Array<{
+/** Exact stable field name; names are never inferred from labels. */
+"name": string;
+/** Human-readable label. */
+"label": string;
+/** Exact string value; an empty string is a stored value, not deletion. */
+"value": string
+}> | undefined;
+/** Remove these exact names, including legacy copies. */
+"remove"?: Array<string> | undefined
+} };
+/**
  * Delete a lead note
  *
  * Deletes only the named note under this lead incarnation using its current strong note ETag in If-Match; a stale version returns `412 version_conflict`. Success returns 204 with no JSON body and the changes feed retains a deletion marker. It never deletes or archives the parent lead.
@@ -1759,6 +1849,46 @@ export interface OperationContracts {
 /** The task's public id. */
 "id": `task_${string}`
 }; body: Record<string, never> };
+/**
+ * List notifications
+ *
+ * Returns a page of business notifications with their summary and linked records; pass either `lead` or `status` to filter. Personal notes, technical alerts and notices whose linked source was erased are excluded. Reading never marks notices read; use the changes feed for updates and removals.
+ */
+"notifications.list": { response: Schemas["NotificationList"]; query: {
+/** Items per page, 1–100. Defaults to 25. */
+"limit"?: number | null | undefined;
+/** The `next_cursor` of the previous page. Omit it for the first page. */
+"cursor"?: string | null | undefined;
+/** Only the notifications linked to this lead: every item's `lead` is this id. A lead of another team, or one that does not exist, matches nothing. */
+"lead"?: string | null | undefined;
+/** Only notices with this status. At most one of `lead` and `status`. */
+"status"?: ("new" | "read" | "archived") | null | undefined
+}; path: {
+
+}; body: never };
+/**
+ * Create a team notification
+ *
+ * Accepts an ordinary business notification as a durable operation; the server validates current lead ownership, routing and recipient access before saving the card and its existing delivery outboxes together. Exact recent chat alerts may merge without a second delivery. Reuse the same Idempotency-Key after an uncertain acknowledgement; technical/system alerts remain private.
+ */
+"notifications.create": { response: Schemas["Operation"]; query: {
+
+}; path: {
+
+}; body: {
+/** Business notification text, up to 5,000 characters; it must not be blank. */
+"note": string;
+/** Optional notification delivery title. */
+"title"?: string | undefined;
+/** Optional current lead belonging to the selected team. */
+"lead_id"?: string | undefined;
+/** Existing business department routing key. An unavailable department follows the team’s current fallback route. */
+"department_id"?: string | undefined;
+/** Queue the team’s configured delivery plan; defaults to true. Delivery is not promised by acceptance. */
+"notify"?: boolean | undefined;
+/** Initial inbox status; defaults to new. */
+"status"?: ("new" | "archived") | undefined
+} };
 /**
  * Get an operation
  *
@@ -1860,23 +1990,6 @@ export interface OperationContracts {
 "id": string
 }; body: never };
 /**
- * List notifications
- *
- * Returns a page of business notifications with their summary and linked records; pass either `lead` or `status` to filter. Personal notes, technical alerts and notices whose linked source was erased are excluded. Reading never marks notices read; use the changes feed for updates and removals.
- */
-"notifications.list": { response: Schemas["NotificationList"]; query: {
-/** Items per page, 1–100. Defaults to 25. */
-"limit"?: number | null | undefined;
-/** The `next_cursor` of the previous page. Omit it for the first page. */
-"cursor"?: string | null | undefined;
-/** Only the notifications linked to this lead: every item's `lead` is this id. A lead of another team, or one that does not exist, matches nothing. */
-"lead"?: string | null | undefined;
-/** Only notices with this status. At most one of `lead` and `status`. */
-"status"?: ("new" | "read" | "archived") | null | undefined
-}; path: {
-
-}; body: never };
-/**
  * Get a notification
  *
  * Returns one business notification by its opaque id, including its summary. A foreign, personal, excluded or removed notice answers `404 resource_missing`. This endpoint never changes its status.
@@ -1945,6 +2058,10 @@ export type Health = Schemas["Health"]
 export type Lead = Schemas["Lead"]
 /** Where a lead came from: its original capture and latest submission. */
 export type LeadAttribution = Schemas["LeadAttribution"]
+/** Custom values with a separate opaque ETag in the response header. */
+export type LeadCustomValues = Schemas["LeadCustomValues"]
+/** Content-free mutation receipt; the response ETag reflects the current source even on replay. */
+export type LeadCustomValuesReceipt = Schemas["LeadCustomValuesReceipt"]
 /** A lead with its `attribution` and `response` facets, each with its own `version`. A facet is `null` only while Totem is still preparing it. */
 export type LeadDetail = Schemas["LeadDetail"]
 /** A page of Lead objects, in a stable order that carries no meaning. */
@@ -1975,6 +2092,8 @@ export type MemberList = Schemas["MemberList"]
 export type Notification = Schemas["Notification"]
 /** A page of Notification objects, in a stable order that carries no meaning. */
 export type NotificationList = Schemas["NotificationList"]
+/** Minimal notification receipt without its content, recipients or internal source references. */
+export type NotificationReceipt = Schemas["NotificationReceipt"]
 /** Durable operation status, available only to its current authorized integration and team. */
 export type Operation = Schemas["Operation"]
 /** An error, as `application/problem+json` (RFC 9457). */
