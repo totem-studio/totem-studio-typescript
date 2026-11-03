@@ -31,7 +31,7 @@ const EFFECTS = new Set(['read', 'write']);
 const REQUEST_HEADERS = new Map([['idempotency-key', 'Idempotency-Key'], ['if-match', 'If-Match']]);
 const OPAQUE_ID_PREFIXES = new Map([['^task_[0-9A-Za-z]+$', 'task'], ['^op_[0-9A-Za-z]+$', 'op']]);
 /** Hand-written SDK exports; a component alias with one of these names would shadow it. */
-const RESERVED = new Set(['TotemClient', 'TotemError', 'TotemApiError', 'TotemProtocolError', 'TotemTimeoutError', 'TotemConnectionError', 'Schemas', 'OperationContracts', 'OperationId', 'TaskId', 'PublicOperationId', 'TaskCreateBody', 'TaskCompleteBody', 'OperationCancelBody', 'ResponseOf', 'QueryOf', 'BodyOf', 'RequestOptions', 'OptionsOf', 'RequestInput', 'RequestArgs', 'ListOperationId', 'ItemsOperationId', 'ItemOf', 'ResponseInfo', 'ClientOptions', 'TotemErrorCode', 'ErrorAction', 'ErrorCatalogueEntry', 'Stage', 'FeedRemoval', 'FeedUpsert', 'FeedObjectOf', 'UnionKeys', 'ExclusiveUnion']);
+const RESERVED = new Set(['TotemClient', 'TotemError', 'TotemApiError', 'TotemProtocolError', 'TotemUnknownOutcomeError', 'TotemTimeoutError', 'TotemConnectionError', 'Schemas', 'OperationContracts', 'OperationId', 'TaskId', 'PublicOperationId', 'TaskCreateBody', 'TaskCompleteBody', 'OperationCancelBody', 'ResponseOf', 'QueryOf', 'BodyOf', 'RequestOptions', 'OptionsOf', 'RequestInput', 'RequestArgs', 'ListOperationId', 'ItemsOperationId', 'ItemOf', 'ResponseInfo', 'ClientOptions', 'TotemErrorCode', 'ErrorAction', 'ErrorCatalogueEntry', 'Stage', 'FeedRemoval', 'FeedUpsert', 'FeedObjectOf', 'UnionKeys', 'ExclusiveUnion']);
 
 /** A JSDoc block for English documentation text, or nothing. */
 function doc(...texts) {

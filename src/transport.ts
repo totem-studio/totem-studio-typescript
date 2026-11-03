@@ -1,4 +1,5 @@
-import { TotemApiError, TotemConnectionError, TotemProtocolError, TotemTimeoutError } from './errors.js'
+import { TotemApiError, TotemConnectionError, TotemProtocolError, TotemTimeoutError, TotemUnknownOutcomeError } from './errors.js'
+import { isDurableOperationWrite, matchesOperationReceipt } from './operationReceipt.js'
 import { DEFAULT_BASE_URL, SDK_VERSION, operationDefinitions } from './generated/operations.js'
 import type { ClientOptions, OperationId, Problem, RequestOptions, ResponseInfo } from './types.js'
 
@@ -229,16 +230,25 @@ export class Transport {
           continue
         }
         const success = definition.successResponses?.find(item => item.status === response.status)
-        if (!success) throw new TotemProtocolError('Totem API returned an undeclared success status', requestId)
+        const malformedOperation = () => new TotemUnknownOutcomeError(headers.get('Idempotency-Key')!, requestId)
+        if (!success) {
+          if (isDurableOperationWrite(operationId)) throw malformedOperation()
+          throw new TotemProtocolError('Totem API returned an undeclared success status', requestId)
+        }
         if (!success.body) {
           if (text !== '') throw new TotemProtocolError('Totem API returned a body for a no-content response', requestId)
           return { data: undefined as T, status: response.status, requestId, headers: response.headers }
         }
-        try {
-          return { data: JSON.parse(text ?? '') as T, status: response.status, requestId, headers: response.headers }
-        } catch (cause) {
+        let data: unknown
+        try { data = JSON.parse(text ?? '') } catch (cause) {
+          if (isDurableOperationWrite(operationId)) throw malformedOperation()
           throw new TotemProtocolError('Totem API returned invalid JSON', requestId, { cause })
         }
+        if (!matchesOperationReceipt(data, operationId, input.path)) {
+          if (isDurableOperationWrite(operationId)) throw malformedOperation()
+          throw new TotemProtocolError('Totem API returned an unrelated operation receipt', requestId)
+        }
+        return { data: data as T, status: response.status, requestId, headers: response.headers }
       }
     } finally { clearTimeout(timer) }
   }

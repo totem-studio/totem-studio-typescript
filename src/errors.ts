@@ -59,6 +59,17 @@ export class TotemProtocolError extends TotemError {
   }
 }
 
+/** A durable write answered ambiguously. Keep this key and reconcile; never start a new logical effect. */
+export class TotemUnknownOutcomeError extends TotemProtocolError {
+  readonly code = 'outcome_unknown'
+  readonly idempotencyKey: string
+  constructor(idempotencyKey: string, requestId: string | null = null) {
+    super('The write outcome is unknown; reconcile using the original idempotency key', requestId)
+    this.name = 'TotemUnknownOutcomeError'
+    this.idempotencyKey = idempotencyKey
+  }
+}
+
 /** The request's own `timeoutMs` deadline passed, including retries and body reading. */
 export class TotemTimeoutError extends TotemError {
   readonly timeoutMs: number

@@ -4,17 +4,116 @@
  * bounded by maxRetries, honour only well-formed Retry-After values (capped
  * by maxRetryDelayMs), jitter the SDK's own backoff, and never retry
  * authorization, validation or feed-state failures.
+ * Durable writes reject ambiguous successful receipts without another effect
+ * request. Removing their identity guard makes the HTTP fault oracles red.
  */
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readFile } from 'node:fs/promises';
-import { TotemApiError, TotemClient, TotemConnectionError, TotemError, TotemProtocolError } from '../dist/index.js';
-import { KEY, problem, serve } from './helpers.mjs';
+import { TotemApiError, TotemClient, TotemConnectionError, TotemError, TotemProtocolError, TotemUnknownOutcomeError } from '../dist/index.js';
+import { KEY, problem, serve, serveRaw } from './helpers.mjs';
 
 const contract = JSON.parse(await readFile(new URL('../openapi.json', import.meta.url), 'utf8'));
 const list = { object: 'list', data: [], has_more: false, next_cursor: null };
 
 const queuedTaskOperation = { object: 'operation', id: 'op_ABC', status: 'queued', endpoint: 'tasks.create', created_at: '2026-11-02T10:00:00Z', updated_at: '2026-11-02T10:00:00Z', result: null, error: null };
+const durableWrites = [
+  { endpoint: 'tasks.create', call: (client, options) => client.tasks.create({ title: 'Call Ada' }, options), receipt: { object: 'task_receipt', id: 'task_ABC', status: 'open' } },
+  { endpoint: 'tasks.complete', call: (client, options) => client.tasks.complete('task_ABC', options), receipt: { object: 'task_receipt', id: 'task_ABC', status: 'done' } },
+  { endpoint: 'notifications.create', call: (client, options) => client.notifications.create({ note: 'Review request' }, options), receipt: { object: 'notification_receipt', id: 'ntf_ABC', status: 'new' } },
+];
+for (const { endpoint, call, receipt } of durableWrites) {
+  for (const [label, mutate] of [
+    ['null', () => null], ['array', () => []], ['JSON primitive', () => 'PRIVATE_RESPONSE'],
+    ['invalid opaque operation id', value => ({ ...value, id: 'raw/id' })],
+    ['unrelated endpoint', value => ({ ...value, endpoint: 'foreign.effect' })],
+    ['object state', value => ({ ...value, status: { toString: null } })],
+    ['impossible timestamp', value => ({ ...value, created_at: '2026-02-30T10:00:00Z' })],
+    ['missing result', ({ result: _result, ...value }) => value],
+    ['missing error', ({ error: _error, ...value }) => value],
+    ['result on pending operation', value => ({ ...value, result: receipt })],
+    ['wrong resource receipt', value => ({ ...value, status: 'succeeded', result: { object: 'lead', id: 'lead_Private', status: 'open' } })],
+    ['malformed receipt state', value => ({ ...value, status: 'succeeded', result: { ...receipt, status: { toString: null } } })],
+    ['result on failed operation', value => ({ ...value, status: 'failed', result: receipt, error: { code: 'execution_failed' } })],
+    ['error on succeeded operation', value => ({ ...value, status: 'succeeded', result: receipt, error: { code: 'execution_failed' } })],
+  ]) {
+    test(`${endpoint} fences ${label} as a lean unknown outcome without retry`, async context => {
+      let requests = 0;
+      const body = mutate({ ...queuedTaskOperation, endpoint });
+      const baseUrl = await serveRaw(context, (_request, response) => {
+        requests++;
+        response.writeHead(202, { 'Content-Type': 'application/json', 'Totem-Request-Id': 'req_receipt_fault' });
+        response.end(JSON.stringify(body));
+      });
+      const client = new TotemClient({ apiKey: KEY, team: 'team_SELECTED', baseUrl, maxRetries: 5 });
+      await assert.rejects(call(client, { idempotencyKey: 'intent-once' }), error => {
+        assert.ok(error instanceof TotemUnknownOutcomeError && error instanceof TotemProtocolError);
+        assert.equal(error.code, 'outcome_unknown');
+        assert.equal(error.idempotencyKey, 'intent-once');
+        assert.equal(error.requestId, 'req_receipt_fault');
+        assert.deepEqual(Object.keys(error).sort(), ['code', 'idempotencyKey', 'name', 'requestId']);
+        assert.equal('cause' in error, false);
+        assert.doesNotMatch(`${error.message}${JSON.stringify(error)}`, /PRIVATE_RESPONSE|raw\/id|lead_Private/);
+        return true;
+      });
+      assert.equal(requests, 1);
+    });
+  }
+  for (const [label, result] of [['redacted succeeded receipt', null], ['additive receipt with future status', { ...receipt, status: 'future-status', future_field: true }]]) {
+    test(`${endpoint} preserves ${label} and additive response fields`, async context => {
+      const operation = { ...queuedTaskOperation, endpoint, status: 'succeeded', result, future_field: true };
+      const baseUrl = await serve(context, () => ({ status: 202, body: operation }));
+      assert.deepEqual(await call(new TotemClient({ apiKey: KEY, baseUrl }), { idempotencyKey: 'forward-compatible' }), operation);
+    });
+  }
+}
+test('task completion refuses a receipt for another task, with a boundary-fault negative control', async context => {
+  let replace = false;
+  const baseUrl = await serve(context, () => ({ status: 202, body: { ...queuedTaskOperation, endpoint: 'tasks.complete', status: 'succeeded',
+    result: { object: 'task_receipt', id: replace ? 'task_ABC' : 'task_Foreign', status: 'done' } } }));
+  const client = new TotemClient({ apiKey: KEY, baseUrl });
+  const guardOracle = () => assert.rejects(client.tasks.complete('task_ABC', { idempotencyKey: 'complete-once' }), TotemUnknownOutcomeError);
+  await guardOracle();
+  // Hiding the foreign receipt at the HTTP boundary must make the same guard
+  // oracle red, proving it is not satisfied by any successful response.
+  replace = true;
+  await assert.rejects(guardOracle(), error => error.code === 'ERR_ASSERTION' && /Missing expected rejection/u.test(error.message));
+});
+test('invalid durable-write JSON reports its original generated key without retaining body or cause', async context => {
+  const keys = [];
+  const baseUrl = await serveRaw(context, (request, response) => {
+    keys.push(request.headers['idempotency-key']);
+    response.writeHead(202, { 'Totem-Request-Id': 'req_invalid_operation' });
+    response.end('PRIVATE_INVALID_JSON');
+  });
+  await assert.rejects(new TotemClient({ apiKey: KEY, baseUrl, maxRetries: 5 }).notifications.create({ note: 'Review' }), error => {
+    assert.ok(error instanceof TotemUnknownOutcomeError);
+    assert.equal(error.idempotencyKey, keys[0]);
+    assert.match(error.idempotencyKey, /^[0-9a-f-]{36}$/u);
+    assert.equal(error.requestId, 'req_invalid_operation');
+    assert.equal('cause' in error, false);
+    assert.doesNotMatch(JSON.stringify(error), /PRIVATE_INVALID_JSON/);
+    return true;
+  });
+  assert.equal(keys.length, 1);
+});
+for (const action of ['get', 'cancel']) {
+  test(`operation ${action} binds the requested id without becoming another business effect`, async context => {
+    let requests = 0;
+    const baseUrl = await serve(context, () => { requests++; return { body: { ...queuedTaskOperation, id: 'op_Foreign' } }; });
+    await assert.rejects(new TotemClient({ apiKey: KEY, baseUrl, maxRetries: 5 }).operations[action]('op_ABC'),
+      error => error instanceof TotemProtocolError && !(error instanceof TotemUnknownOutcomeError));
+    assert.equal(requests, 1);
+  });
+}
+test('future operation states remain forward compatible and ordinary CRM reads keep their types-only behavior', async context => {
+  const operation = { ...queuedTaskOperation, status: 'future-state', future_field: true };
+  const baseUrl = await serve(context, request => ({ status: request.url === '/v1/tasks' ? 202 : 200,
+    body: request.url === '/v1/tasks' ? operation : { future_field: true } }));
+  const client = new TotemClient({ apiKey: KEY, baseUrl });
+  assert.deepEqual(await client.tasks.create({ title: 'Future state' }), operation);
+  assert.deepEqual(await client.leads.get('lead_ABC'), { future_field: true });
+});
 for (const [route, call, acceptedStatus, responseBody, expectedBody] of [
   ['CRM upsert', (client, options) => client.leads.upsert({ origin: 'import', email: 'ada@example.com' }, options), 201, { object: 'lead_mutation', created: true, lead: { id: 'lead_ABC' } }, '{"origin":"import","email":"ada@example.com"}'],
   ['task create', (client, options) => client.tasks.create({ title: 'Call Ada' }, options), 202, queuedTaskOperation, '{"title":"Call Ada"}'],
