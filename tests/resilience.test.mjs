@@ -16,6 +16,51 @@ import { KEY, problem, serve, serveRaw } from './helpers.mjs';
 const contract = JSON.parse(await readFile(new URL('../openapi.json', import.meta.url), 'utf8'));
 const list = { object: 'list', data: [], has_more: false, next_cursor: null };
 
+const knowledge = { object: 'knowledge_search', status: 'ready', passages: [
+  { text: 'Annual support is included.', title: 'Plans', section: null, page: 1, score: 0.75 },
+] };
+for (const [label, body] of [
+  ['wrong object', { ...knowledge, object: 'PRIVATE_RESPONSE' }],
+  ['missing status', { object: 'knowledge_search', passages: [] }],
+  ['missing passages', { object: 'knowledge_search', status: 'ready' }],
+  ['too many passages', { ...knowledge, passages: Array(9).fill(knowledge.passages[0]) }],
+  ['empty passage', { ...knowledge, passages: [{ ...knowledge.passages[0], text: '' }] }],
+  ['oversized passage', { ...knowledge, passages: [{ ...knowledge.passages[0], text: 'x'.repeat(1_201) }] }],
+  ['missing nullable field', { ...knowledge, passages: [{ text: 'Known passage', title: 'Plans', page: 1, score: 0.5 }] }],
+  ['zero page', { ...knowledge, passages: [{ ...knowledge.passages[0], page: 0 }] }],
+  ['fractional page', { ...knowledge, passages: [{ ...knowledge.passages[0], page: 1.5 }] }],
+  ['out-of-range score', { ...knowledge, passages: [{ ...knowledge.passages[0], score: 1.1 }] }],
+]) {
+  test(`knowledge search refuses ${label} without retrying or retaining passages`, async context => {
+    let requests = 0;
+    const baseUrl = await serve(context, () => { requests++; return { body }; });
+    await assert.rejects(new TotemClient({ apiKey: KEY, baseUrl, maxRetries: 5 }).knowledge.search({ query: 'Annual plan?' }), error => {
+      assert.ok(error instanceof TotemProtocolError);
+      assert.equal(error.requestId, 'req_fixture_01');
+      assert.doesNotMatch(JSON.stringify(error), /PRIVATE_RESPONSE|Known passage|Annual support/);
+      return true;
+    });
+    assert.equal(requests, 1);
+  });
+}
+test('knowledge supports empty/indexing results and additive fields, with a response-fault negative control', async context => {
+  let body = { ...knowledge, passages: [{ ...knowledge.passages[0], score: 2 }] };
+  const baseUrl = await serve(context, () => ({ body }));
+  const client = new TotemClient({ apiKey: KEY, baseUrl });
+  const guardOracle = () => assert.rejects(client.knowledge.search({ query: 'Plans?' }), TotemProtocolError);
+  await guardOracle();
+  body = knowledge;
+  await assert.rejects(guardOracle(), error => error.code === 'ERR_ASSERTION' && /Missing expected rejection/u.test(error.message));
+  for (const result of [
+    { object: 'knowledge_search', status: 'indexing', passages: [] },
+    { object: 'knowledge_search', status: 'ready', passages: [] },
+    { ...knowledge, status: 'future-status', future_field: true, passages: [{ ...knowledge.passages[0], future_field: true }] },
+  ]) {
+    body = result;
+    assert.deepEqual(await client.knowledge.search({ query: 'Plans?' }), result);
+  }
+});
+
 const queuedTaskOperation = { object: 'operation', id: 'op_ABC', status: 'queued', endpoint: 'tasks.create', created_at: '2026-11-02T10:00:00Z', updated_at: '2026-11-02T10:00:00Z', result: null, error: null };
 const durableWrites = [
   { endpoint: 'tasks.create', call: (client, options) => client.tasks.create({ title: 'Call Ada' }, options), receipt: { object: 'task_receipt', id: 'task_ABC', status: 'open' } },

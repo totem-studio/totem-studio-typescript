@@ -7,7 +7,7 @@
  */
 import { isDeepStrictEqual } from 'node:util';
 
-export const VALIDATION_CODES = new Set(['schema_false', 'schema_invalid', 'schema_unsupported', 'schema_reference', 'anyOf', 'oneOf', 'allOf', 'const', 'enum', 'type', 'pattern', 'min_length', 'max_length', 'date', 'date_time', 'minimum', 'maximum', 'min_items', 'max_items', 'required', 'additional_property', 'undeclared_field']);
+export const VALIDATION_CODES = new Set(['schema_false', 'schema_invalid', 'schema_unsupported', 'schema_reference', 'anyOf', 'oneOf', 'allOf', 'const', 'enum', 'type', 'pattern', 'min_length', 'max_length', 'date', 'date_time', 'minimum', 'maximum', 'exclusive_minimum', 'exclusive_maximum', 'min_items', 'max_items', 'required', 'additional_property', 'undeclared_field']);
 export class ResponseValidationError extends Error {
   constructor(code, path) {
     super('API response did not match its declared schema');
@@ -17,7 +17,7 @@ export class ResponseValidationError extends Error {
   }
 }
 const annotations = new Set(['description', 'examples', 'example', 'format', 'default', 'deprecated', 'title']);
-const supported = new Set(['$ref', 'type', 'properties', 'required', 'additionalProperties', 'items', 'anyOf', 'oneOf', 'allOf', 'enum', 'const', 'pattern', 'minimum', 'maximum', 'minLength', 'maxLength', 'minItems', 'maxItems']);
+const supported = new Set(['$ref', 'type', 'properties', 'required', 'additionalProperties', 'items', 'anyOf', 'oneOf', 'allOf', 'enum', 'const', 'pattern', 'minimum', 'maximum', 'exclusiveMinimum', 'exclusiveMaximum', 'minLength', 'maxLength', 'minItems', 'maxItems']);
 const fail = (code, path) => { throw new ResponseValidationError(code, path); };
 
 /** Date-only values use Gregorian calendar arithmetic, never a host timezone. */
@@ -38,6 +38,9 @@ export function validateResponse(value, schema, document, { closed = false } = {
     if (!schema || typeof schema !== 'object' || Array.isArray(schema)) fail('schema_invalid', path);
     for (const key of Object.keys(schema)) {
       if (!supported.has(key) && !annotations.has(key) && !key.startsWith('x-')) fail('schema_unsupported', path);
+    }
+    for (const key of ['exclusiveMinimum', 'exclusiveMaximum']) {
+      if (Object.hasOwn(schema, key) && (typeof schema[key] !== 'number' || !Number.isFinite(schema[key]))) fail('schema_invalid', path);
     }
     if (schema.$ref) {
       const prefix = '#/components/schemas/';
@@ -75,6 +78,8 @@ export function validateResponse(value, schema, document, { closed = false } = {
     if (typeof value === 'number') {
       if (schema.minimum !== undefined && value < schema.minimum) fail('minimum', path);
       if (schema.maximum !== undefined && value > schema.maximum) fail('maximum', path);
+      if (schema.exclusiveMinimum !== undefined && value <= schema.exclusiveMinimum) fail('exclusive_minimum', path);
+      if (schema.exclusiveMaximum !== undefined && value >= schema.exclusiveMaximum) fail('exclusive_maximum', path);
     }
     if (Array.isArray(value)) {
       if (schema.minItems !== undefined && value.length < schema.minItems) fail('min_items', path);

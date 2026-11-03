@@ -466,6 +466,26 @@ export interface Schemas {
 /** Always `ok`: when the API is not available, the answer is an error instead. */
 "status": "ok"
 };
+/** Current retained knowledge passages without query echo, provider ids or source URLs. */
+"KnowledgeSearch": {
+/** Always knowledge_search. */
+"object": "knowledge_search";
+/** Indexing with no retained match means the index is still being prepared. */
+"status": (("ready" | "indexing") | (string & {}));
+/** Matching passages only; an empty array is a successful search. */
+"passages": Array<{
+/** Retained matching passage. */
+"text": string;
+/** Stored document title. */
+"title": string;
+/** Stored section, if available. */
+"section": (string | null);
+/** Stored page number, if available. */
+"page": (number | null);
+/** Similarity score from 0 to 1. */
+"score": number
+}>
+};
 /** A lead or client record: lead fields only. */
 "Lead": {
 /** Public id of the record. */
@@ -1269,7 +1289,7 @@ export interface Schemas {
 /** The teams this key reads today. Their details are in `GET /v1/teams`. */
 "teams": Array<string>;
 /** The key’s explicitly granted scopes; old read-only keys never gain writes or note content implicitly. */
-"scopes": Array<(("teams:read" | "crm:read" | "calls:read" | "messages:read" | "calendar:read" | "crm:write" | "crm:notes:read" | "tasks:write" | "notifications:write" | "crm:custom_values:read" | "crm:custom_values:write") | (string & {}))>
+"scopes": Array<(("teams:read" | "crm:read" | "calls:read" | "messages:read" | "calendar:read" | "crm:write" | "crm:notes:read" | "tasks:write" | "notifications:write" | "crm:custom_values:read" | "crm:custom_values:write" | "knowledge:read") | (string & {}))>
 };
 /** A team member, by display name only: Totem exports no email, phone or role. */
 "Member": {
@@ -1890,6 +1910,21 @@ export interface OperationContracts {
 "status"?: ("new" | "archived") | undefined
 } };
 /**
+ * Search team knowledge
+ *
+ * Retrieves bounded passages from the team’s enabled, retained indexed knowledge with a separate knowledge-content opt-in; existing keys gain no access. Provider deletion discovery is eventual. Private lead files, raw file identifiers and source URLs are excluded.
+ */
+"knowledge.search": { response: Schemas["KnowledgeSearch"]; query: {
+
+}; path: {
+
+}; body: {
+/** Question to retrieve from the selected team’s indexed knowledge. */
+"query": string;
+/** Maximum passages, from 1 to 8; defaults to 4. */
+"max_results"?: number | undefined
+} };
+/**
  * Get an operation
  *
  * Returns one operation owned by this integration and selected team. The caller must still hold the original operation’s scope and current execution authority; an empty catalogue scope never grants access by itself.
@@ -2054,6 +2089,8 @@ export type FeedItem = Schemas["FeedItem"]
 export type FeedPage = Schemas["FeedPage"]
 /** The API is up. */
 export type Health = Schemas["Health"]
+/** Current retained knowledge passages without query echo, provider ids or source URLs. */
+export type KnowledgeSearch = Schemas["KnowledgeSearch"]
 /** A lead or client record: lead fields only. */
 export type Lead = Schemas["Lead"]
 /** Where a lead came from: its original capture and latest submission. */

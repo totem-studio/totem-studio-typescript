@@ -23,6 +23,10 @@ for (const [label, schema, value, code] of [
   ['required missing', { type: 'object', required: ['id'] }, {}, 'required'],
   ['number bound', { type: 'integer', maximum: 3 }, 4, 'maximum'],
   ['lower bound', { type: 'integer', minimum: 1 }, 0, 'minimum'],
+  ['exclusive lower equality', { type: 'integer', exclusiveMinimum: 0 }, 0, 'exclusive_minimum'],
+  ['exclusive upper equality', { type: 'number', exclusiveMaximum: 1 }, 1, 'exclusive_maximum'],
+  ['boolean exclusive minimum schema', { type: 'integer', exclusiveMinimum: true }, 1, 'schema_invalid'],
+  ['nonfinite exclusive maximum schema', { type: 'number', exclusiveMaximum: Infinity }, 1, 'schema_invalid'],
   ['wrong type', { type: 'string' }, 3, 'type'],
   ['fractional integer', { type: 'integer' }, 1.5, 'type'],
   ['pattern mismatch', { type: 'string', pattern: '^lead_[A-Za-z0-9]+$' }, 'lead_../sensitive', 'pattern'],
@@ -56,6 +60,7 @@ for (const [label, schema, value, code] of [
   });
 }
 test('validator resolves refs, nullable unions and Unicode codepoint lengths', () => {
+  validateResponse(0.5, { type: 'number', exclusiveMinimum: 0, exclusiveMaximum: 1 }, doc);
   validateResponse({ name: 'Al', values: [null, 'ok'] }, { type: 'object', required: ['name', 'values'], properties: { name: { $ref: '#/components/schemas/Name' }, values: { type: 'array', items: { anyOf: [{ type: 'null' }, { type: 'string' }] } } }, additionalProperties: false }, doc);
   validateResponse('🙂', { type: 'string', maxLength: 1 }, doc);
   validateResponse({ anything: true }, true, doc);

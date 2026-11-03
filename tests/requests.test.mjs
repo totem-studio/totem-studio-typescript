@@ -20,6 +20,7 @@ const routes = [
   ['boards', client => client.boards.list({ limit: 2 }), 'GET', '/v1/boards?limit=2', true],
   ['members', client => client.members.list(), 'GET', '/v1/members', true],
   ['services', client => client.bookingServices.list(), 'GET', '/v1/booking_services', true],
+  ['knowledge', client => client.knowledge.search({ query: 'What is included?', max_results: 2 }), 'POST', '/v1/knowledge/search', true, '{"query":"What is included?","max_results":2}'],
   ['leads', client => client.leads.list({ status: 'new' }), 'GET', '/v1/leads?status=new', true],
   ['lead', client => client.leads.get('lead_ABC'), 'GET', '/v1/leads/lead_ABC', false],
   ['search', client => client.leads.search({ email: 'alice+crm@example.invalid' }), 'POST', '/v1/leads/search', true, '{"email":"alice+crm@example.invalid"}'],
@@ -50,7 +51,8 @@ const routes = [
 for (const [label, call, method, url, team, body = '', status = 200] of routes) {
   test(`wire route: ${label}`, async context => {
     const requests = [];
-    const response = ['create task', 'complete task', 'operation', 'cancel operation'].includes(label)
+    const response = label === 'knowledge' ? { object: 'knowledge_search', status: 'ready', passages: [] }
+      : ['create task', 'complete task', 'operation', 'cancel operation'].includes(label)
       ? { object: 'operation', id: 'op_ABC', status: 'queued', endpoint: label === 'complete task' ? 'tasks.complete' : 'tasks.create',
         created_at: '2026-11-02T10:00:00Z', updated_at: '2026-11-02T10:00:00Z', result: null, error: null } : { result: 'accepted' };
     const baseUrl = await serve(context, request => { requests.push(request); return { status, body: response }; });
@@ -66,6 +68,31 @@ for (const [label, call, method, url, team, body = '', status = 200] of routes) 
     assert.equal(requests[0].headers['totem-team'], team ? 'team_SDK' : undefined);
   });
 }
+test('knowledge search is a team-bound retryable read without an idempotency key', async context => {
+  const requests = [];
+  const result = { object: 'knowledge_search', status: 'ready', passages: [
+    { text: 'The annual plan includes support.', title: 'Plans', section: 'Annual', page: 2, score: 0.875 },
+  ] };
+  const baseUrl = await serve(context, request => {
+    requests.push(request);
+    if (request.headers['totem-team'] !== 'team_SELECTED') return { status: 404, body: problem(404, 'team_not_accessible') };
+    return requests.length === 1 ? { status: 503, headers: { 'Retry-After': '0' }, body: problem(503, 'service_unavailable') } : { body: result };
+  });
+  const client = new TotemClient({ apiKey: KEY, baseUrl, team: 'team_DEFAULT', maxRetries: 1 });
+  assert.deepEqual(await client.knowledge.search({ query: 'What is included?' }, { team: 'team_SELECTED' }), result);
+  assert.equal(requests.length, 2);
+  for (const request of requests) {
+    assert.equal(request.method, 'POST');
+    assert.equal(request.url, '/v1/knowledge/search');
+    assert.equal(request.body, '{"query":"What is included?"}');
+    assert.equal(request.headers['idempotency-key'], undefined);
+    assert.equal(request.headers.authorization, `Bearer ${KEY}`);
+  }
+  const wrongTeam = (url, init) => { const headers = new Headers(init.headers); headers.set('Totem-Team', 'team_FOREIGN'); return fetch(url, { ...init, headers }); };
+  const successOracle = async fetch => assert.deepEqual(await new TotemClient({ apiKey: KEY, baseUrl, fetch }).knowledge.search({ query: 'What is included?' }, { team: 'team_SELECTED' }), result);
+  await successOracle();
+  await assert.rejects(successOracle(wrongTeam), error => error instanceof TotemApiError && error.code === 'team_not_accessible');
+});
 test('accepted task operation preserves 202, its opaque result and support headers without polling', async context => {
   const requests = [];
   const operation = { object: 'operation', id: 'op_ABC', status: 'queued', endpoint: 'tasks.create', created_at: '2026-11-02T10:00:00Z', updated_at: '2026-11-02T10:00:00Z', result: null, error: null };

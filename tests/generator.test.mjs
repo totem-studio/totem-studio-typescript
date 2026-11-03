@@ -48,10 +48,21 @@ function fixture() {
 const thing = document => document.components.schemas.Thing;
 const list = document => document.paths['/things'].get;
 
+test('exclusive numeric bounds keep their numeric TypeScript representation', () => {
+  const document = fixture();
+  thing(document).properties.page = { type: 'integer', exclusiveMinimum: 0 };
+  thing(document).properties.score = { type: 'number', exclusiveMinimum: 0, exclusiveMaximum: 1 };
+  const { 'schema.ts': schema } = generate(document, options);
+  assert.ok(schema.includes('"page"?: number'));
+  assert.ok(schema.includes('"score"?: number'));
+});
+
 for (const [label, mutate, message] of [
   ['a type array with properties', document => { thing(document).type = ['object', 'null']; }, /type array cannot be combined with properties/],
   ['required naming an absent property', document => { thing(document).required.push('missing'); }, /required names missing/],
   ['an unsupported keyword', document => { thing(document).properties.id.multipleOf = 2; }, /Unsupported JSON Schema keyword multipleOf/],
+  ['boolean exclusive minimum', document => { thing(document).properties.page = { type: 'integer', exclusiveMinimum: true }; }, /exclusiveMinimum must be a finite number/],
+  ['nonfinite exclusive maximum', document => { thing(document).properties.score = { type: 'number', exclusiveMaximum: Infinity }; }, /exclusiveMaximum must be a finite number/],
   ['an unresolved reference', document => { list(document).responses = ok200({ $ref: '#/components/schemas/Missing' }); }, /Unresolved ref/],
   ['path-item parameters', document => { document.paths['/things'].parameters = [{ name: 'q', in: 'query', schema: { type: 'string' } }]; }, /Path-level parameters/],
   ['a path-item $ref', document => { document.paths['/things'].$ref = '#/paths/~1other'; }, /Path item \$ref/],

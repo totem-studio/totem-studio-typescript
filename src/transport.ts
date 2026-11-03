@@ -25,6 +25,23 @@ interface WireDefinition {
   successResponses?: ReadonlyArray<{ status: number; body: boolean }>
 }
 const RETRYABLE = new Set([408, 429, 500, 502, 503, 504])
+
+/** Validate the bounded passage contract while retaining additive fields and future statuses. */
+function matchesKnowledgeSearch(value: unknown): boolean {
+  if (value === null || typeof value !== 'object' || Array.isArray(value)) return false
+  const result = value as Record<string, unknown>
+  if (result.object !== 'knowledge_search' || typeof result.status !== 'string'
+    || !Array.isArray(result.passages) || result.passages.length > 8) return false
+  return result.passages.every((value: unknown) => {
+    if (value === null || typeof value !== 'object' || Array.isArray(value)) return false
+    const passage = value as Record<string, unknown>
+    return typeof passage.text === 'string' && passage.text.length > 0 && passage.text.length <= 1_200
+      && typeof passage.title === 'string' && passage.title.length <= 512
+      && (passage.section === null || typeof passage.section === 'string' && passage.section.length <= 512)
+      && (passage.page === null || Number.isSafeInteger(passage.page) && Number(passage.page) > 0)
+      && typeof passage.score === 'number' && Number.isFinite(passage.score) && passage.score >= 0 && passage.score <= 1
+  })
+}
 /** RFC 9110 IMF-fixdate, the only HTTP-date form a server may send. */
 const IMF_FIXDATE = /^(?:Mon|Tue|Wed|Thu|Fri|Sat|Sun), \d{2} (?:Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec) \d{4} \d{2}:\d{2}:\d{2} GMT$/
 
@@ -247,6 +264,9 @@ export class Transport {
         if (!matchesOperationReceipt(data, operationId, input.path)) {
           if (isDurableOperationWrite(operationId)) throw malformedOperation()
           throw new TotemProtocolError('Totem API returned an unrelated operation receipt', requestId)
+        }
+        if (operationId === 'knowledge.search' && !matchesKnowledgeSearch(data)) {
+          throw new TotemProtocolError('Totem API returned invalid knowledge passages', requestId)
         }
         return { data: data as T, status: response.status, requestId, headers: response.headers }
       }

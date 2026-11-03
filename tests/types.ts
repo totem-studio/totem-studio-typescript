@@ -17,6 +17,17 @@ declare const lead: Lead
 declare const activity: Activity
 declare const leadPage: LeadList
 declare const maybe: string | undefined
+client.knowledge.search({ query: 'Annual plan?', max_results: 4 }, { team: 'team_A', writeContext: maybe })
+const knowledgeResult: Promise<ResponseOf<'knowledge.search'>> = client.knowledge.search({ query: 'Annual plan?' })
+// @ts-expect-error a knowledge search needs a question
+client.knowledge.search({ max_results: 4 })
+// @ts-expect-error knowledge is a read and never accepts idempotency headers
+client.knowledge.search({ query: 'Annual plan?' }, { idempotencyKey: 'not-a-write' })
+// @ts-expect-error provider filters and file identifiers stay private
+client.knowledge.search({ query: 'Annual plan?', file_id: 'private-file' })
+// @ts-expect-error knowledge results are bounded passages, not a paginated feed
+client.items('knowledge.search', { body: { query: 'Annual plan?' } })
+void knowledgeResult
 type IsAny<T> = 0 extends 1 & T ? true : false
 
 const version: number = lead.version

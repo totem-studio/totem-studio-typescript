@@ -8,6 +8,7 @@
  * including that one, and no record value ever reaches its output or receipt.
  * Read/CRM profiles never execute task or dynamically authorized operation routes;
  * widening the metadata classifier makes the literal coverage oracles red.
+ * No existing profile requests or logs separately granted knowledge content.
  * The explicit tasks profile observes durable receipts without retrying effects;
  * wrong replay IDs, ambiguous/stuck states and private fields are HTTP faults.
  */
@@ -195,13 +196,23 @@ function tasksEdge({ wrongReplay = false, state = 'succeeded', stateFor = 'creat
 
 const TASK_FIXTURES = { ...FOREIGN, teamId: TEAM, taskCreateKey: 'sdk-acceptance-stable-create' };
 
+function assertKnowledgeExcluded(result) {
+  assert.equal(result.requests.some(({ url }) => /^\/v1\/knowledge(?:\/|\?|$)/.test(url)), false);
+  assert.equal(result.receipt.coveredOperations.includes('knowledge.search'), false);
+  // The real edge fixture would return this passage if the runner requested knowledge.
+  for (const text of [result.output, result.receiptText]) {
+    assert.equal(text.includes('The first visit includes an initial assessment and a written estimate.'), false);
+  }
+}
+
 test('explicit tasks profile verifies replay, bounded completion and finished cancellation without new-effect retries or content logs', async context => {
   const boundary = tasksEdge();
   const result = await runSmoke(context, boundary.handler, { fixtures: TASK_FIXTURES, env: { TOTEM_SMOKE_PROFILE: 'tasks' } });
   assert.equal(result.exitCode, 0, result.output);
   assert.equal(result.receipt.profile, 'tasks');
   assert.equal(result.receipt.coveredOperations.length, 24);
-  assert.deepEqual(result.receipt.excludedOperations.toSorted(), ['leads.addNote', 'leads.archive', 'leads.customValues', 'leads.deleteNote', 'leads.notes', 'leads.update', 'leads.updateCustomValues', 'leads.updateNote', 'leads.upsert', 'notifications.create']);
+  assert.deepEqual(result.receipt.excludedOperations.toSorted(), ['knowledge.search', 'leads.addNote', 'leads.archive', 'leads.customValues', 'leads.deleteNote', 'leads.notes', 'leads.update', 'leads.updateCustomValues', 'leads.updateNote', 'leads.upsert', 'notifications.create']);
+  assertKnowledgeExcluded(result);
   assert.deepEqual(boundary.stats.creates.map(item => item.key), ['sdk-acceptance-stable-create', 'sdk-acceptance-stable-create']);
   assert.deepEqual(boundary.stats.completes.map(item => item.key), ['sdk-acceptance-stable-create.complete']);
   assert.deepEqual([boundary.stats.createEffects, boundary.stats.completeEffects, boundary.stats.polls, boundary.stats.cancellations], [1, 1, 4, 1]);
@@ -250,7 +261,8 @@ test('explicit CRM profile validates writes, content, conditional updates and de
   const result = await runSmoke(context, crmEdge(), { fixtures: { ...FOREIGN, crmEmail: 'sdk-smoke-123@example.invalid', crmExternalId: 'sdk-smoke-123' }, env: { TOTEM_SMOKE_PROFILE: 'crm' } });
   assert.equal(result.exitCode, 0, result.output);
   assert.equal(result.receipt.profile, 'crm');
-  assert.deepEqual(result.receipt.excludedOperations.toSorted(), ['leads.customValues', 'leads.updateCustomValues', 'notifications.create', 'operations.cancel', 'operations.get', 'tasks.complete', 'tasks.create']);
+  assert.deepEqual(result.receipt.excludedOperations.toSorted(), ['knowledge.search', 'leads.customValues', 'leads.updateCustomValues', 'notifications.create', 'operations.cancel', 'operations.get', 'tasks.complete', 'tasks.create']);
+  assertKnowledgeExcluded(result);
   assert.equal(result.receipt.coveredOperations.length, 27);
   assert.equal(result.requests.some(({ url }) => /^\/v1\/(?:tasks|operations)(?:\/|\?|$)/.test(url)), false);
   assert.equal(result.receipt.checks.some(check => check.operation === 'leads.deleteNote' && check.status === 204), true);
@@ -280,10 +292,11 @@ test('default live runner covers the read profile and tenant checks without muta
   assert.equal(result.receipt.profile, 'read');
   assert.equal(result.receipt.coveredOperations.length, 20);
   assert.deepEqual(result.receipt.excludedOperations.toSorted(), [
-    'leads.addNote', 'leads.archive', 'leads.customValues', 'leads.deleteNote', 'leads.notes', 'leads.update', 'leads.updateCustomValues', 'leads.updateNote', 'leads.upsert',
+    'knowledge.search', 'leads.addNote', 'leads.archive', 'leads.customValues', 'leads.deleteNote', 'leads.notes', 'leads.update', 'leads.updateCustomValues', 'leads.updateNote', 'leads.upsert',
     'notifications.create', 'operations.cancel', 'operations.get', 'tasks.complete', 'tasks.create',
   ]);
-  assert.equal(result.receipt.excludedOperations.length, 14);
+  assert.equal(result.receipt.excludedOperations.length, 15);
+  assertKnowledgeExcluded(result);
   assert.equal(result.requests.some(({ url }) => /^\/v1\/(?:tasks|operations)(?:\/|\?|$)/.test(url)), false);
   assert.equal(result.requests.some(({ method, url }) => method !== 'GET' && url !== '/v1/leads/search'), false);
   const labels = result.receipt.checks.filter(check => check.check).map(check => check.check);

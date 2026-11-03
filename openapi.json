@@ -23,6 +23,11 @@
   ],
   "tags": [
     {
+      "name": "knowledge",
+      "description": "Explicitly authorized indexed team knowledge passages.",
+      "x-description-es": "Fragmentos del conocimiento indexado del equipo con autorización explícita."
+    },
+    {
       "name": "account",
       "description": "Your key and its integration, the teams the key reads and their members, and the health check.",
       "x-description-es": "Tu clave y su integración, los equipos que lee la clave y sus miembros, y la comprobación de estado."
@@ -3849,6 +3854,116 @@
           "crm:read"
         ],
         "x-totem-rate-class": "sync",
+        "x-totem-effect": "read",
+        "x-totem-tenant-binding": "team_header",
+        "x-totem-stability": "beta"
+      }
+    },
+    "/knowledge/search": {
+      "post": {
+        "operationId": "knowledge.search",
+        "tags": [
+          "knowledge"
+        ],
+        "summary": "Search team knowledge",
+        "x-summary-es": "Busca en el conocimiento del equipo",
+        "description": "Retrieves bounded passages from the team’s enabled, retained indexed knowledge with a separate knowledge-content opt-in; existing keys gain no access. Provider deletion discovery is eventual. Private lead files, raw file identifiers and source URLs are excluded.",
+        "x-description-es": "Recupera fragmentos acotados del conocimiento indexado, habilitado y conservado del equipo con autorización independiente para el contenido; las claves existentes no obtienen acceso. La detección de borrados en el proveedor es eventual. Excluye archivos privados de leads, identificadores internos y URL de origen.",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/TotemTeam"
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "query": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 1000,
+                    "description": "Question to retrieve from the selected team’s indexed knowledge.",
+                    "x-description-es": "Pregunta para consultar el conocimiento indexado del equipo seleccionado."
+                  },
+                  "max_results": {
+                    "default": 4,
+                    "description": "Maximum passages, from 1 to 8; defaults to 4.",
+                    "x-description-es": "Máximo de fragmentos, de 1 a 8; por defecto 4.",
+                    "type": "integer",
+                    "minimum": 1,
+                    "maximum": 8
+                  }
+                },
+                "required": [
+                  "query"
+                ],
+                "additionalProperties": false,
+                "description": "A bounded team knowledge search; private lead files and provider filters are unavailable.",
+                "x-description-es": "Consulta acotada del conocimiento del equipo; no admite archivos privados de leads ni filtros del proveedor."
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Search team knowledge",
+            "x-description-es": "Busca en el conocimiento del equipo",
+            "headers": {
+              "Totem-Request-Id": {
+                "$ref": "#/components/headers/TotemRequestId"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/KnowledgeSearch"
+                },
+                "example": {
+                  "object": "knowledge_search",
+                  "status": "ready",
+                  "passages": [
+                    {
+                      "text": "The first visit includes an initial assessment and a written estimate.",
+                      "title": "Service guide",
+                      "section": "First visit",
+                      "page": 2,
+                      "score": 0.85
+                    }
+                  ]
+                }
+              }
+            }
+          },
+          "default": {
+            "$ref": "#/components/responses/Problem"
+          }
+        },
+        "x-totem-errors": [
+          "invalid_request",
+          "secret_key_in_browser",
+          "invalid_credentials",
+          "key_expired",
+          "insufficient_scope",
+          "plan_not_entitled",
+          "ip_not_allowed",
+          "capability_disabled",
+          "rate_limited",
+          "internal_error",
+          "api_disabled",
+          "service_unavailable",
+          "team_required",
+          "team_not_accessible",
+          "team_state_restricted",
+          "sector_restricted",
+          "capture_not_ready"
+        ],
+        "x-totem-scopes": [
+          "knowledge:read"
+        ],
+        "x-totem-rate-class": "read",
         "x-totem-effect": "read",
         "x-totem-tenant-binding": "team_header",
         "x-totem-stability": "beta"
@@ -7728,6 +7843,112 @@
           {
             "object": "health",
             "status": "ok"
+          }
+        ]
+      },
+      "KnowledgeSearch": {
+        "type": "object",
+        "properties": {
+          "object": {
+            "type": "string",
+            "const": "knowledge_search",
+            "description": "Always knowledge_search.",
+            "x-description-es": "Siempre knowledge_search."
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "ready",
+              "indexing"
+            ],
+            "description": "Indexing with no retained match means the index is still being prepared.",
+            "x-description-es": "Indexing sin coincidencias conservadas indica que el índice sigue preparándose."
+          },
+          "passages": {
+            "maxItems": 8,
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "text": {
+                  "type": "string",
+                  "minLength": 1,
+                  "maxLength": 1200,
+                  "description": "Retained matching passage.",
+                  "x-description-es": "Fragmento conservado que coincide."
+                },
+                "title": {
+                  "type": "string",
+                  "maxLength": 512,
+                  "description": "Stored document title.",
+                  "x-description-es": "Título almacenado del documento."
+                },
+                "section": {
+                  "anyOf": [
+                    {
+                      "type": "string",
+                      "maxLength": 512
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ],
+                  "description": "Stored section, if available.",
+                  "x-description-es": "Sección almacenada, si existe."
+                },
+                "page": {
+                  "anyOf": [
+                    {
+                      "type": "integer",
+                      "exclusiveMinimum": 0
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ],
+                  "description": "Stored page number, if available.",
+                  "x-description-es": "Número de página almacenado, si existe."
+                },
+                "score": {
+                  "type": "number",
+                  "minimum": 0,
+                  "maximum": 1,
+                  "description": "Similarity score from 0 to 1.",
+                  "x-description-es": "Similitud entre 0 y 1."
+                }
+              },
+              "required": [
+                "text",
+                "title",
+                "section",
+                "page",
+                "score"
+              ]
+            },
+            "description": "Matching passages only; an empty array is a successful search.",
+            "x-description-es": "Solo fragmentos coincidentes; una lista vacía es una consulta correcta."
+          }
+        },
+        "required": [
+          "object",
+          "status",
+          "passages"
+        ],
+        "description": "Current retained knowledge passages without query echo, provider ids or source URLs.",
+        "x-description-es": "Fragmentos de conocimiento actualmente conservados, sin repetir la pregunta, identificadores de proveedor ni URL de origen.",
+        "examples": [
+          {
+            "object": "knowledge_search",
+            "status": "ready",
+            "passages": [
+              {
+                "text": "The first visit includes an initial assessment and a written estimate.",
+                "title": "Service guide",
+                "section": "First visit",
+                "page": 2,
+                "score": 0.85
+              }
+            ]
           }
         ]
       },
@@ -12069,7 +12290,8 @@
                 "tasks:write",
                 "notifications:write",
                 "crm:custom_values:read",
-                "crm:custom_values:write"
+                "crm:custom_values:write",
+                "knowledge:read"
               ]
             },
             "description": "The key’s explicitly granted scopes; old read-only keys never gain writes or note content implicitly.",

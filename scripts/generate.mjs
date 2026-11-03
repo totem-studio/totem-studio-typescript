@@ -21,7 +21,7 @@ export class GeneratorError extends Error {
 }
 const fail = message => { throw new GeneratorError(message); };
 const quote = JSON.stringify;
-const annotations = new Set(['description', 'examples', 'example', 'format', 'pattern', 'minimum', 'maximum', 'minLength', 'maxLength', 'minItems', 'maxItems', 'default', 'deprecated', 'title']);
+const annotations = new Set(['description', 'examples', 'example', 'format', 'pattern', 'minimum', 'maximum', 'exclusiveMinimum', 'exclusiveMaximum', 'minLength', 'maxLength', 'minItems', 'maxItems', 'default', 'deprecated', 'title']);
 const structural = new Set(['$ref', 'type', 'properties', 'required', 'additionalProperties', 'items', 'anyOf', 'oneOf', 'allOf', 'enum', 'const']);
 const METHODS = ['get', 'put', 'post', 'delete', 'options', 'head', 'patch', 'trace'];
 const SCALAR_QUERY_TYPES = new Set(['string', 'integer', 'number']);
@@ -99,6 +99,9 @@ export function generate(document, { version, sha256 }) {
     if (!schema || typeof schema !== 'object' || Array.isArray(schema)) fail('Invalid schema');
     for (const key of Object.keys(schema)) {
       if (!structural.has(key) && !annotations.has(key) && !key.startsWith('x-')) fail(`Unsupported JSON Schema keyword ${key}`);
+    }
+    for (const key of ['exclusiveMinimum', 'exclusiveMaximum']) {
+      if (Object.hasOwn(schema, key) && (typeof schema[key] !== 'number' || !Number.isFinite(schema[key]))) fail(`${key} must be a finite number`);
     }
     if (Array.isArray(schema.type)) {
       for (const key of ['properties', 'required', 'additionalProperties', 'items', 'anyOf', 'oneOf', 'allOf']) {

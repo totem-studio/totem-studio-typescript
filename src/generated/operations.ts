@@ -1,7 +1,7 @@
 /** Generated from openapi.json and package.json. Do not edit; run npm run generate. */
 import type { ErrorAction, TotemErrorCode } from './schema.js'
 
-export const CONTRACT_SHA256 = 'e86cfb8d9cd7d75ef8cce061bdebbec0d5b58a4a92423b4eaa1c9c49d1467a6e'
+export const CONTRACT_SHA256 = 'fb500b8d49647b2273a976aeabdd3b0167a3cdcaa9ff466d08e65527234f2890'
 export const SDK_VERSION = '0.3.0-beta.1'
 export const DEFAULT_BASE_URL = "https://api.totemstudio.ai/v1"
 export const operationDefinitions = {
@@ -552,6 +552,22 @@ export const operationDefinitions = {
     "successResponses": [
       {
         "status": 202,
+        "body": true
+      }
+    ],
+    "query": []
+  },
+  "knowledge.search": {
+    "method": "POST",
+    "path": "/knowledge/search",
+    "authenticated": true,
+    "body": true,
+    "team": true,
+    "effect": "read",
+    "headers": [],
+    "successResponses": [
+      {
+        "status": 200,
         "body": true
       }
     ],

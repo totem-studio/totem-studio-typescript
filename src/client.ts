@@ -41,6 +41,10 @@ export class TotemClient {
     /** Every bookable service of the team, never paged. `GET /booking_services` */
     list: (options: OptionsOf<'booking_services.list'> = {}): Promise<ResponseOf<'booking_services.list'>> => this.request('booking_services.list', options),
   }
+  readonly knowledge = {
+    /** Retrieve bounded team knowledge passages under the separate content grant. This POST is a retryable read. */
+    search: (body: BodyOf<'knowledge.search'>, options: OptionsOf<'knowledge.search'> = {}): Promise<ResponseOf<'knowledge.search'>> => this.request('knowledge.search', { ...options, body }),
+  }
   readonly leads = {
     /** A page of the team's leads and clients; filter by at most one of `board`, `stage` and `status`. `GET /leads` */
     list: (query: QueryOf<'leads.list'> = {}, options: OptionsOf<'leads.list'> = {}): Promise<LeadList> => this.request('leads.list', { ...options, query }),

@@ -97,6 +97,7 @@ the authority for request validation and access control. A `baseUrl` on
 | `client.boards.list(query?)` | `GET /boards` |
 | `client.members.list()` | `GET /members` |
 | `client.bookingServices.list()` | `GET /booking_services` |
+| `client.knowledge.search(body, options?)` | `POST /knowledge/search` |
 | `client.leads.list(query?)` | `GET /leads` |
 | `client.leads.get(id)` | `GET /leads/{id}` |
 | `client.leads.search({ email })` or `({ phone })` | `POST /leads/search` |
@@ -122,6 +123,29 @@ team from the record's id, so they do not accept `team`: when you expect a
 record of a particular team, compare its `team` field with the one you expect.
 Optional settings and query values accept `undefined`, and a cursor accepts
 `null`, so `client.leads.list({ cursor: page.next_cursor })` works as written.
+
+## Knowledge search (v1 candidate)
+
+Knowledge search is part of the current v1 candidate, pending publication and
+API rollout. It is not included in the published `0.3.0-beta.1` archive.
+`knowledge:read` requires its own explicit knowledge-content grant; CRM, note
+and custom-value permissions do not grant it. Existing keys gain no access.
+
+```ts
+const result = await client.knowledge.search(
+  { query: 'What does the annual plan include?', max_results: 4 },
+  { team: 'team_...' },
+);
+```
+
+The question is at most 1,000 characters. `max_results` accepts 1–8 and defaults
+to 4. The response contains bounded passages with text, title, nullable section
+and page, and a score. `ready` with no passages means no retained match;
+`indexing` with no passages means the index is still being prepared. Provider
+identifiers, source URLs and private lead files are excluded. Provider deletion
+discovery is eventual. This POST is a read: normal read retries apply and no
+idempotency key is sent. Service integrations may forward their request-scoped
+server context using the existing `writeContext` option.
 
 ## CRM writes and notes
 
@@ -394,11 +418,12 @@ retried. Set `maxRetries: 0` to manage retries yourself.
 loopback for local tests. A custom `fetch` is available for trusted server
 instrumentation and HTTP boundary tests; it receives the secret and must be
 trusted accordingly. Successful responses are typed at compile time; durable
-operations additionally validate receipt identity without rejecting additive
-fields or future string enums. A success whose receipt was withdrawn for privacy
+operations additionally validate receipt identity, and knowledge searches validate
+bounded passage shapes, without rejecting additive fields or future string enums.
+A success whose receipt was withdrawn for privacy
 can legitimately return `result: null`. Live
 response validation is performed by the smoke script rather than added to each
-production request.
+production request for the other response types.
 
 ## Development and verification
 
