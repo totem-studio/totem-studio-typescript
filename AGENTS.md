@@ -29,6 +29,10 @@ point the README's download links at the new version, then push a
 `v<version>` tag; `.github/workflows/release.yml` publishes the tarball and its
 SHA-256, and stops when the README links other release files. Workflow actions
 are pinned by full commit SHA with the release in a comment: update both
-together. Only the npm publish step may receive `NPM_TOKEN`. Commit completed
+together. npm publishing requires the separately approved GitHub trusted
+publisher; only `npm_publish` receives `id-token: write`. It verifies the
+original release tarball SHA-256 before publishing that exact file with
+provenance and npm >=11.5.1; no npm
+token secret or token environment variable is used. Commit completed
 validated work automatically; stage only owned files. Publishing GitHub
 releases, npm packages or deployments requires task authorization.

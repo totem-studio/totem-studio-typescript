@@ -9,11 +9,12 @@ jobs:
   release:
     runs-on: ubuntu-latest
     timeout-minutes: 15
+    outputs:
+      file: ${{ steps.pack.outputs.file }}
+      sha256: ${{ steps.pack.outputs.sha256 }}
     permissions:
-      # gh release create.
+      # gh release create. This job does not receive an npm identity token.
       contents: write
-      # npm provenance for the optional npm publish.
-      id-token: write
     env:
       # The README's GitHub release download links.
       RELEASE_LINK: 'https://github\.com/[^[:space:])`"]*/releases/download/[^[:space:])`"]*'
@@ -71,14 +72,35 @@ jobs:
           for link in $(grep -oE "$RELEASE_LINK" README.md | sort -u); do
             curl -fsSIL --retry 5 --retry-delay 3 --retry-all-errors -o /dev/null "$link" || { echo "::error::$link does not resolve"; exit 1; }
           done
-      - name: Publish to npm when the NPM_TOKEN secret is configured
-        env:
-          # Set this repository secret (an npm automation token of the totemstudioai
-          # organization) to also publish each release to npm. Only this step receives it.
-          NPM_TOKEN: ${{ secrets.NPM_TOKEN }}
-          FILE: ${{ steps.pack.outputs.file }}
+  npm_publish:
+    needs: release
+    if: github.repository == 'totem-studio/totem-studio-typescript'
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      contents: read
+      id-token: write
+    steps:
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
+        with:
+          node-version: 24.18.0
+          registry-url: https://registry.npmjs.org
+      - name: Require an npm version supporting trusted publishing
         run: |
-          if [ -z "$NPM_TOKEN" ]; then echo "::notice::NPM_TOKEN is not set, so nothing is published to npm"; exit 0; fi
+          node -e 'const v=process.argv[1].match(/^(\d+)\.(\d+)\.(\d+)$/);if(!v)process.exit(1);const [a,b,c]=v.slice(1).map(Number);if(a<11||a===11&&b<5||a===11&&b===5&&c<1)process.exit(1)' "$(npm --version)"
+      - name: Download and verify the exact release tarball
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+          FILE: ${{ needs.release.outputs.file }}
+          SHA256: ${{ needs.release.outputs.sha256 }}
+        run: |
+          gh release download "$GITHUB_REF_NAME" --pattern "$FILE"
+          printf '%s  %s\n' "$SHA256" "$FILE" | sha256sum -c -
+      - name: Publish the verified tarball using npm trusted publishing
+        env:
+          FILE: ${{ needs.release.outputs.file }}
+        run: |
           tag=latest
           case "$GITHUB_REF_NAME" in *-*) tag=beta ;; esac
-          NODE_AUTH_TOKEN="$NPM_TOKEN" npm publish "$FILE" --provenance --access public --tag "$tag" --ignore-scripts
+          npm publish "$FILE" --provenance --access public --tag "$tag" --ignore-scripts
