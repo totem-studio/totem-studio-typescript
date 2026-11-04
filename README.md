@@ -1,4 +1,4 @@
-# Totem Studio TypeScript SDK · v1 release candidate
+# Totem Studio TypeScript SDK · v1
 
 The official server-side SDK for the [Totem API](https://totemstudio.ai/developers).
 It covers the API’s reads and guarded CRM writes: leads, notes, boards, activities,
@@ -10,19 +10,19 @@ of an ES module works without a flag). Built and checked with **TypeScript
 
 ## Install
 
-This checkout prepares **1.0.0-rc.1**. The candidate has not been published;
-its package, Git tag and download assets below become available only after the
-coordinated release. API deployment is a separate step.
+This checkout prepares **1.0.0**. Stable publication is on hold until final
+production API and public n8n-node acceptance. Its package, Git tag and download
+assets below become available only after that release.
 
-After publication, install the exact candidate on your server:
+After stable publication, install the exact version on your server:
 
 ```sh
-npm install @totemstudioai/sdk@1.0.0-rc.1
+npm install @totemstudioai/sdk@1.0.0
 ```
 
-The previously published CRM beta is `0.3.0-beta.1`; this candidate does not
-change existing npm tags. Its new source, messaging, calendar, content and
-lifecycle methods require the candidate package and corresponding API rollout.
+The published release candidate is `1.0.0-rc.1` under the `rc` tag. This
+local preparation changes no registry tags. Version 1.0.0 uses the same
+70-operation API contract and runtime behavior as that candidate.
 
 The planned GitHub release contains the built package and checksum, so the
 archive needs no Git, build step or install scripts and works with
@@ -30,10 +30,10 @@ archive needs no Git, build step or install scripts and works with
 installing:
 
 ```sh
-curl -fLO https://github.com/totem-studio/totem-studio-typescript/releases/download/v1.0.0-rc.1/totemstudioai-sdk-1.0.0-rc.1.tgz
-curl -fLO https://github.com/totem-studio/totem-studio-typescript/releases/download/v1.0.0-rc.1/totemstudioai-sdk-1.0.0-rc.1.tgz.sha256
-shasum -a 256 -c totemstudioai-sdk-1.0.0-rc.1.tgz.sha256
-npm install ./totemstudioai-sdk-1.0.0-rc.1.tgz
+curl -fLO https://github.com/totem-studio/totem-studio-typescript/releases/download/v1.0.0/totemstudioai-sdk-1.0.0.tgz
+curl -fLO https://github.com/totem-studio/totem-studio-typescript/releases/download/v1.0.0/totemstudioai-sdk-1.0.0.tgz.sha256
+shasum -a 256 -c totemstudioai-sdk-1.0.0.tgz.sha256
+npm install ./totemstudioai-sdk-1.0.0.tgz
 ```
 
 `sha256sum -c` works as well as `shasum -a 256 -c`. The checksum shows that
@@ -45,14 +45,14 @@ so keep the tarball where you installed it from: later installs such as
 `npm ci` read it from there. Import the package by its name,
 `@totemstudioai/sdk`.
 
-After the candidate tag is published, you may also install it from Git. This builds the package with TypeScript
+After the stable tag is published, you may also install it from Git. This builds the package with TypeScript
 through its `prepare` script, so it **needs lifecycle scripts**: with
 `ignore-scripts=true`, pnpm's build-script allowlist or npm's `allowScripts`,
 allow `@totemstudioai/sdk`, or the install succeeds without a `dist/` and the
 import fails.
 
 ```sh
-npm install github:totem-studio/totem-studio-typescript#v1.0.0-rc.1
+npm install github:totem-studio/totem-studio-typescript#v1.0.0
 ```
 
 TypeScript projects need `module`/`moduleResolution` `nodenext` (or

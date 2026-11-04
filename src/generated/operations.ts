@@ -2,7 +2,7 @@
 import type { ErrorAction, TotemErrorCode } from './schema.js'
 
 export const CONTRACT_SHA256 = 'ffed3a0bdf57fb69390fb27e5468f22716e9c4baf62a7a33100d64255bfd5519'
-export const SDK_VERSION = '1.0.0-rc.1'
+export const SDK_VERSION = '1.0.0'
 export const DEFAULT_BASE_URL = "https://api.totemstudio.ai/v1"
 export const operationDefinitions = {
   "me.get": {

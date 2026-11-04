@@ -1,6 +1,6 @@
 {
   "name": "@totemstudioai/sdk",
-  "version": "1.0.0-rc.1",
+  "version": "1.0.0",
   "description": "Official server-side TypeScript SDK for the Totem Studio public API (Beta)",
   "type": "module",
   "license": "MIT",
@@ -32,7 +32,7 @@
   "sideEffects": false,
   "publishConfig": {
     "access": "public",
-    "tag": "rc"
+    "tag": "latest"
   },
   "scripts": {
     "generate": "node scripts/generate.mjs",

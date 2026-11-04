@@ -1,12 +1,21 @@
 # Changelog
 
-The SDK follows the Totem API Beta. Until 1.0, a minor or prerelease version
-can change types or behaviour; each entry lists what to adapt.
+The SDK follows the Totem API contract. Each entry lists what changed and
+what to adapt.
+
+## 1.0.0 (prepared locally, 2026-11-04)
+
+- Prepared the stable SDK version and future download assets. Publication is
+  on hold until final production API and public n8n-node acceptance.
+- No API contract, permissions or runtime behavior changes from 1.0.0-rc.1.
+  The same 70-operation contract remains in use; this version change grants
+  no additional access to existing integrations.
 
 ## 1.0.0-rc.1 (candidate, 2026-11-04)
 
-- Prepared the v1 release candidate; this entry does not announce npm or GitHub
-  publication, API deployment, or completed production migration.
+- Published the verified release candidate under the npm `rc` tag with
+  trusted-publishing provenance. Registry and GitHub release tarballs match
+  byte for byte. This does not certify completed production migration.
 - Generated the SDK from the 70-operation v1 candidate contract. Typed clients
   include current-source CRM, messaging, calendar/payments, Library/Catalog,
   knowledge, assistant runs, calls/analysis, quotes and lifecycle events.
