@@ -1,5 +1,6 @@
 import { TotemApiError, TotemConnectionError, TotemProtocolError, TotemTimeoutError, TotemUnknownOutcomeError } from './errors.js'
 import { isDurableOperationWrite, matchesOperationReceipt } from './operationReceipt.js'
+import { matchesBusinessResponse, requiresSourceReceipt } from './businessResponse.js'
 import { DEFAULT_BASE_URL, SDK_VERSION, operationDefinitions } from './generated/operations.js'
 import type { ClientOptions, OperationId, Problem, RequestOptions, ResponseInfo } from './types.js'
 
@@ -248,17 +249,19 @@ export class Transport {
         }
         const success = definition.successResponses?.find(item => item.status === response.status)
         const malformedOperation = () => new TotemUnknownOutcomeError(headers.get('Idempotency-Key')!, requestId)
+        const ambiguousWrite = isDurableOperationWrite(operationId) || requiresSourceReceipt(operationId, input)
         if (!success) {
-          if (isDurableOperationWrite(operationId)) throw malformedOperation()
+          if (ambiguousWrite) throw malformedOperation()
           throw new TotemProtocolError('Totem API returned an undeclared success status', requestId)
         }
         if (!success.body) {
+          if (requiresSourceReceipt(operationId, input)) throw malformedOperation()
           if (text !== '') throw new TotemProtocolError('Totem API returned a body for a no-content response', requestId)
           return { data: undefined as T, status: response.status, requestId, headers: response.headers }
         }
         let data: unknown
         try { data = JSON.parse(text ?? '') } catch (cause) {
-          if (isDurableOperationWrite(operationId)) throw malformedOperation()
+          if (ambiguousWrite) throw malformedOperation()
           throw new TotemProtocolError('Totem API returned invalid JSON', requestId, { cause })
         }
         if (!matchesOperationReceipt(data, operationId, input.path)) {
@@ -267,6 +270,10 @@ export class Transport {
         }
         if (operationId === 'knowledge.search' && !matchesKnowledgeSearch(data)) {
           throw new TotemProtocolError('Totem API returned invalid knowledge passages', requestId)
+        }
+        if (!matchesBusinessResponse(data, operationId, input)) {
+          if (requiresSourceReceipt(operationId, input) && idempotency) throw malformedOperation()
+          throw new TotemProtocolError('Totem API returned an unrelated current-source business response', requestId)
         }
         return { data: data as T, status: response.status, requestId, headers: response.headers }
       }

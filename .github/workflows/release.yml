@@ -102,5 +102,5 @@ jobs:
           FILE: ${{ needs.release.outputs.file }}
         run: |
           tag=latest
-          case "$GITHUB_REF_NAME" in *-*) tag=beta ;; esac
+          case "$GITHUB_REF_NAME" in *-rc.*) tag=rc ;; *-*) tag=beta ;; esac
           npm publish "$FILE" --provenance --access public --tag "$tag" --ignore-scripts

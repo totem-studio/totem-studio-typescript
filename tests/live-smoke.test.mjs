@@ -195,6 +195,15 @@ function tasksEdge({ wrongReplay = false, state = 'succeeded', stateFor = 'creat
 }
 
 const TASK_FIXTURES = { ...FOREIGN, teamId: TEAM, taskCreateKey: 'sdk-acceptance-stable-create' };
+/** Reviewed v1 scenarios outside these three deliberately limited acceptance profiles. */
+const OUTSIDE_ACCEPTANCE_PROFILES = [
+  'assistants.options', 'assistants.run', 'attachments.resolve', 'bookingPayments.get', 'bookingPayments.sendLink',
+  'booking_services.options', 'bookings.availability', 'bookings.cancel', 'bookings.create', 'bookings.forLead', 'bookings.inspect', 'bookings.reschedule',
+  'call.analysis.update', 'calls.options', 'calls.recording', 'calls.start', 'calls.transcript', 'catalog.search', 'catalog.send',
+  'conversations.messages', 'crm.context', 'events.list', 'leads.handoff', 'leads.scheduleContact',
+  'library.get', 'library.list', 'library.prepared', 'library.send', 'meeting.analysis.update',
+  'messages.channels', 'messages.prepareReply', 'messages.requestInfo', 'messages.send', 'quotes.recordOutcome', 'referrals.create',
+];
 
 function assertKnowledgeExcluded(result) {
   assert.equal(result.requests.some(({ url }) => /^\/v1\/knowledge(?:\/|\?|$)/.test(url)), false);
@@ -211,7 +220,9 @@ test('explicit tasks profile verifies replay, bounded completion and finished ca
   assert.equal(result.exitCode, 0, result.output);
   assert.equal(result.receipt.profile, 'tasks');
   assert.equal(result.receipt.coveredOperations.length, 24);
-  assert.deepEqual(result.receipt.excludedOperations.toSorted(), ['knowledge.search', 'leads.addNote', 'leads.archive', 'leads.customValues', 'leads.deleteNote', 'leads.notes', 'leads.update', 'leads.updateCustomValues', 'leads.updateNote', 'leads.upsert', 'notifications.create']);
+  assert.deepEqual(result.receipt.excludedOperations.toSorted(), [...OUTSIDE_ACCEPTANCE_PROFILES,
+    'knowledge.search', 'leads.addNote', 'leads.archive', 'leads.customValues', 'leads.deleteNote', 'leads.notes', 'leads.update', 'leads.updateCustomValues', 'leads.updateNote', 'leads.upsert', 'notifications.create',
+  ].toSorted());
   assertKnowledgeExcluded(result);
   assert.deepEqual(boundary.stats.creates.map(item => item.key), ['sdk-acceptance-stable-create', 'sdk-acceptance-stable-create']);
   assert.deepEqual(boundary.stats.completes.map(item => item.key), ['sdk-acceptance-stable-create.complete']);
@@ -261,7 +272,9 @@ test('explicit CRM profile validates writes, content, conditional updates and de
   const result = await runSmoke(context, crmEdge(), { fixtures: { ...FOREIGN, crmEmail: 'sdk-smoke-123@example.invalid', crmExternalId: 'sdk-smoke-123' }, env: { TOTEM_SMOKE_PROFILE: 'crm' } });
   assert.equal(result.exitCode, 0, result.output);
   assert.equal(result.receipt.profile, 'crm');
-  assert.deepEqual(result.receipt.excludedOperations.toSorted(), ['knowledge.search', 'leads.customValues', 'leads.updateCustomValues', 'notifications.create', 'operations.cancel', 'operations.get', 'tasks.complete', 'tasks.create']);
+  assert.deepEqual(result.receipt.excludedOperations.toSorted(), [...OUTSIDE_ACCEPTANCE_PROFILES,
+    'knowledge.search', 'leads.customValues', 'leads.updateCustomValues', 'notifications.create', 'operations.cancel', 'operations.get', 'tasks.complete', 'tasks.create',
+  ].toSorted());
   assertKnowledgeExcluded(result);
   assert.equal(result.receipt.coveredOperations.length, 27);
   assert.equal(result.requests.some(({ url }) => /^\/v1\/(?:tasks|operations)(?:\/|\?|$)/.test(url)), false);
@@ -292,10 +305,11 @@ test('default live runner covers the read profile and tenant checks without muta
   assert.equal(result.receipt.profile, 'read');
   assert.equal(result.receipt.coveredOperations.length, 20);
   assert.deepEqual(result.receipt.excludedOperations.toSorted(), [
+    ...OUTSIDE_ACCEPTANCE_PROFILES,
     'knowledge.search', 'leads.addNote', 'leads.archive', 'leads.customValues', 'leads.deleteNote', 'leads.notes', 'leads.update', 'leads.updateCustomValues', 'leads.updateNote', 'leads.upsert',
     'notifications.create', 'operations.cancel', 'operations.get', 'tasks.complete', 'tasks.create',
-  ]);
-  assert.equal(result.receipt.excludedOperations.length, 15);
+  ].toSorted());
+  assert.equal(result.receipt.excludedOperations.length, 50);
   assertKnowledgeExcluded(result);
   assert.equal(result.requests.some(({ url }) => /^\/v1\/(?:tasks|operations)(?:\/|\?|$)/.test(url)), false);
   assert.equal(result.requests.some(({ method, url }) => method !== 'GET' && url !== '/v1/leads/search'), false);

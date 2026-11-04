@@ -22,8 +22,9 @@ export async function importContact(apiKey: string, team: string, email: string,
 export async function reviseNote(client: TotemClient, lead: string, noteId: string, body: string) {
   for await (const note of client.items('leads.notes', { path: { id: lead } })) {
     if (note.id !== noteId) continue
-    // This documented strong validator is bound to the opaque note id and version.
-    return client.leads.updateNote(lead, note.id, { body }, { ifMatch: `"${note.id}:${note.version}"` })
+    // Reuse source validators unchanged; captured notes bind their id and version.
+    const ifMatch = note.object === 'lead_note_source' ? note.etag : `"${note.id}:${note.version}"`
+    return client.leads.updateNote(lead, note.id, { body }, { ifMatch })
   }
   throw new Error('Note not found')
 }
