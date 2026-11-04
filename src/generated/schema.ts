@@ -4061,6 +4061,13 @@ export interface OperationContracts {
 "service_id": string;
 /** Server-issued opaque calendar reference; never parse or modify it. */
 "option"?: string | undefined;
+/** Up to four additional services for one joint Koibox visit. Resolve multi-option choices first; never compare independent starts to infer an overlap. */
+"additional_services"?: Array<{
+/** Another current service for the same visit. */
+"service_id": string;
+/** Server-issued opaque calendar reference; never parse or modify it. */
+"option"?: string | undefined
+}> | undefined;
 /** An instant in UTC. */
 "from_at"?: string | undefined;
 /** An instant in UTC. */

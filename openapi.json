@@ -8745,6 +8745,36 @@
                     "description": "Server-issued opaque calendar reference; never parse or modify it.",
                     "x-description-es": "Referencia opaca emitida por el servidor; no la interpretes ni modifiques."
                   },
+                  "additional_services": {
+                    "description": "Up to four additional services for one joint Koibox visit. Resolve multi-option choices first; never compare independent starts to infer an overlap.",
+                    "x-description-es": "Hasta cuatro servicios adicionales para una visita conjunta en Koibox. Resuelve primero las opciones; no deduzcas solapamientos comparando inicios independientes.",
+                    "minItems": 1,
+                    "maxItems": 4,
+                    "type": "array",
+                    "items": {
+                      "type": "object",
+                      "properties": {
+                        "service_id": {
+                          "type": "string",
+                          "pattern": "^svc_[0-9A-Za-z]+$",
+                          "description": "Another current service for the same visit.",
+                          "x-description-es": "Otro servicio actual para la misma visita."
+                        },
+                        "option": {
+                          "type": "string",
+                          "minLength": 40,
+                          "maxLength": 16384,
+                          "pattern": "^tcal1\\.[A-Za-z0-9_-]+$",
+                          "description": "Server-issued opaque calendar reference; never parse or modify it.",
+                          "x-description-es": "Referencia opaca emitida por el servidor; no la interpretes ni modifiques."
+                        }
+                      },
+                      "required": [
+                        "service_id"
+                      ],
+                      "additionalProperties": false
+                    }
+                  },
                   "from_at": {
                     "type": "string",
                     "format": "date-time",
