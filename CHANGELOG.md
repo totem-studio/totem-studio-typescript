@@ -3,6 +3,17 @@
 The SDK follows the Totem API Beta. Until 1.0, a minor or prerelease version
 can change types or behaviour; each entry lists what to adapt.
 
+## 1.0.0-rc.1 (candidate, 2026-11-04)
+
+- Prepared the v1 release candidate; this entry does not announce npm or GitHub
+  publication, API deployment, or completed production migration.
+- Generated the SDK from the 70-operation v1 candidate contract. Typed clients
+  include current-source CRM, messaging, calendar/payments, Library/Catalog,
+  knowledge, assistant runs, calls/analysis, quotes and lifecycle events.
+- Current-source guards, explicit content grants, durable operation receipts
+  and retry semantics remain part of the same public API contract. Existing
+  integrations receive no extra permissions through this version change.
+
 ## 0.3.0-beta.1 (2026-11-01)
 
 - Published the verified GitHub release artifact to npm under `beta`.
@@ -167,3 +178,16 @@ At this release, the SDK was distributed through the release tarball; it had not
 First Beta: a typed, dependency-free client for every operation of the
 read-only Totem API, generated from `openapi.json`, with pagination, bounded
 retries, a per-request deadline, redirect refusal and a live smoke runner.
+
+## Unreleased — 1.0 candidate
+
+- Add the shared operational API client: current CRM context and source writes,
+  tasks, notifications and incident reports, messages and first-reply preparation,
+  Library/Catalog delivery, scheduling and payment links, published assistant runs,
+  consented calls, source-bound analysis callbacks and lifecycle event polling.
+- Keep content permissions independent, preserve source ETags and expose queued,
+  prepared, accepted and uncertain outcomes without treating them as completion.
+- Extend the fail-closed generator for annotated string-key maps. Preserve the
+  existing no-automatic-retry behavior for explicit `outcome_unknown` responses.
+- This entry documents local release work; publication and production acceptance
+  are tracked separately from local tests.

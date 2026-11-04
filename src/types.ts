@@ -17,6 +17,11 @@ export type TaskCreateBody = BodyOf<'tasks.create'>
 export type TaskCompleteBody = BodyOf<'tasks.complete'>
 /** The cancellation request is an empty JSON object. */
 export type OperationCancelBody = BodyOf<'operations.cancel'>
+/** Source-bound processor callbacks; these grants are excluded from ordinary integration profiles. */
+export type CallAnalysisUpdateBody = BodyOf<'call.analysis.update'>
+export type MeetingAnalysisUpdateBody = BodyOf<'meeting.analysis.update'>
+export type BookingServiceOptionsBody = BodyOf<'booking_services.options'>
+export type FirstReplyBody = BodyOf<'messages.prepareReply'>
 /** One catalogue entry: `{ status, action, docUrl }`. */
 export type ErrorCatalogueEntry = (typeof errorCatalogue)[keyof typeof errorCatalogue]
 

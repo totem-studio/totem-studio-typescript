@@ -57,6 +57,17 @@ test('exclusive numeric bounds keep their numeric TypeScript representation', ()
   assert.ok(schema.includes('"score"?: number'));
 });
 
+test('bounded string map keys preserve their value type while unsupported finite key schemas fail closed', () => {
+  const document = fixture();
+  thing(document).properties.variables = { type: 'object', propertyNames: { type: 'string', minLength: 1, maxLength: 100 }, additionalProperties: { type: 'string' } };
+  const { 'schema.ts': schema } = generate(document, options);
+  assert.ok(schema.includes('[key: string]: string'));
+  for (const propertyNames of [{ type: 'string', enum: ['only'] }, { type: 'number' }, { anyOf: [{ type: 'string' }] }, false]) {
+    thing(document).properties.variables.propertyNames = propertyNames;
+    assert.throws(() => generate(document, options), /Unsupported propertyNames/);
+  }
+});
+
 for (const [label, mutate, message] of [
   ['a type array with properties', document => { thing(document).type = ['object', 'null']; }, /type array cannot be combined with properties/],
   ['required naming an absent property', document => { thing(document).required.push('missing'); }, /required names missing/],

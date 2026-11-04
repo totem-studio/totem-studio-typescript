@@ -52,7 +52,7 @@ client.leads.addNote('lead_ABC', { body: 'Asked for a proposal.' })
 client.leads.notes('lead_ABC', { cursor: null, limit: 25 })
 client.items('leads.notes', { path: { id: 'lead_ABC' } })
 client.leads.updateNote('lead_ABC', 'note_DEF', { body: 'Updated.' }, { ifMatch: '"note_DEF:3"' })
-const deletion: Promise<void> = client.leads.deleteNote('lead_ABC', 'note_DEF', { ifMatch: '"note_DEF:3"' })
+const deletion: Promise<ResponseOf<'leads.deleteNote'>> = client.leads.deleteNote('lead_ABC', 'note_DEF', { ifMatch: '"note_DEF:3"' })
 void deletion
 const taskBody: TaskCreateBody = { title: 'Call Ada', priority: 'high', lead_id: 'lead_ABC', assigned_to_ids: ['mem_DEF'], owner_id: null, due_at: null, reminders: { enabled: true, offsets_minutes: [15] } }
 const taskId: TaskId = 'task_ABC'
@@ -228,3 +228,66 @@ void code; void misspelt; void action; void anyAction; void unknownCode; void er
 declare const page: ResponseOf<'sync.changes'>
 const checkpoint: string = page.next_cursor
 void checkpoint
+
+// Current source consumers keep their real generated request/response types.
+const calendarReference = 'tcal1.' + 'a'.repeat(64)
+const contentReference = 'tcnt1.' + 'b'.repeat(64)
+const currentContext: Promise<ResponseOf<'crm.context'>> = client.crm.context({ lead_id: 'lead_ABC', representation: 'model', include_messages: true })
+client.leads.notes('lead_ABC', { view: 'source' })
+client.leads.upsert({ origin: 'import', response_view: 'source' }, { idempotencyKey: 'source-create-one' })
+client.leads.update('lead_ABC', { name: 'Reviewed name' }, { ifMatch: '"lrs1_' + 'a'.repeat(64) + '"', idempotencyKey: 'reviewed-source-update' })
+const messageOperation: Promise<Operation> = client.messages.send({ target: { kind: 'conversation', conversation_id: 'conv_ABC' }, content: { kind: 'text', text: 'Fictional response' } })
+const currentMessages: Promise<ResponseOf<'conversations.messages'>> = client.conversations.messages({ conversation_id: 'conv_ABC', limit: 20 })
+client.messages.channels()
+client.bookings.availability({ lead_id: 'lead_ABC', service_id: 'svc_ABC' })
+client.bookings.inspect('bkg_ABC')
+client.bookings.forLead({ lead_id: 'lead_ABC' })
+client.bookings.create({ lead_id: 'lead_ABC', offer: calendarReference, customer_name: 'Fictional client' })
+client.bookings.cancel('bkg_ABC', { ifMatch: '"bka_' + 'a'.repeat(64) + '"' })
+client.bookings.reschedule('bkg_ABC', { starts_at: '2026-11-04T10:00:00Z' }, { ifMatch: '"bka_' + 'a'.repeat(64) + '"' })
+client.bookingPayments.get({ lead_id: 'lead_ABC' })
+client.bookingPayments.sendLink({ lead_id: 'lead_ABC', reference: calendarReference, consent_confirmed: true })
+client.library.list({ type: 'sequence', limit: 10 })
+client.library.get(contentReference)
+client.library.prepared(contentReference)
+client.library.send({ reference: contentReference, expected_revision: 3, conversation_id: 'conv_ABC' })
+client.attachments.resolve(contentReference)
+client.catalog.search({ query: 'Fictional product' })
+client.catalog.send({ catalog: contentReference, variants: [contentReference], expected_revision: 3, conversation_id: 'conv_ABC' })
+client.events.list({ limit: 10 })
+// @ts-expect-error provider accounts and raw destinations are not public message targets
+client.messages.send({ target: { kind: 'lead', to: '+34600111222' }, content: { kind: 'text', text: 'No raw recipient' } })
+// @ts-expect-error a current booking management validator is required
+client.bookings.cancel('bkg_ABC')
+// @ts-expect-error payment-link intent needs an explicit true attestation
+client.bookingPayments.sendLink({ lead_id: 'lead_ABC', reference: calendarReference, consent_confirmed: false })
+// @ts-expect-error a library send needs the reviewed revision
+client.library.send({ reference: contentReference, conversation_id: 'conv_ABC' })
+// @ts-expect-error body reads do not accept mutation idempotency headers
+client.conversations.messages({}, { idempotencyKey: 'not-a-write' })
+void currentContext; void messageOperation; void currentMessages
+
+const contextNotAny: IsAny<ResponseOf<'crm.context'>> = false
+const preparedNotAny: IsAny<ResponseOf<'library.prepared'>> = false
+void contextNotAny; void preparedNotAny
+
+void client.messages.requestInfo({ lead_id: 'lead_Example', info: 'The requested address' }, { idempotencyKey: 'original-info' })
+// @ts-expect-error staff configuration chooses the recipient; a raw destination is not an input
+void client.messages.requestInfo({ info: 'The requested address', phone: '+34600111222' })
+// @ts-expect-error the configured information detail is required
+void client.messages.requestInfo({ lead_id: 'lead_Example' })
+
+void client.leads.scheduleContact({ lead_id: 'lead_Current', contact_at: '2026-11-04T10:00:00Z', channel: 'call', customer_confirmed: true }, { idempotencyKey: 'same-callback' })
+void client.leads.handoff({ lead_id: 'lead_Current', office: 'north', summary: 'Reviewed need' }, { idempotencyKey: 'same-handoff' })
+void client.referrals.create({ name: 'Fictional person', phone: '+34600111222', note: 'Requested AI information', consent: true }, { idempotencyKey: 'same-referral' })
+void client.calls.options({ lead_id: 'lead_Current' })
+void client.calls.start({ lead_id: 'lead_Current', binding_reference: 'tcall1.' + 'a'.repeat(64), consent_confirmed: true }, { idempotencyKey: 'same-call' })
+void client.calls.transcript('call_Current'); void client.calls.recording('call_Current')
+// @ts-expect-error explicit confirmed contact time is required
+void client.leads.scheduleContact({ lead_id: 'lead_Current', contact_at: '2026-11-04T10:00:00Z', channel: 'call' })
+// @ts-expect-error a family handoff never accepts an arbitrary destination team
+void client.leads.handoff({ summary: 'Reviewed need', destination_team_id: 'private-team' })
+// @ts-expect-error outgoing calls select a reviewed opaque binding, never a raw phone
+void client.calls.start({ phone: '+34600111222', consent_confirmed: true })
+// @ts-expect-error content reads do not accept mutation idempotency headers
+void client.calls.transcript('call_Current', { idempotencyKey: 'not-a-write' })

@@ -137,6 +137,56 @@ export interface Schemas {
 /** Opaque cursor for the next page, or null on the last page. Never parse it. */
 "next_cursor": (string | null)
 };
+/** Content-free stored callback receipt. Acceptance never claims every deferred analysis task has completed. */
+"AnalysisReceipt": {
+/** Always analysis_receipt. */
+"object": "analysis_receipt";
+/** Resource whose current analysis was processed. */
+"resource_kind": (("call" | "meeting") | (string & {}));
+/** Whether this logical callback committed its eligible summary. */
+"summary_updated": boolean;
+/** Whether this callback committed any eligible call extraction into its current retained lead; always false for meetings. */
+"custom_values_updated": boolean;
+/** Status of requested canonical finite fields. Deferred or unavailable is never a completed paid classification. */
+"finite_status": (("not_requested" | "applied" | "deferred" | "unavailable") | (string & {}))
+};
+/** Metadata-only published assistant discovery; no prompts, tool configuration or provider selectors. */
+"AssistantOptions": {
+/** Always assistant_options. */
+"object": "assistant_options";
+/** Bounded current published selections. Draft and disabled assistants are omitted. */
+"data": Array<{
+/** Short-lived opaque selection bound to this integration and the exact currently published assistant version; never a provider or workflow identifier. */
+"reference": string;
+/** Published assistant display name, without its private instructions. */
+"name": string;
+/** Exact current published version. A later publication invalidates this selection. */
+"version": number
+}>;
+/** Whether this bounded discovery inspected every current assistant definition. */
+"complete": boolean
+};
+/** Content-free completed-run metadata. It never exports the reply, prompt, private source or provider identifiers. */
+"AssistantRunReceipt": {
+/** Always assistant_run_receipt. */
+"object": "assistant_run_receipt";
+/** The original canonical turn completed with an actual retained assistant reply, not merely queue admission. */
+"status": "completed";
+/** Opaque current conversation. Read reply bodies through conversations.messages with its separate current content grant. */
+"conversation_id": string
+};
+"Attachment": {
+/** Always attachment. */
+"object": "attachment";
+/** Intentionally disclosed canonical URL of the exact owned EU application-bucket file. */
+"url": string;
+/** Canonical file MIME type. */
+"mime_type": string;
+/** Canonical file name when known, otherwise null. */
+"file_name": (string | null);
+/** Known file size in bytes, otherwise null. */
+"file_size": (number | null)
+};
 /** A board with its stages in pipeline order. */
 "Board": {
 /** Public id of the record. */
@@ -214,8 +264,8 @@ export interface Schemas {
 "ends_at": (string | null);
 /** `online`, `in_person` or `phone`; null when not stored. */
 "meeting_type": ((("online" | "in_person" | "phone") | (string & {})) | null);
-/** Who booked it: `ai`, `customer` or `operator`; null when not recorded. */
-"source": ((("ai" | "customer" | "operator") | (string & {})) | null);
+/** Who booked it: `ai`, `customer`, `operator` or an authorized `integration`; null when not recorded. */
+"source": ((("ai" | "customer" | "operator" | "integration") | (string & {})) | null);
 /** The booking this one replaced in a reschedule, or null. For a few seconds the replaced booking can still read `scheduled`; bookings rescheduled before Totem started recording this link may not have it. */
 "rescheduled_from": (string | null);
 /** The booking that replaced this one in a reschedule, or null. When it is set, this booking reads `cancelled`. */
@@ -227,6 +277,43 @@ export interface Schemas {
 /** When Totem recorded this version (UTC). It is not the time the business event happened. */
 "updated_at": string
 };
+/** Bounded public choices and offers without provider or raw resource identifiers. */
+"BookingAvailability": {
+/** Always booking_availability. */
+"object": "booking_availability";
+/** Selected service. */
+"service_id": string;
+/** Current business timezone. */
+"timezone": string;
+/** An instant in UTC. */
+"expires_at": string;
+/** Current permitted service options. Select one when several are returned. */
+"options": Array<{
+/** Server-issued opaque calendar reference; never parse or modify it. */
+"id": string;
+/** Option label. */
+"label": string;
+/** Current option duration. */
+"duration_minutes": number
+}>;
+/** Bounded available slots with opaque offers; reading them does not reserve capacity. */
+"slots": Array<{
+/** Server-issued opaque calendar reference; never parse or modify it. */
+"offer": string;
+/** An instant in UTC. */
+"starts_at": string;
+/** An instant in UTC. */
+"ends_at": string;
+/** Start with the business timezone offset. */
+"starts_at_business": string;
+/** End with the business timezone offset. */
+"ends_at_business": string;
+/** Remaining seats when applicable. */
+"remaining_seats": (number | null);
+/** Remaining resource units when applicable. */
+"remaining_units": (number | null)
+}>
+};
 /** A page of Booking objects, in a stable order that carries no meaning. */
 "BookingList": {
 /** Always `list`. */
@@ -237,6 +324,100 @@ export interface Schemas {
 "has_more": boolean;
 /** Opaque cursor for the next page, or null on the last page. Never parse it. */
 "next_cursor": (string | null)
+};
+/** Fresh management projection and action ETag from the same source snapshot; not a capture version. */
+"BookingManagement": {
+/** The team this record belongs to. */
+"team": string;
+/** The lead this booking belongs to, or null for a booking without a lead or when the lead no longer exists. Names and contact details appear only on the lead. */
+"lead": (string | null);
+/** `service_booking` (booked for a bookable service, by the AI, a customer or a person), `calendar_event` (an event from the connected calendar) or `external_import` (synced from an external booking system or read from a portal email). A booking from an origin this version does not know is reported as `calendar_event`. */
+"kind": (("service_booking" | "calendar_event" | "external_import") | (string & {}));
+/** The booked service (see `/booking_services`) on a `service_booking`; null otherwise. */
+"service": (string | null);
+/** `scheduled`, `rescheduled`, `cancelled`, `postponed`, `attended`, `no_show` or `team_no_show` (attendance is recorded only by people); null for a value this version does not know. `rescheduled` means the booking was moved in place and its times are the new ones; a booking the AI replaced with a new one reads `cancelled`, with `rescheduled_to` set. */
+"status": ((("scheduled" | "rescheduled" | "cancelled" | "postponed" | "attended" | "no_show" | "team_no_show") | (string & {})) | null);
+/** When the booking starts (UTC). */
+"starts_at": (string | null);
+/** When the booking ends (UTC). */
+"ends_at": (string | null);
+/** `online`, `in_person` or `phone`; null when not stored. */
+"meeting_type": ((("online" | "in_person" | "phone") | (string & {})) | null);
+/** Who booked it: `ai`, `customer`, `operator` or an authorized `integration`; null when not recorded. */
+"source": ((("ai" | "customer" | "operator" | "integration") | (string & {})) | null);
+/** The booking this one replaced in a reschedule, or null. For a few seconds the replaced booking can still read `scheduled`; bookings rescheduled before Totem started recording this link may not have it. */
+"rescheduled_from": (string | null);
+/** The booking that replaced this one in a reschedule, or null. When it is set, this booking reads `cancelled`. */
+"rescheduled_to": (string | null);
+/** When the booking was recorded in Totem (UTC). */
+"created_at": (string | null);
+/** Always booking_management. */
+"object": "booking_management";
+/** Current booking. */
+"id": string;
+/** Strong action validator from this exact current source; use it in If-Match for cancellation or rescheduling. */
+"etag": string
+};
+/** Current authorized lead bookings, with explicit completeness. */
+"BookingManagementList": {
+/** Always booking_management_list. */
+"object": "booking_management_list";
+/** At most twenty current manageable bookings for the authorized lead. */
+"data": Array<Schemas["BookingManagement"]>;
+/** False when the bounded query may omit additional owned bookings. */
+"complete": boolean
+};
+/** Owned current payment metadata, never a raw Stripe record. */
+"BookingPayment": {
+/** Always booking_payment. */
+"object": "booking_payment";
+/** Server-issued opaque calendar reference; never parse or modify it. */
+"reference": string;
+/** Current owned payment lifecycle; review needs reconciliation and consumed means applied to a booking. */
+"status": (("pending" | "processing" | "paid" | "failed" | "refunded" | "review" | "consumed") | (string & {}));
+/** Current payment amount in minor currency units. */
+"amount_minor": number;
+/** Uppercase three-letter currency code. */
+"currency": string;
+/** Current active authenticated-merchant checkout URL; null when unavailable. */
+"checkout_url": (string | null);
+/** Whether capacity is currently held for this payment. */
+"slot_held": boolean;
+/** Current hold expiry in UTC, or null without an active hold. */
+"hold_expires_at": (string | null);
+/** Current confirmed booking id when resolvable, otherwise null. */
+"booking_id": (string | null)
+};
+/** At most five current payment requests for the authorized lead. */
+"BookingPaymentList": {
+/** Always booking_payment_list. */
+"object": "booking_payment_list";
+/** Current owned payment requests, at most five. */
+"payments": Array<Schemas["BookingPayment"]>;
+/** False when the bounded query may omit additional current requests. */
+"complete": boolean
+};
+/** A payment request or link delivery is not a confirmed booking. */
+"BookingPaymentReceipt": {
+/** Always booking_payment_receipt. */
+"object": "booking_payment_receipt";
+/** Server-issued opaque calendar reference; never parse or modify it. */
+"reference": string;
+/** Current payment requirement, reconciliation state or accepted link send. */
+"outcome": (("payment_required" | "payment_processing" | "payment_review" | "link_sent") | (string & {}));
+/** Always false: a payment request or sent link does not confirm a booking. */
+"booking_confirmed": false
+};
+/** Minimal current-source booking outcome. */
+"BookingReceipt": {
+/** Always booking_receipt. */
+"object": "booking_receipt";
+/** Booking id. */
+"id": string;
+/** Verified current booking outcome; unchanged means no new booking mutation. */
+"status": (("scheduled" | "cancelled" | "rescheduled" | "unchanged") | (string & {}));
+/** Original booking when a reschedule replaced it, otherwise null. */
+"previous_id": (string | null)
 };
 /** A service customers can book, with its meeting type. */
 "BookingService": {
@@ -262,6 +443,61 @@ export interface Schemas {
 /** `true` when another page follows: fetch it with `next_cursor`, even if this page holds fewer items than `limit`. */
 "has_more": boolean;
 /** Opaque cursor for the next page, or null on the last page. Never parse it. */
+"next_cursor": (string | null)
+};
+/** Source-backed service discovery for tenant integrations and actual hosted assistants. */
+"CalendarServiceOptionsResult": {
+/** Always booking_service_options. */
+"object": "booking_service_options";
+/** Current permitted services in this page. */
+"data": Array<{
+/** Actual current service ID, shared with availability. */
+"service_id": string;
+/** Configured service name. */
+"name": string;
+/** Team-authored service guidance. */
+"when_to_use": string;
+/** How the service happens. */
+"meeting_type": (("online" | "in_person" | "phone") | (string & {}));
+/** Default service duration in minutes. */
+"duration_minutes": number;
+/** Configured minimum notice in minutes. */
+"min_notice_minutes": number;
+/** Configured booking horizon in days. */
+"horizon_days": number;
+/** Current permitted option labels and public terms. */
+"options": Array<{
+/** Actual configured option label. */
+"label": string;
+/** Configured option duration in minutes. */
+"duration_minutes": number;
+/** Team-authored choice guidance. */
+"when_to_use": string;
+/** Public terms only, without merchant/provider identifiers or payment URLs. */
+"payment": {
+/** Current public payment policy state. */
+"mode": (("none" | "link" | "required" | "unavailable") | (string & {}));
+/** Fixed amount in minor units, or null for a variable or unavailable amount. */
+"amount_minor": (number | null);
+/** Currency of the fixed amount, or null. */
+"currency": (string | null);
+/** Basis of a fixed amount, or null. */
+"basis": ((("per_booking" | "per_person" | "per_resource_unit") | (string & {})) | null)
+}
+}>;
+/** Actual enabled pages for this service. */
+"booking_pages": Array<{
+/** Published booking-page label. */
+"title": string;
+/** Canonical published Totem booking-page URL, or null when unavailable. */
+"url": (string | null)
+}>
+}>;
+/** Team business timezone. */
+"timezone": string;
+/** Whether the current search has no further page. */
+"complete": boolean;
+/** Opaque next-page cursor, or null. */
 "next_cursor": (string | null)
 };
 /** A call: its direction, timing and a normalized outcome. No recording or transcript. */
@@ -291,6 +527,28 @@ export interface Schemas {
 /** When Totem recorded this version (UTC). It is not the time the business event happened. */
 "updated_at": string
 };
+/** Current eligible calling options. Reading does not dial, reserve budget or change configuration. */
+"CallBindingOptions": {
+/** Always call_binding_options. */
+"object": "call_binding_options";
+/** Bounded current published selections. Select one explicitly. */
+"data": Array<{
+/** Always call_binding. */
+"object": "call_binding";
+/** Opaque current calling binding emitted by the server. Never parse, edit or substitute its contents. */
+"reference": string;
+/** Published assistant display name. */
+"assistant_name": string;
+/** Current outgoing line label. */
+"line_label": string;
+/** The team’s own displayed outgoing number. */
+"line_number": string;
+/** Calling channel selected by this binding. */
+"channel": (("phone" | "whatsapp") | (string & {}))
+}>;
+/** Whether this bounded response includes every current usable selection. */
+"complete": boolean
+};
 /** A page of Call objects, in a stable order that carries no meaning. */
 "CallList": {
 /** Always `list`. */
@@ -301,6 +559,128 @@ export interface Schemas {
 "has_more": boolean;
 /** Opaque cursor for the next page, or null on the last page. Never parse it. */
 "next_cursor": (string | null)
+};
+/** An existing canonical European recording, never an arbitrary provider URL. */
+"CallRecording": {
+/** Always call_recording. */
+"object": "call_recording";
+/** Current retained call. */
+"call_id": string;
+/** Intentional authorized recording disclosure: a bounded URL for the existing owned European application artifact. */
+"url": string;
+/** Expiry of this URL. Later access requires a fresh authorized request. */
+"expires_at": string;
+/** Stored artifact media type when available. */
+"content_type": (string | null);
+/** Stored artifact size in bytes when available. */
+"size": (number | null)
+};
+/** Minimal truthful call-start acceptance receipt. */
+"CallStartReceipt": {
+/** Always call_start_receipt. */
+"object": "call_start_receipt";
+/** The provider accepted call initiation. This is not evidence that the person answered or the call completed. */
+"status": "accepted";
+/** Opaque canonical call id when its retained record exists; otherwise null. Never a raw provider id. */
+"call_id": (string | null)
+};
+/** Explicitly authorized call speech content. */
+"CallTranscript": {
+/** Always call_transcript. */
+"object": "call_transcript";
+/** Current retained call. */
+"call_id": string;
+/** Speech-only transcript in its original order. Tool arguments and results are excluded. */
+"text": string;
+/** False when the current transcript exceeds the response limit. It does not indicate that an ongoing call has ended. */
+"complete": boolean
+};
+"CatalogSearch": {
+/** Always catalog_result_list. */
+"object": "catalog_result_list";
+/** Whether this bounded result includes every matching published variant. */
+"complete": boolean;
+/** Authorized matching published variants, up to one hundred. */
+"data": Array<{
+/** Current server-issued opaque content reference; never parse or modify it. */
+"catalog": string;
+/** Current server-issued opaque content reference; never parse or modify it. */
+"product": string;
+/** Current server-issued opaque content reference; never parse or modify it. */
+"variant": string;
+/** Current server-issued opaque content reference; never parse or modify it. */
+"category": string;
+/** Current published catalog revision. */
+"revision": number;
+/** Published catalog display name. */
+"catalog_name": string;
+/** Published category display name. */
+"category_name": string;
+/** Published product or variant title. */
+"title": string;
+/** Authorized published product description. */
+"description": string;
+/** Published product type. */
+"type": (("physical" | "digital" | "service") | (string & {}));
+/** Published variant option labels and values. */
+"option_values": {
+[key: string]: string
+};
+/** Current published price and its unit; this is not a confirmed booking offer. */
+"price": {
+/** Whether the published price is fixed, a starting price or requires a quote. */
+"mode": (("fixed" | "from" | "quote") | (string & {}));
+/** Published unit to which the price applies. */
+"basis": (("item" | "booking" | "person" | "resource_unit") | (string & {}));
+/** Published amount in minor currency units; null when a quote is required. */
+"amount_minor": (number | null);
+/** Published sale amount in minor currency units, or null. */
+"sale_amount_minor": (number | null);
+/** Three-letter published currency code. */
+"currency": string
+};
+/** Published product image URL, or null. */
+"image_url": (string | null);
+/** Published customer-facing product URL, or null. */
+"public_url": (string | null);
+/** The published variant is manually available; scheduling can impose further constraints. */
+"manual_availability": "available";
+/** Which authority determines availability beyond the published manual status. */
+"availability_basis": (("totem_scheduling" | "external_authority" | "manual_only") | (string & {}));
+/** Published booking mode and its current linked service or external destination. */
+"booking": ExclusiveUnion<({
+/** No booking integration, or an enquiry handled by the business. */
+"mode": ("none" | "enquiry")
+} | {
+/** Booking is managed by an external service. */
+"mode": "external";
+/** Published external booking URL when configured, otherwise null. */
+"url": (string | null)
+} | {
+/** Booking is managed by the linked Totem service. */
+"mode": "totem";
+/** Current linked booking service. Read its availability to select an option and offer. */
+"service_id": string;
+/** Published booking page label, or null. */
+"page_label": (string | null);
+/** Published booking option label, or null. */
+"option_label": (string | null)
+})>;
+/** Actual linked Totem scheduling result for the requested slot; null when no such check was made. */
+"requested_slot_available": (boolean | null);
+/** Unavailable or unverified scheduling, otherwise null. */
+"availability_issue": ((("unavailable" | "not_checked") | (string & {})) | null);
+/** Whether this published variant supports the configured WhatsApp catalog transport. */
+"whatsapp_capable": boolean
+}>
+};
+"CatalogSendReceipt": {
+/** Always catalog_send_receipt. */
+"object": "catalog_send_receipt";
+/** The accepted single-product or product-list provider format. */
+"sent_as": (("catalog_product" | "catalog_product_list") | (string & {}));
+/** Number of reviewed variants in the accepted selection. */
+"variant_count": number
 };
 /** A conversation on one channel: its status, assignee and the times of the latest messages, never their content. */
 "Conversation": {
@@ -343,6 +723,557 @@ export interface Schemas {
 "has_more": boolean;
 /** Opaque cursor for the next page, or null on the last page. Never parse it. */
 "next_cursor": (string | null)
+};
+/** Bounded current message bodies without sender destinations, raw identifiers or media locations. Truncated means older retained rows may exist. */
+"ConversationMessages": {
+/** Identifies a content-authorized conversation message page. */
+"object": "conversation_messages";
+/** Latest retained messages visible under the current content grant, with at most fifty entries. */
+"messages": Array<{
+/** Opaque reference bound to this retained message and conversation incarnation. */
+"reference": string;
+/** Whether the message was received from or sent to the contact. */
+"direction": (("inbound" | "outbound") | (string & {}));
+/** Stored message timestamp in UTC. */
+"at": string;
+/** Retained message content type; attachments are indicated without exposing their locations. */
+"content_type": (("text" | "image" | "audio" | "video" | "file" | "unknown") | (string & {}));
+/** Authorized retained message text, limited to eight thousand characters. */
+"text": string;
+/** True when the retained text exceeds the returned text limit. */
+"text_truncated": boolean;
+/** Whether the retained message has an attachment; this does not grant attachment access. */
+"has_attachment": boolean;
+/** Observed delivery status, or null when no such provider evidence is retained. */
+"delivery_status": ((("delivered" | "read" | "failed") | (string & {})) | null);
+/** True for a message retained through history import. */
+"imported": boolean
+}>;
+/** True when older retained messages may exist beyond this bounded page. */
+"truncated": boolean
+};
+/** Current source-bound CRM metadata and independently requested content. No export capture version or business authoring profile is included. */
+"CrmContext": {
+/** Always crm_context. */
+"object": "crm_context";
+/** Current source contact evidence, independently of whether the conversation is linked to a lead. A tenant without a signed source receives null phone. */
+"source_contact": {
+/** Current canonical transport phone from the authorized retained source, or null when hidden, cleared or unavailable; never an old sender fallback. */
+"phone": (string | null)
+};
+/** Current authorized execution conversation, or null for a lead-only tenant context; never an unrelated thread. */
+"conversation_id": (string | null);
+/** Current authorized voice call, or null when no call source exists. A browser session never invents a conversation or premature call. */
+"call_id": (string | null);
+/** Current authorized source lead, or null when this conversation is still unlinked. */
+"lead": (Schemas["LeadSource"] | null);
+/** Bounded team runtime facts; no assistant prompt or business profile. */
+"team": {
+/** The team's name as it appears in Totem, or null when none is stored. */
+"name": (string | null);
+/** The team's IANA time zone: its business-hours zone when that is valid, otherwise its default country's (Europe/Madrid when neither is set). Interpret the team's local times with it. */
+"timezone": string;
+/** The team's default country (ISO 3166-1 alpha-2), which Totem uses when someone types a phone number without a prefix; null when none is set. The API does not apply it: `Lead.phone` is validated without a default country, so a number stored without its country prefix reads `phone_status: invalid`. */
+"default_country": (string | null);
+/** Authorized team. */
+"id": string;
+/** The team’s short runtime extra information, never its authoring business profile. */
+"extra_info": (string | null);
+/** Whether the week is configured or uses the normal Monday–Friday 09:00–18:00 fallback. */
+"business_hours_source": (("configured" | "default") | (string & {}));
+/** Current canonical opening week in the team’s time zone. */
+"business_hours": {
+/** Monday opening intervals; an empty list means closed. */
+"monday": Array<{
+/** Opening time on the business wall clock (HH:mm). */
+"start": string;
+/** Closing time on the business wall clock (HH:mm; 24:00 means midnight). */
+"end": string
+}>;
+/** Tuesday opening intervals; an empty list means closed. */
+"tuesday": Array<{
+/** Opening time on the business wall clock (HH:mm). */
+"start": string;
+/** Closing time on the business wall clock (HH:mm; 24:00 means midnight). */
+"end": string
+}>;
+/** Wednesday opening intervals; an empty list means closed. */
+"wednesday": Array<{
+/** Opening time on the business wall clock (HH:mm). */
+"start": string;
+/** Closing time on the business wall clock (HH:mm; 24:00 means midnight). */
+"end": string
+}>;
+/** Thursday opening intervals; an empty list means closed. */
+"thursday": Array<{
+/** Opening time on the business wall clock (HH:mm). */
+"start": string;
+/** Closing time on the business wall clock (HH:mm; 24:00 means midnight). */
+"end": string
+}>;
+/** Friday opening intervals; an empty list means closed. */
+"friday": Array<{
+/** Opening time on the business wall clock (HH:mm). */
+"start": string;
+/** Closing time on the business wall clock (HH:mm; 24:00 means midnight). */
+"end": string
+}>;
+/** Saturday opening intervals; an empty list means closed. */
+"saturday": Array<{
+/** Opening time on the business wall clock (HH:mm). */
+"start": string;
+/** Closing time on the business wall clock (HH:mm; 24:00 means midnight). */
+"end": string
+}>;
+/** Sunday opening intervals; an empty list means closed. */
+"sunday": Array<{
+/** Opening time on the business wall clock (HH:mm). */
+"start": string;
+/** Closing time on the business wall clock (HH:mm; 24:00 means midnight). */
+"end": string
+}>
+};
+/** Snapshot time rendered on the business clock with its actual UTC offset. */
+"now_business": string
+};
+/** Up to twenty current retained notes when explicitly requested and authorized; otherwise null. */
+"notes": (Array<{
+/** The parent lead. */
+"lead": string;
+/** CRM note text; requires the explicit note-content grant. */
+"body": string;
+/** When this note was created. */
+"created_at": string;
+/** The caller’s own external id, or null. Canonical feed objects withhold all integration namespaces. */
+"external_id": (string | null)
+}> | null);
+/** More notes exist beyond this bounded context; use the separately authorized notes endpoint for a full export. */
+"notes_has_more": boolean;
+/** Current custom values only when requested with their independent content permission; otherwise null. */
+"custom_values": (Array<{
+/** Exact stable field name; names are never inferred from labels. */
+"name": string;
+/** Human-readable label. */
+"label": string;
+/** Exact string value; an empty string is a stored value, not deletion. */
+"value": string;
+/** Stored provenance, when known. */
+"source"?: (("form" | "call_extraction" | "manual" | "csv") | (string & {}))
+}> | null);
+/** Current CRM automation metadata, separate from permission and consent. */
+"automation": ({
+/** Current effective automation flags, including durable holds. */
+"flags": {
+/** Current recorded operational flag. */
+"archived": boolean;
+/** Current recorded operational flag. */
+"paused": boolean;
+/** Current recorded operational flag. */
+"needs_human_attention": boolean
+};
+/** Canonical hold reason and time; private appointment ids are withheld. */
+"hold": ({
+/** Canonical durable hold reason. */
+"reason": string;
+/** Recorded hold start in epoch milliseconds. */
+"since": number
+} | null);
+/** Current source state only; it never authorizes or schedules outreach. */
+"state": {
+/** Current recorded number, or null when unknown. */
+"round": (number | null);
+/** Current recorded number, or null when unknown. */
+"currentStep": (number | null);
+/** Current recorded number, or null when unknown. */
+"stepEnteredAt": (number | null);
+/** Current recorded number, or null when unknown. */
+"roundExhaustedAt": (number | null);
+/** Current recorded number, or null when unknown. */
+"completedAt": (number | null);
+/** Current stored text, or null when unavailable. */
+"completionReason": (string | null);
+/** Current recorded number, or null when unknown. */
+"scheduledContactAt": (number | null);
+/** Current stored text, or null when unavailable. */
+"scheduledContactType": (string | null);
+/** Current stored text, or null when unavailable. */
+"scheduledContactNote": (string | null);
+/** Current recorded number, or null when unknown. */
+"coolOffUntil": (number | null);
+/** Current recorded number, or null when unknown. */
+"contactCount": (number | null);
+/** Current recorded operational flag. */
+"hasBeenReached": boolean
+};
+/** Existing effective canonical safety limits; unknown malformed stored values remain null. */
+"contact_limits": {
+/** Current recorded number, or null when unknown. */
+"maxContactsPerLeadPerDay": (number | null);
+/** Current recorded number, or null when unknown. */
+"maxTotalContactsPerLead": (number | null);
+/** Current recorded number, or null when unknown. */
+"coolOffPeriodDays": (number | null);
+/** Current recorded number, or null when unknown. */
+"maxReactivationRounds": (number | null);
+/** Current recorded number, or null when unknown. */
+"maxCallAttemptsPerStep"?: (number | null)
+}
+} | null);
+/** Current authorized pipeline facts; opaque ids can be used with the public business operations. */
+"pipeline": ({
+/** Current stage, including archived history. */
+"stage": ({
+/** Current opaque stage id. */
+"id": string;
+/** Current stored text, or null when unavailable. */
+"name": (string | null);
+/** Current stored text, or null when unavailable. */
+"mode": (string | null);
+/** Current recorded number, or null when unknown. */
+"position": (number | null);
+/** Current recorded operational flag. */
+"is_default": boolean;
+/** Current recorded operational flag. */
+"is_final": boolean;
+/** Current recorded operational flag. */
+"is_archive": boolean;
+/** Current stored text, or null when unavailable. */
+"context": (string | null)
+} | null);
+/** Current board metadata with canonical stage selection. */
+"board": ({
+/** Current opaque board. */
+"id": string;
+/** Current stored text, or null when unavailable. */
+"name": (string | null);
+/** Current stored text, or null when unavailable. */
+"type": (string | null);
+/** Current recorded operational flag. */
+"is_archived": boolean;
+/** Current stored text, or null when unavailable. */
+"goal": (string | null);
+/** Current stored text, or null when unavailable. */
+"extra_info": (string | null);
+/** Current non-archive destination stages. */
+"stages": Array<{
+/** Current opaque stage id. */
+"id": string;
+/** Current stored text, or null when unavailable. */
+"name": (string | null);
+/** Current stored text, or null when unavailable. */
+"mode": (string | null);
+/** Current recorded number, or null when unknown. */
+"position": (number | null);
+/** Current recorded operational flag. */
+"is_default": boolean;
+/** Current recorded operational flag. */
+"is_final": boolean;
+/** Current recorded operational flag. */
+"is_archive": boolean;
+/** Current stored text, or null when unavailable. */
+"context": (string | null)
+}>
+} | null);
+/** Only the destinations currently allowed by the product’s one-time conversation routing policy. */
+"routing": ({
+/** Canonical one-time routing instruction. */
+"instruction": string;
+/** Current stored text, or null when unavailable. */
+"currentBoardName": (string | null);
+/** Current permitted alternative boards. */
+"boards": Array<{
+/** Allowed opaque board destination. */
+"id": string;
+/** Current stored text, or null when unavailable. */
+"name": (string | null);
+/** Current stored text, or null when unavailable. */
+"description": (string | null);
+/** Current stored text, or null when unavailable. */
+"goal": (string | null);
+/** Selectable destinations from the canonical routing policy. */
+"stages": Array<{
+/** Allowed opaque routing destination. */
+"id": string;
+/** Current stored text, or null when unavailable. */
+"name": (string | null);
+/** Current recorded operational flag. */
+"entry": boolean
+}>
+}>
+} | null);
+/** Current active own-team roster, without email addresses or raw user ids. */
+"members": Array<{
+/** Opaque active team member. */
+"id": string;
+/** Current stored text, or null when unavailable. */
+"display_name": (string | null)
+}>;
+/** Actual safe effective timing and section metadata, or null without a current board. */
+"cadence": ({
+/** The four actual effective runtime sections. */
+"sections": Array<{
+/** Canonical runtime sequence. */
+"name": (("main" | "reactivation" | "followUp" | "stageEntry") | (string & {}));
+/** Actual inherited configuration source. */
+"source": (("stage" | "board" | "main_fallback" | "none") | (string & {}));
+/** Current recorded number, or null when unknown. */
+"step_count": (number | null);
+/** Bounded timing/channel description; no template, account or provider ids. */
+"steps": Array<{
+/** Zero-based effective sequence position. */
+"index": number;
+/** Business channel only; provider and sender selectors are withheld. */
+"channel": (("call" | "whatsapp" | "email" | "unknown") | (string & {}));
+/** Current recorded number, or null when unknown. */
+"delay_minutes": (number | null)
+}>;
+/** Current recorded operational flag. */
+"has_more": boolean
+}>;
+/** Current recorded number, or null when unknown. */
+"conversation_stale_hours": (number | null);
+/** Current recorded number, or null when unknown. */
+"stage_entry_delay_minutes": (number | null);
+/** Current recorded operational flag. */
+"bypass_business_hours": boolean
+} | null)
+} | null);
+/** Named current operational language, routing and verified legal/privacy facts; no destination members or authoring profile. */
+"runtime": {
+/** Canonical operational team language. */
+"preferred_language": string;
+/** Existing instruction for internal team notification language. */
+"notification_language_instruction": string;
+/** Current usable routing directory, without recipient identities. */
+"notification_departments": Array<{
+/** Saved natural department routing key, not a credential or member id. */
+"id": string;
+/** Current department name. */
+"name": string;
+/** Authored department responsibility description. */
+"description": string
+}>;
+/** Saved default department key, or null. */
+"default_department_id": (string | null);
+/** Whether the current business routing configuration is enabled. */
+"notifications_enabled": boolean;
+/** Verified current legal controller name, including canonical organization inheritance. */
+"controller_name": (string | null);
+/** Current effective privacy disclosure URL, or null when none is published. */
+"privacy_policy_url": (string | null)
+};
+/** Current configured organization routing only with the separately issued handoff capability; omitted for older or context-only grants. */
+"family_routing"?: ({
+/** Current stored text, or null when unavailable. */
+"instruction": (string | null);
+/** Bounded current configured organization directory, disclosed only with the independently issued handoff capability. */
+"offices": Array<{
+/** Exact current configured office slug. */
+"office": string;
+/** Current stored text, or null when unavailable. */
+"name": (string | null);
+/** Current stored text, or null when unavailable. */
+"coverage": (string | null);
+/** Current stored text, or null when unavailable. */
+"preferred_language": (string | null);
+/** Current configured eligible destination boards; no raw board or team ids. */
+"boards": Array<{
+/** Opaque eligible configured board, usable only with the organization handoff action. */
+"id": string;
+/** Current stored text, or null when unavailable. */
+"name": (string | null);
+/** Current recorded operational flag. */
+"is_default": boolean
+}>
+}>
+} | null);
+/** Explicitly granted exact current conversation messages, or null when not requested/unavailable. */
+"messages": (Schemas["ConversationMessages"] | null);
+/** Explicitly granted current lead call evidence, or null when not requested/unavailable. */
+"calls": (Array<{
+/** Opaque current call incarnation. */
+"id": string;
+/** Recorded call direction. */
+"direction": ((("inbound" | "outbound") | (string & {})) | null);
+/** Current call start time, or null when unknown. */
+"started_at": (string | null);
+/** Canonical transport outcome; distinct from the model snapshot’s business contact-log outcome. */
+"outcome": (("answered_human" | "answered_ai" | "voicemail" | "no_answer" | "busy" | "failed" | "unknown") | (string & {}));
+/** Explicitly granted bounded stored call summary. */
+"summary": (string | null);
+/** Explicitly granted stored call sentiment, when present. */
+"sentiment": (string | null);
+/** Explicitly granted stored transcript text, when present. */
+"transcript": (string | null);
+/** Whether the stored transcript exceeds this bounded view. */
+"transcript_truncated": boolean
+}> | null);
+/** Explicitly granted canonical customer payment evidence. Opaque display ids never authorize an action; incomplete never means unpaid. */
+"payments": ({
+/** Whether the canonical merchant reader proved complete history. */
+"complete": boolean;
+/** Current recorded number, or null when unknown. */
+"checkedAt": (number | null);
+/** At most five canonical current customer payment evidence items. */
+"items": Array<{
+/** Opaque display-only evidence digest; never a selector or capability. */
+"id": string;
+/** Canonical financial evidence status. */
+"status": (("paid" | "pending" | "processing" | "failed" | "expired" | "cancelled" | "refunded" | "partially_refunded" | "review") | (string & {}));
+/** Expected amount in minor currency units. */
+"amountMinor": number;
+/** Actually received amount in minor currency units. */
+"amountReceivedMinor": number;
+/** Known refunded amount in minor units, or null when unknown. */
+"refundedAmountMinor": (number | null);
+/** Lowercase three-letter currency code. */
+"currency": string;
+/** Current recorded number, or null when unknown. */
+"createdAt": (number | null);
+/** Current stored text, or null when unavailable. */
+"description": (string | null);
+/** Opaque booking-payment reference when present; no provider id. */
+"reference": (string | null);
+/** True only for real merchant evidence; test data is never live proof. */
+"livemode": boolean;
+/** Whether this evidence was checked against Stripe or is stored-only. */
+"verification": (("stripe" | "stored") | (string & {}));
+/** Current recorded number, or null when unknown. */
+"checkedAt": (number | null);
+/** Current stored text, or null when unavailable. */
+"appointmentStatus": (string | null);
+/** Canonical human-readable amount, when supplied. */
+"amountHuman"?: string;
+/** Canonical human-readable date, when supplied. */
+"createdAtHuman"?: string
+}>
+} | null);
+/** Explicit coverage for every independently authorized content section. */
+"coverage": {
+/** Coverage of this exact requested section; unavailable is never an empty history. */
+"notes": {
+/** Whether this requested section is complete, bounded or unavailable. */
+"status": (("not_requested" | "complete" | "partial" | "unavailable") | (string & {}));
+/** Number of authorized items actually included. */
+"included": number;
+/** Known complete total, or null when the read cannot prove it. */
+"total": (number | null);
+/** Closed operational coverage explanation, or null. */
+"reason": (string | null)
+};
+/** Coverage of this exact requested section; unavailable is never an empty history. */
+"custom_values": {
+/** Whether this requested section is complete, bounded or unavailable. */
+"status": (("not_requested" | "complete" | "partial" | "unavailable") | (string & {}));
+/** Number of authorized items actually included. */
+"included": number;
+/** Known complete total, or null when the read cannot prove it. */
+"total": (number | null);
+/** Closed operational coverage explanation, or null. */
+"reason": (string | null)
+};
+/** Coverage of this exact requested section; unavailable is never an empty history. */
+"messages": {
+/** Whether this requested section is complete, bounded or unavailable. */
+"status": (("not_requested" | "complete" | "partial" | "unavailable") | (string & {}));
+/** Number of authorized items actually included. */
+"included": number;
+/** Known complete total, or null when the read cannot prove it. */
+"total": (number | null);
+/** Closed operational coverage explanation, or null. */
+"reason": (string | null)
+};
+/** Coverage of this exact requested section; unavailable is never an empty history. */
+"calls": {
+/** Whether this requested section is complete, bounded or unavailable. */
+"status": (("not_requested" | "complete" | "partial" | "unavailable") | (string & {}));
+/** Number of authorized items actually included. */
+"included": number;
+/** Known complete total, or null when the read cannot prove it. */
+"total": (number | null);
+/** Closed operational coverage explanation, or null. */
+"reason": (string | null)
+};
+/** Coverage of this exact requested section; unavailable is never an empty history. */
+"payments": {
+/** Whether this requested section is complete, bounded or unavailable. */
+"status": (("not_requested" | "complete" | "partial" | "unavailable") | (string & {}));
+/** Number of authorized items actually included. */
+"included": number;
+/** Known complete total, or null when the read cannot prove it. */
+"total": (number | null);
+/** Closed operational coverage explanation, or null. */
+"reason": (string | null)
+};
+/** Coverage of this exact requested section; unavailable is never an empty history. */
+"recordings": {
+/** Whether this requested section is complete, bounded or unavailable. */
+"status": (("not_requested" | "complete" | "partial" | "unavailable") | (string & {}));
+/** Number of authorized items actually included. */
+"included": number;
+/** Known complete total, or null when the read cannot prove it. */
+"total": (number | null);
+/** Closed operational coverage explanation, or null. */
+"reason": (string | null)
+};
+/** Coverage of this exact requested section; unavailable is never an empty history. */
+"attachments": {
+/** Whether this requested section is complete, bounded or unavailable. */
+"status": (("not_requested" | "complete" | "partial" | "unavailable") | (string & {}));
+/** Number of authorized items actually included. */
+"included": number;
+/** Known complete total, or null when the read cannot prove it. */
+"total": (number | null);
+/** Closed operational coverage explanation, or null. */
+"reason": (string | null)
+}
+};
+/** Optional canonical model-facing projections with the existing sanitizer and exact total budgets; typed context remains separate. */
+"model_context": ({
+/** JSON serialized only after the canonical model projector and total content budget. */
+"context_json": string;
+/** Canonical lean automation JSON, or null without a current lead. */
+"lead_automation_json": (string | null)
+} | null)
+};
+"Event": {
+/** Always event. */
+"object": "event";
+/** Stable opaque transition identity; deduplicate deliveries by this value. */
+"id": string;
+/** Captured lifecycle transition, distinct from acceptance of an asynchronous request. */
+"name": (("operation.completed" | "call.completed" | "call.analysis_completed" | "booking.created" | "booking.rescheduled" | "booking.cancelled" | "assistant_run.completed") | (string & {}));
+/** Kind of retained resource referenced by this event. */
+"resource_type": (("operation" | "call" | "booking") | (string & {}));
+/** Current opaque ID of the exact retained resource incarnation. */
+"resource_id": (`op_${string}` | string | string);
+/** Captured metadata status; outcome_unknown must be reconciled before repeating an effect. */
+"status": (("succeeded" | "failed" | "cancelled" | "outcome_unknown" | "completed" | "ready" | "unavailable" | "created" | "rescheduled") | (string & {}));
+/** Source transition time in UTC. */
+"occurred_at": string
+};
+"EventList": {
+/** Always event_list. */
+"object": "event_list";
+/** Authorized retained transitions in capture order; withheld entries still advance the cursor. */
+"data": Array<Schemas["Event"]>;
+/** Continue immediately with next_cursor while true, including when data is empty. */
+"has_more": boolean;
+/** Opaque cursor bound to this integration and selected team; save it after processing the page. */
+"next_cursor": string
+};
+/** Content-free organization handoff result; destination contacts, source content and provider selectors remain private. */
+"FamilyHandoffReceipt": {
+/** Always family_handoff_receipt. */
+"object": "family_handoff_receipt";
+/** Canonical accepted disposition, or identity ambiguity awaiting human review. */
+"status": (("accepted" | "needs_review") | (string & {}));
+/** Configured receiving office slug; no internal destination team id. */
+"office": string;
+/** Whether the canonical source lead was transferred, preserving pending-work fences. */
+"moved_source": boolean;
+/** True only when the canonical notification and push outbox were committed. This does not claim delivery. */
+"notification_queued": boolean
 };
 /** One change: the record's current state, or its removal. */
 "FeedItem": ExclusiveUnion<({
@@ -458,6 +1389,32 @@ export interface Schemas {
 "has_more": boolean;
 /** Always present, even on an empty page. Store it after applying the page and send it on the next call. */
 "next_cursor": string
+};
+/** Source-proven canonical first-reply receipt with bounded context and no provider identifiers. */
+"FirstReplyReceipt": {
+/** Always first_reply_receipt. */
+"object": "first_reply_receipt";
+/** Current source-proven context, or null when no content may be disclosed. */
+"first_reply": ({
+/** Always first_reply_v1. */
+"capability": "first_reply_v1";
+/** Actual campaign delivery, preparation or suppression status. */
+"status": string;
+/** Canonical bounded explanation when available. */
+"reason"?: string;
+/** Language selected by the canonical first-reply policy. */
+"language"?: string;
+/** Authorized bounded text from the canonical campaign receipt. */
+"sent_content": Array<string>;
+/** Authorized bounded text prepared for the visitor when present. */
+"prepared_content"?: Array<string>;
+/** Last delivered question when the canonical campaign recorded one. */
+"last_delivered_question"?: string
+} | null);
+/** Whether the canonical campaign or human ownership suppresses the normal assistant reply. */
+"skip_ai_reply": boolean;
+/** Opaque prepared webchat content reference, or null. Resolve it with the same current content permissions. */
+"prepared_reference": (string | null)
 };
 /** The API is up. */
 "Health": {
@@ -1115,8 +2072,7 @@ export interface Schemas {
 /** Opaque cursor for the next page, or null on the last page. Never parse it. */
 "next_cursor": (string | null)
 };
-/** A lead mutation and its current public projection; use its ETag for the next conditional write. */
-"LeadMutation": {
+"LeadMutation": ({
 /** Always lead_mutation. */
 "object": "lead_mutation";
 /** True only when this call created a new lead. */
@@ -1129,7 +2085,18 @@ export interface Schemas {
 /** Closed guard reason when withheld, otherwise null. */
 "reason": (string | null)
 }
-};
+} | {
+/** Always lead_source_mutation. */
+"object": "lead_source_mutation";
+/** True only when this operation created the retained lead. */
+"created": boolean;
+/** Whether the source values changed; an inert repeat is false. */
+"changed": boolean;
+/** For voice registration, whether the genuinely created contact was linked to this execution. A different stated contact stays held and grants no subsequent source access. */
+"registered_lead_linked"?: boolean;
+/** Current authorized source receipt, or null when an unverified duplicate must remain unlinked. */
+"lead": (Schemas["LeadSourceReceipt"] | null)
+});
 /** Lead note body. */
 "LeadNote": {
 /** Public id of the record. */
@@ -1151,8 +2118,7 @@ export interface Schemas {
 /** When Totem recorded this version (UTC). It is not the time the business event happened. */
 "updated_at": string
 };
-/** A cursor-paged list of this lead’s notes, requiring an explicit note-content grant. */
-"LeadNoteList": {
+"LeadNoteList": ExclusiveUnion<({
 /** Always `list`. */
 "object": "list";
 /** The items of this page. */
@@ -1180,7 +2146,16 @@ export interface Schemas {
 "has_more": boolean;
 /** Opaque cursor for the next page, or null on the last page. Never parse it. */
 "next_cursor": (string | null)
-};
+} | {
+/** Always `list`. */
+"object": "list";
+/** The items of this page. */
+"data": Array<Schemas["LeadNoteSource"]>;
+/** `true` when another page follows: fetch it with `next_cursor`, even if this page holds fewer items than `limit`. */
+"has_more": boolean;
+/** Opaque cursor for the next page, or null on the last page. Never parse it. */
+"next_cursor": (string | null)
+})>;
 /** Lead note metadata without its content; safe for a write-only receipt or replay. */
 "LeadNoteMetadata": {
 /** Opaque stable note id, bound to this team and lead incarnation; never parse it. */
@@ -1200,11 +2175,107 @@ export interface Schemas {
 /** Your integration’s external id for this note, or null; other integrations’ ids are withheld. */
 "external_id": (string | null)
 };
-/** Metadata of the note written, without its body or other notes; safe to replay after a human edits the content. */
-"LeadNoteReceipt": {
+"LeadNoteReceipt": ({
 /** Always lead_note_receipt. */
 "object": "lead_note_receipt";
 "note": Schemas["LeadNoteMetadata"]
+} | {
+/** Always lead_note_source_mutation. */
+"object": "lead_note_source_mutation";
+/** Whether this logical operation created the note. */
+"created": boolean;
+/** Whether this operation deleted its reviewed note incarnation. */
+"deleted": boolean;
+/** Live source metadata or the deleted note identity, never content. */
+"note": ({
+/** Opaque id of this exact note incarnation. */
+"id": string;
+/** Current authorized parent lead. */
+"lead": string;
+/** Always lead_note_source_receipt. */
+"object": "lead_note_source_receipt";
+/** Strong validator bound to the current note and parent lead incarnations and source values. */
+"etag": string;
+/** Actual current source update time. */
+"updated_at": string
+} | {
+/** Opaque id of this exact note incarnation. */
+"id": string;
+/** Current authorized parent lead. */
+"lead": string;
+/** Always lead_note_source_deletion; it names the deleted incarnation only. */
+"object": "lead_note_source_deletion"
+})
+});
+/** Current retained note content under its independent read grant, without an inventory version. */
+"LeadNoteSource": {
+/** Current authorized parent lead. */
+"lead": string;
+/** CRM note text; requires the explicit note-content grant. */
+"body": string;
+/** When this note was created. */
+"created_at": string;
+/** The caller’s own external id, or null. Canonical feed objects withhold all integration namespaces. */
+"external_id": (string | null);
+/** Opaque id of this exact note incarnation. */
+"id": string;
+/** Always lead_note_source. */
+"object": "lead_note_source";
+/** Strong validator bound to the current note and parent lead incarnations and source values. */
+"etag": string;
+/** Actual source update time of this note. */
+"updated_at": string
+};
+/** Content-free proof that this operation deleted the reviewed note incarnation. */
+"LeadNoteSourceDeletion": {
+/** Opaque id of this exact note incarnation. */
+"id": string;
+/** Current authorized parent lead. */
+"lead": string;
+/** Always lead_note_source_deletion; it names the deleted incarnation only. */
+"object": "lead_note_source_deletion"
+};
+/** Current source note mutation metadata; safe for write-only integrations and replay. */
+"LeadNoteSourceMutation": {
+/** Always lead_note_source_mutation. */
+"object": "lead_note_source_mutation";
+/** Whether this logical operation created the note. */
+"created": boolean;
+/** Whether this operation deleted its reviewed note incarnation. */
+"deleted": boolean;
+/** Live source metadata or the deleted note identity, never content. */
+"note": ({
+/** Opaque id of this exact note incarnation. */
+"id": string;
+/** Current authorized parent lead. */
+"lead": string;
+/** Always lead_note_source_receipt. */
+"object": "lead_note_source_receipt";
+/** Strong validator bound to the current note and parent lead incarnations and source values. */
+"etag": string;
+/** Actual current source update time. */
+"updated_at": string
+} | {
+/** Opaque id of this exact note incarnation. */
+"id": string;
+/** Current authorized parent lead. */
+"lead": string;
+/** Always lead_note_source_deletion; it names the deleted incarnation only. */
+"object": "lead_note_source_deletion"
+})
+};
+/** Metadata-only source write receipt; no note text or other notes. */
+"LeadNoteSourceReceipt": {
+/** Opaque id of this exact note incarnation. */
+"id": string;
+/** Current authorized parent lead. */
+"lead": string;
+/** Always lead_note_source_receipt. */
+"object": "lead_note_source_receipt";
+/** Strong validator bound to the current note and parent lead incarnations and source values. */
+"etag": string;
+/** Actual current source update time. */
+"updated_at": string
 };
 /** How the team has answered a lead across its conversations and calls: the latest messages each way and whether a reply is due. It uses its lead's id. */
 "LeadResponse": {
@@ -1242,32 +2313,231 @@ export interface Schemas {
 /** When Totem recorded this version (UTC). It is not the time the business event happened. */
 "updated_at": string
 };
-/** The persisted lead result, or a validation-only result without a mutation. */
-"LeadUpsertResult": ({
-/** Always lead_mutation. */
-"object": "lead_mutation";
-/** True only when this call created a new lead. */
-"created": boolean;
-"lead": Schemas["Lead"];
-/** Intake outreach disposition, present on upsert responses. */
-"outreach"?: {
-/** not_armed for imports; withheld when a guard blocks intake outreach; eligible means queued under the team’s ordinary intake rules, never a delivery promise. */
-"status": (("not_armed" | "withheld" | "eligible") | (string & {}));
-/** Closed guard reason when withheld, otherwise null. */
-"reason": (string | null)
+/** Current canonical CRM lead projection, available through the explicit operational context permission without inventing a capture version. */
+"LeadSource": {
+/** The team the record belongs to. */
+"team": string;
+/** `lead` when the record has a pipeline status, otherwise `client`. A lead whose status this version does not know reads `status: null`. */
+"record_kind": (("lead" | "client") | (string & {}));
+/** First name or display name, or null. */
+"name": (string | null);
+/** Surname, or null. */
+"surname": (string | null);
+/** Civil date of birth in YYYY-MM-DD, without a time or timezone; null when missing, cleared or invalid. */
+"date_of_birth": (string | null);
+/** Email address as stored, or null. */
+"email": (string | null);
+/** Company, or null. */
+"company": (string | null);
+/** Contact website as stored, without fetching it, or null. */
+"website": (string | null);
+/** Phone in E.164, only when the stored number validates; otherwise null. */
+"phone": (string | null);
+/** `valid` (see `phone`), `invalid` (a number is stored but does not validate, for example one stored without its country prefix) or `missing`. */
+"phone_status": (("valid" | "invalid" | "missing") | (string & {}));
+/** Pipeline status; null for a client record, or for a status this version does not know. `converted` is not "won". */
+"status": ((("new" | "contacted" | "qualified" | "negotiating" | "converted" | "lost" | "archived" | "unreachable") | (string & {})) | null);
+/** Who set the current status: a person, the AI, Totem automation, an API caller, or unknown (no recorded transition lands on it). Null when `status` is null. */
+"status_set_by": ((("human" | "ai" | "system" | "api" | "unknown") | (string & {})) | null);
+/** Why the record was archived, as a closed code; stored free text is `other`. Null when none is stored. */
+"archive_reason": ((("opt_out" | "no_consent" | "not_interested" | "not_qualified" | "no_contact" | "merged" | "family_transfer" | "other") | (string & {})) | null);
+/** The status the lead had before its current archive; null while it is not archived or when unknown. */
+"archived_from_status": ((("new" | "contacted" | "qualified" | "negotiating" | "converted" | "lost" | "archived" | "unreachable") | (string & {})) | null);
+/** Contact permissions. Apply them before any outreach from your own systems. */
+"contact_permissions": {
+/** True when the person asked never to be contacted (the `opt_out` archive reason). Stop every channel. */
+"do_not_contact": boolean;
+/** True when the person unsubscribed from marketing and follow-up email. */
+"email_opt_out": boolean;
+/** When the email opt-out was recorded, or null. */
+"email_opt_out_at": (string | null);
+/** WhatsApp consent: false when refused, true when recorded, null when unknown. */
+"whatsapp_consent": (boolean | null);
+/** The source of each permission. */
+"provenance": {
+/** Where `do_not_contact` comes from, or null when it is false. */
+"do_not_contact": ((("archive_reason") | (string & {})) | null);
+/** Who recorded the email opt-out: the unsubscribe link, a person in Totem, or unknown. Null when there is none. */
+"email_opt_out": ((("unsubscribe_link" | "manual" | "unknown") | (string & {})) | null);
+/** `archive_reason` when a refusal is recorded as the archive reason; `stored` for the value kept on the record, which team members can edit. Null when unknown. */
+"whatsapp_consent": ((("stored" | "archive_reason") | (string & {})) | null)
 }
-} | {
-/** Always lead_validation. */
-"object": "lead_validation";
-/** The request passed validation; no mutation or outreach was performed. */
-"valid": true
-});
+};
+/** The lead this record was merged into, or null (also when that lead no longer exists). */
+"merged_into": (string | null);
+/** Where a transfer to another team of your organization sent this lead, or null. The team may be one your key does not read. */
+"transferred_to": ({
+/** The destination team. */
+"team": string;
+/** The destination lead, or null when its id cannot be named across teams: an assistant handoff created it, or the transfer landed on an existing lead-ads lead (Meta, Google Ads or LinkedIn) or another lead with a fixed id. */
+"lead": (string | null)
+} | null);
+/** When the contact last came back on their own and revived an archived lead, or null. */
+"revived_at": (string | null);
+/** True when the lead was converted with "clear pipeline data": board, stage, priority, assignees, estimated value and the source fields other than `source_channel` are null because they were cleared. */
+"pipeline_cleared": boolean;
+/** When the lead was converted, while its status is `converted`; otherwise null. */
+"converted_at": (string | null);
+/** The estimated value when it was converted, in major units. Survives "clear pipeline data". */
+"value_at_conversion": (number | null);
+/** Priority, or null. */
+"priority": ((("low" | "medium" | "high" | "urgent") | (string & {})) | null);
+/** Labels as stored. `lead` and `booking` are system labels. */
+"tags": Array<string>;
+/** The board, resolved through the stage when it has one; or null. */
+"board": (string | null);
+/** The stage, or null. */
+"stage": (string | null);
+/** Assigned members, sorted. Null when the record has no pipeline data. */
+"assignees": (Array<string> | null);
+/** Estimated value in major units as stored (decimals allowed), or null. */
+"estimated_value": (number | null);
+/** Always null: Totem stores no currency with the value. */
+"estimated_value_currency": null;
+/** The stored lead source; `api` also covers leads created by Totem itself (for example from a conversation or a call), see `source_detail`. Null when none is stored. */
+"source": ((("meta_lead_ads" | "manual" | "website_form" | "booking_page" | "csv_import" | "api" | "chatbot" | "google_ads" | "linkedin" | "other") | (string & {})) | null);
+/** The channel the record started on (for example `whatsapp`, `phone`, `widget`), or null. Team members can edit it. */
+"source_channel": (string | null);
+/** `conversation`, `call`, `external:<provider>`, `gated_ad:<source>`, `family_handoff`, `api_intake` or `unknown`; null when `source` needs no detail. */
+"source_detail": (string | null);
+/** `server_written` when Totem set the source from what the ad platform reported; otherwise `member_editable` (team members can change it). Null with `source`. */
+"source_provenance": ((("server_written" | "member_editable") | (string & {})) | null);
+/** When the record was created. */
+"created_at": string;
+/** Opaque current lead id, scoped to the authorized team and incarnation. */
+"id": string;
+/** Strong ETag of the exact retained lead source shown here; never an export capture version. */
+"etag": string;
+/** Actual source update time of this retained snapshot. */
+"updated_at": string;
+/** Always lead_source; this is not a captured Lead version. */
+"object": "lead_source"
+};
+/** Source-backed CRM mutation metadata. It never invents an inventory version or grants read access through a write. */
+"LeadSourceMutation": {
+/** Always lead_source_mutation. */
+"object": "lead_source_mutation";
+/** True only when this operation created the retained lead. */
+"created": boolean;
+/** Whether the source values changed; an inert repeat is false. */
+"changed": boolean;
+/** For voice registration, whether the genuinely created contact was linked to this execution. A different stated contact stays held and grants no subsequent source access. */
+"registered_lead_linked"?: boolean;
+/** Current authorized source receipt, or null when an unverified duplicate must remain unlinked. */
+"lead": (Schemas["LeadSourceReceipt"] | null)
+};
+/** Write receipt metadata only: no contact details or CRM content. */
+"LeadSourceReceipt": {
+/** Opaque current lead id, scoped to the authorized team and incarnation. */
+"id": string;
+/** Strong ETag of the exact retained lead source shown here; never an export capture version. */
+"etag": string;
+/** Actual source update time of this retained snapshot. */
+"updated_at": string;
+/** Always lead_source_receipt. */
+"object": "lead_source_receipt"
+};
+/** The persisted lead result, or a validation-only result without a mutation. */
+"LeadUpsertResult": (Schemas["LeadMutation"] | Schemas["LeadValidation"]);
 /** A successful dry run; it never represents a persisted lead. */
 "LeadValidation": {
 /** Always lead_validation. */
 "object": "lead_validation";
 /** The request passed validation; no mutation or outreach was performed. */
 "valid": true
+};
+"LibraryDeliveryReceipt": {
+/** Always library_delivery_receipt. */
+"object": "library_delivery_receipt";
+/** Current durable delivery state. Reconcile partial or uncertain delivery before repeating it. */
+"status": (("sent" | "partial" | "uncertain" | "failed" | "held" | "in_progress" | "prepared") | (string & {}));
+/** Parts with retained provider acceptance; prepared web chat parts are separate. */
+"sent_parts": number;
+/** Total parts of this reviewed delivery. */
+"total_parts": number;
+/** True only for a persisted web chat response prepared for the caller to render. */
+"prepared": boolean;
+/** Current source-bound prepared response reference, or null for other delivery states. */
+"prepared_reference": (string | null);
+/** Closed delivery disposition without private provider errors. */
+"reason": (("none" | "already_sent" | "resource_changed" | "conversation_changed" | "session_closed" | "delivery_refused" | "provider_outcome_unknown" | "content_erased" | "not_prepared") | (string & {}))
+};
+"LibraryEntry": {
+/** Always library_entry. */
+"object": "library_entry";
+/** Current server-issued opaque content reference; never parse or modify it. */
+"reference": string;
+/** Current entry display name. */
+"name": string;
+/** Current authored entry description. */
+"description": string;
+/** A text message, media entry or ordered sequence. */
+"type": (("message" | "media" | "sequence") | (string & {}));
+/** Current authored revision; sending requires the revision you reviewed. */
+"revision": number;
+/** Number of sendable parts in this current entry. */
+"part_count": number;
+/** Number of files in this current entry. */
+"file_count": number;
+/** Bounded authorized content preview. */
+"preview": string;
+/** Configured entry language, or null. */
+"language": (string | null);
+/** Ordered authorized parts, included by the detail read. */
+"parts"?: Array<{
+/** Text or media part of this entry. */
+"kind": (("message" | "media") | (string & {}));
+/** Authored message or media caption text. */
+"text": string;
+/** Stored file name when available, otherwise null. */
+"file_name": (string | null);
+/** Stored media type when available, otherwise null. */
+"media_type": (string | null)
+}>
+};
+"LibraryEntryList": {
+/** Always library_entry_list. */
+"object": "library_entry_list";
+/** Current permitted entries on this page. */
+"data": Array<Schemas["LibraryEntry"]>;
+/** Opaque next-page cursor, or null after the last page. */
+"next_cursor": (string | null);
+/** Whether more discovery pages remain or this result is complete. */
+"coverage": (("page" | "complete") | (string & {}));
+/** Total entries when established by the bounded discovery, otherwise null. */
+"total": (number | null);
+/** Number of entries matched within this returned page. */
+"matched_in_page": number
+};
+"LibraryPreparedResponse": {
+/** Always library_prepared_response. */
+"object": "library_prepared_response";
+/** Prepared visitor response format version, always one. */
+"version": 1;
+/** Ordered persisted visitor messages; preserve this order when rendering. */
+"messages": Array<{
+/** Stable opaque prepared message identity for visitor rendering. */
+"id": string;
+/** Always assistant. */
+"role": "assistant";
+/** Prepared visitor message type. */
+"kind": (("text" | "image" | "video" | "audio" | "document") | (string & {}));
+/** Prepared text or caption when present. */
+"content"?: string;
+/** Persisted message time in UTC. */
+"timestamp": string;
+/** File metadata and an opaque attachment reference; resolve it with its separate permission. */
+"media"?: {
+/** Current server-issued opaque content reference; never parse or modify it. */
+"attachment_reference": string;
+/** Canonical file MIME type. */
+"mime_type": string;
+/** Canonical file name when known, otherwise null. */
+"file_name": (string | null);
+/** Known file size in bytes, otherwise null. */
+"file_size": (number | null)
+}
+}>
 };
 /** The integration that owns the key, with the teams the key reads. */
 "Me": {
@@ -1289,7 +2559,7 @@ export interface Schemas {
 /** The teams this key reads today. Their details are in `GET /v1/teams`. */
 "teams": Array<string>;
 /** The key’s explicitly granted scopes; old read-only keys never gain writes or note content implicitly. */
-"scopes": Array<(("teams:read" | "crm:read" | "calls:read" | "messages:read" | "calendar:read" | "crm:write" | "crm:notes:read" | "tasks:write" | "notifications:write" | "crm:custom_values:read" | "crm:custom_values:write" | "knowledge:read") | (string & {}))>
+"scopes": Array<(("teams:read" | "crm:read" | "calls:read" | "messages:read" | "calendar:read" | "crm:write" | "crm:notes:read" | "tasks:write" | "notifications:write" | "notifications:incidents:write" | "calendar:availability:read" | "calendar:write" | "calendar:payments:read" | "calendar:payment_links:send" | "messages:send" | "crm:context:read" | "events:read" | "crm:scheduled_contacts:write" | "crm:handoff:write" | "calls:write" | "referrals:write" | "quotes:write" | "assistants:run" | "crm:custom_values:read" | "crm:custom_values:write" | "knowledge:read" | "messages:content:read" | "calls:transcripts:read" | "calls:recordings:read" | "attachments:read" | "library:read" | "catalog:read" | "payments:read" | "calls:analysis:write" | "calendar:analysis:write") | (string & {}))>
 };
 /** A team member, by display name only: Totem exports no email, phone or role. */
 "Member": {
@@ -1314,6 +2584,29 @@ export interface Schemas {
 "has_more": boolean;
 /** Opaque cursor for the next page, or null on the last page. Never parse it. */
 "next_cursor": (string | null)
+};
+/** Configured sender references without provider identifiers or credentials. */
+"MessageChannels": {
+/** Identifies a configured message sender inventory. */
+"object": "message_channels";
+/** Current configured senders, limited to one hundred entries. References are scoped to this integration and team. */
+"channels": Array<{
+/** Opaque reference to one current configured sender returned by messages.channels. A changed connection invalidates it. */
+"reference": string;
+/** Messaging channel served by this configured sender. */
+"channel_type": (("whatsapp" | "facebook" | "instagram" | "tiktok" | "email" | "sms" | "chatbot") | (string & {}));
+/** Configured sender display name. */
+"name": string
+}>
+};
+/** Current-source message result without body, destination or provider identifiers. */
+"MessageReceipt": {
+/** Identifies a retained message delivery result. */
+"object": "message_receipt";
+/** Sent requires actual provider acceptance; prepared identifies a retained web chat response awaiting its delivery surface. */
+"status": (("sent" | "prepared") | (string & {}));
+/** Current conversation in the selected team. Tenant integrations must supply its identifier; hosted processing may derive its exact signed source. */
+"conversation_id": string
 };
 /** A business notification, including its summary and linked lead, call or conversation. Personal notes and technical alerts are excluded. */
 "Notification": {
@@ -1363,6 +2656,13 @@ export interface Schemas {
 "object": "notification_receipt";
 /** Opaque notification id bound to its team and incarnation. */
 "id": string;
+/** Present only for an explicitly authorized incident report; it never asserts verified attendance or delivery. */
+"handoff"?: {
+/** The explicit customer-reported incident reason. */
+"reason": "missed_team_appointment";
+/** Current canonical state: pending human attention, already resolved by a human, or only an alert because no source-bound lead exists. */
+"incident": (("pending_human" | "resolved" | "lead_missing") | (string & {}))
+};
 /** Notification status recorded by the operation. */
 "status": (("new" | "archived") | (string & {}))
 };
@@ -1375,7 +2675,7 @@ export interface Schemas {
 /** Durable operation state; outcome_unknown must be reconciled before repeating the effect. */
 "status": (("queued" | "running" | "succeeded" | "failed" | "cancelled" | "outcome_unknown") | (string & {}));
 /** The original endpoint executed by this operation. */
-"endpoint": (("tasks.create" | "tasks.complete" | "notifications.create") | (string & {}));
+"endpoint": (("tasks.create" | "tasks.complete" | "notifications.create" | "bookings.create" | "bookings.cancel" | "bookings.reschedule" | "bookingPayments.sendLink" | "messages.send" | "messages.requestInfo" | "messages.prepareReply" | "calls.start" | "library.send" | "catalog.send" | "quotes.recordOutcome" | "assistants.run") | (string & {}));
 /** When this operation was accepted, in UTC. */
 "created_at": string;
 /** When its current state was recorded, in UTC. */
@@ -1393,8 +2693,120 @@ export interface Schemas {
 "object": "notification_receipt";
 /** Opaque notification id bound to its team and incarnation. */
 "id": string;
+/** Present only for an explicitly authorized incident report; it never asserts verified attendance or delivery. */
+"handoff"?: {
+/** The explicit customer-reported incident reason. */
+"reason": "missed_team_appointment";
+/** Current canonical state: pending human attention, already resolved by a human, or only an alert because no source-bound lead exists. */
+"incident": (("pending_human" | "resolved" | "lead_missing") | (string & {}))
+};
 /** Notification status recorded by the operation. */
 "status": ("new" | "archived")
+} | {
+/** Always booking_receipt. */
+"object": "booking_receipt";
+/** Booking id. */
+"id": string;
+/** Verified current booking outcome; unchanged means no new booking mutation. */
+"status": ("scheduled" | "cancelled" | "rescheduled" | "unchanged");
+/** Original booking when a reschedule replaced it, otherwise null. */
+"previous_id": (string | null)
+} | {
+/** Always booking_payment_receipt. */
+"object": "booking_payment_receipt";
+/** Server-issued opaque calendar reference; never parse or modify it. */
+"reference": string;
+/** Current payment requirement, reconciliation state or accepted link send. */
+"outcome": (("payment_required" | "payment_processing" | "payment_review" | "link_sent") | (string & {}));
+/** Always false: a payment request or sent link does not confirm a booking. */
+"booking_confirmed": false
+} | {
+/** Identifies a retained message delivery result. */
+"object": "message_receipt";
+/** Sent requires actual provider acceptance; prepared identifies a retained web chat response awaiting its delivery surface. */
+"status": ("sent" | "prepared");
+/** Current conversation in the selected team. Tenant integrations must supply its identifier; hosted processing may derive its exact signed source. */
+"conversation_id": string
+} | {
+/** Always requested_info_receipt. */
+"object": "requested_info_receipt";
+/** Whether this admission created the queued request or found an existing request in progress. This is an admission snapshot. */
+"status": ("queued" | "already_queued");
+/** Configured response channel chosen by current staff policy. */
+"channel": (("whatsapp" | "email") | (string & {}));
+/** This queue acknowledgement does not attest delivery, including when read again after dispatch. */
+"delivery_confirmed": false;
+/** Whether the configured response includes the requested information field. */
+"includes_requested_detail": boolean;
+/** The canonical queue estimate at admission, in minutes; not a delivery guarantee. */
+"eta_minutes": 5
+} | {
+/** Always first_reply_receipt. */
+"object": "first_reply_receipt";
+/** Current source-proven context, or null when no content may be disclosed. */
+"first_reply": ({
+/** Always first_reply_v1. */
+"capability": "first_reply_v1";
+/** Actual campaign delivery, preparation or suppression status. */
+"status": string;
+/** Canonical bounded explanation when available. */
+"reason"?: string;
+/** Language selected by the canonical first-reply policy. */
+"language"?: string;
+/** Authorized bounded text from the canonical campaign receipt. */
+"sent_content": Array<string>;
+/** Authorized bounded text prepared for the visitor when present. */
+"prepared_content"?: Array<string>;
+/** Last delivered question when the canonical campaign recorded one. */
+"last_delivered_question"?: string
+} | null);
+/** Whether the canonical campaign or human ownership suppresses the normal assistant reply. */
+"skip_ai_reply": boolean;
+/** Opaque prepared webchat content reference, or null. Resolve it with the same current content permissions. */
+"prepared_reference": (string | null)
+} | {
+/** Always call_start_receipt. */
+"object": "call_start_receipt";
+/** The provider accepted call initiation. This is not evidence that the person answered or the call completed. */
+"status": "accepted";
+/** Opaque canonical call id when its retained record exists; otherwise null. Never a raw provider id. */
+"call_id": (string | null)
+} | {
+/** Always quote_outcome_receipt. */
+"object": "quote_outcome_receipt";
+/** Canonical commercial disposition was recorded. This does not claim independent verification of the external quote or delivery. */
+"status": "recorded";
+/** External delivery evidence was attested by the caller. */
+"delivery_evidence": "caller_attested"
+} | {
+/** Always assistant_run_receipt. */
+"object": "assistant_run_receipt";
+/** The original canonical turn completed with an actual retained assistant reply, not merely queue admission. */
+"status": "completed";
+/** Opaque current conversation. Read reply bodies through conversations.messages with its separate current content grant. */
+"conversation_id": string
+} | {
+/** Always library_delivery_receipt. */
+"object": "library_delivery_receipt";
+/** Current durable delivery state. Reconcile partial or uncertain delivery before repeating it. */
+"status": ("sent" | "partial" | "uncertain" | "failed" | "held" | "in_progress" | "prepared");
+/** Parts with retained provider acceptance; prepared web chat parts are separate. */
+"sent_parts": number;
+/** Total parts of this reviewed delivery. */
+"total_parts": number;
+/** True only for a persisted web chat response prepared for the caller to render. */
+"prepared": boolean;
+/** Current source-bound prepared response reference, or null for other delivery states. */
+"prepared_reference": (string | null);
+/** Closed delivery disposition without private provider errors. */
+"reason": (("none" | "already_sent" | "resource_changed" | "conversation_changed" | "session_closed" | "delivery_refused" | "provider_outcome_unknown" | "content_erased" | "not_prepared") | (string & {}))
+} | {
+/** Always catalog_send_receipt. */
+"object": "catalog_send_receipt";
+/** The accepted single-product or product-list provider format. */
+"sent_as": (("catalog_product" | "catalog_product_list") | (string & {}));
+/** Number of reviewed variants in the accepted selection. */
+"variant_count": number
 }) | null);
 /** Safe failure information, or null. */
 "error": ({
@@ -1418,6 +2830,49 @@ export interface Schemas {
 "param"?: string;
 /** The docs entry for this code: when it happens and what to do. */
 "doc_url": string
+};
+/** Content-free quote outcome receipt; no customer, provider, stage or private effect selectors. */
+"QuoteOutcomeReceipt": {
+/** Always quote_outcome_receipt. */
+"object": "quote_outcome_receipt";
+/** Canonical commercial disposition was recorded. This does not claim independent verification of the external quote or delivery. */
+"status": "recorded";
+/** External delivery evidence was attested by the caller. */
+"delivery_evidence": "caller_attested"
+};
+/** Content-free receipt with no destination existence or identity disclosure. */
+"ReferralReceipt": {
+/** Always referral_receipt. */
+"object": "referral_receipt";
+/** Submission received. Unverified duplicates are acknowledged neutrally without changing or identifying an existing contact. This does not claim approval, outreach or provider delivery. */
+"status": "received"
+};
+/** Immutable queue admission acknowledgement, without content, destination or provider identifiers. */
+"RequestedInfoReceipt": {
+/** Always requested_info_receipt. */
+"object": "requested_info_receipt";
+/** Whether this admission created the queued request or found an existing request in progress. This is an admission snapshot. */
+"status": (("queued" | "already_queued") | (string & {}));
+/** Configured response channel chosen by current staff policy. */
+"channel": (("whatsapp" | "email") | (string & {}));
+/** This queue acknowledgement does not attest delivery, including when read again after dispatch. */
+"delivery_confirmed": false;
+/** Whether the configured response includes the requested information field. */
+"includes_requested_detail": boolean;
+/** The canonical queue estimate at admission, in minutes; not a delivery guarantee. */
+"eta_minutes": 5
+};
+/** Metadata of a persisted callback promise, without customer contact details or provider selectors. */
+"ScheduledContactReceipt": {
+/** Always scheduled_contact_receipt. */
+"object": "scheduled_contact_receipt";
+"lead": Schemas["LeadSourceReceipt"];
+/** The time committed to the existing delayed-contact dispatcher. */
+"contact_at": string;
+/** Committed contact channel. This receipt does not claim provider delivery. */
+"channel": (("call" | "whatsapp") | (string & {}));
+/** Whether this operation genuinely created the contact. */
+"created": boolean
 };
 /** Minimal task receipt without task content or internal ids. */
 "TaskReceipt": {
@@ -1548,6 +3003,23 @@ export interface OperationContracts {
 
 }; body: never };
 /**
+ * Discover current booking services
+ *
+ * Reads current enabled services, descriptive options, public payment terms and published booking pages, preserving hosted assistant allowlists. No lead or captured inventory is required; availability supplies actionable option and slot references. The cursor is bound to this integration and current source configuration.
+ */
+"booking_services.options": { response: Schemas["CalendarServiceOptionsResult"]; query: {
+
+}; path: {
+
+}; body: {
+/** Ranks recognizable service names without hiding permitted fallbacks. */
+"query"?: string | undefined;
+/** Maximum services in this page, from 1 to 50. */
+"limit"?: number | undefined;
+/** Opaque cursor from this principal, source and search. */
+"cursor"?: string | undefined
+} };
+/**
  * List leads
  *
  * Returns a page of the team's leads and clients, in a stable order that carries no meaning. Filter by at most one of `board`, `stage` or `status`; a board or stage the team does not have returns an empty page. To keep a copy up to date, follow the changes feed instead of re-reading this list.
@@ -1578,6 +3050,8 @@ export interface OperationContracts {
 }; body: {
 /** Required contact contract: import never arms outreach; inbound requires an explicitly enabled principal and a phone supplied by the person. */
 "origin": ("import" | "inbound");
+/** Request a source-backed metadata receipt rather than an export capture version; operational source authorization still applies. */
+"response_view"?: "source" | undefined;
 /** Phone supplied by the person in E.164 format. */
 "phone"?: string | undefined;
 /** Contact email address. */
@@ -1620,6 +3094,149 @@ export interface OperationContracts {
 "notice_ref": string
 } | undefined
 } | undefined
+} };
+/**
+ * Read current CRM context
+ *
+ * Reads the current canonical lead and bounded team context without an export capture version. Hosted executions resolve only their retained source lead. Notes and custom values require their own explicit current content permission before any content read; the business authoring profile is never included.
+ */
+"crm.context": { response: Schemas["CrmContext"]; query: {
+
+}; path: {
+
+}; body: {
+/** Own-team retained lead. Hosted executions may name only their current canonical source lead; omit to resolve it. */
+"lead_id"?: string | undefined;
+/** Optional owned retained conversation. Tenant keys may use it for current-message context; hosted executions may name only their exact signed source. */
+"conversation_id"?: string | undefined;
+/** Explicitly request bounded note content; requires its separate content grant before any note read. */
+"include_notes"?: boolean | undefined;
+/** Explicitly request custom values with their independent content permission. */
+"include_custom_values"?: boolean | undefined;
+/** Request bounded messages of the exact current signed conversation with its independent content grant. */
+"include_messages"?: boolean | undefined;
+/** Request bounded current lead call transcript/summary evidence with its independent transcript grant. */
+"include_calls"?: boolean | undefined;
+/** Request current exact-lead merchant evidence with the separate payments content permission. */
+"include_payments"?: boolean | undefined;
+/** Request recording coverage with its separate grant; content stays unavailable until a retained reference adapter exists. */
+"include_recordings"?: boolean | undefined;
+/** Request attachment coverage with its separate grant; no provider media URL is disclosed. */
+"include_attachments"?: boolean | undefined;
+/** Additionally return the canonical bounded model projections, using the same sanitizer as the existing assistants. */
+"representation"?: "model" | undefined
+} };
+/**
+ * Schedule a requested contact
+ *
+ * Persists a requested callback after current recipient, consent, hold, channel and thirty-day checks; select an owned lead or a genuinely new contact, while hosted execution may derive its exact source. New registration and scheduling share the canonical transaction, and the receipt proves a saved promise without claiming delivery. Reuse Idempotency-Key; optional current source If-Match protects a reviewed existing lead.
+ */
+"leads.scheduleContact": { response: Schemas["ScheduledContactReceipt"]; query: {
+
+}; path: {
+
+}; body: {
+/** Current own-team lead. Hosted executions may only name their canonical current source lead. */
+"lead_id"?: string | undefined;
+/** Create a genuinely new contact and schedule through the same canonical intake operation; cannot be combined with lead_id. */
+"new_contact"?: {
+/** Name supplied by the person for a genuinely new contact. */
+"name": string;
+/** Phone supplied by the person; never used as proof of source ownership. */
+"phone": string
+} | undefined;
+/** Requested future contact time, strictly within thirty days of admission. */
+"contact_at": string;
+/** Requested business channel; current recipient and delivery configuration are validated by the server. */
+"channel": ("call" | "whatsapp");
+/** Operational callback note only; never a model prompt or call objective. */
+"note"?: string | undefined;
+/** Explicit attestation that the person requested this contact time; it never overrides opt-outs or current holds. */
+"customer_confirmed": true
+} };
+/**
+ * Hand off to a configured organization office
+ *
+ * Uses the configured organization directory and current owned source; tenant integrations select their lead while hosted execution derives its retained conversation, call or voice session. An unverified identity cannot take over an existing destination contact, and ambiguity follows human review. The content-free receipt grants no general cross-team access and does not claim delivery of a queued notification.
+ */
+"leads.handoff": { response: Schemas["FamilyHandoffReceipt"]; query: {
+
+}; path: {
+
+}; body: {
+/** Owned retained source lead, required for tenant keys; hosted execution may derive its current source without a lead yet. */
+"lead_id"?: string | undefined;
+/** Exact configured organization office slug; omit for the current office. */
+"office"?: string | undefined;
+/** Opaque current board from that configured office; omit for its canonical default. */
+"board_id"?: string | undefined;
+/** Qualified need for the receiving office, preserving relevant customer statements. */
+"summary": string;
+/** Name supplied by the person; existing canonical identity stays authoritative. */
+"name"?: string | undefined;
+/** Phone supplied by the person for the referral; never proof of authority over an existing contact. */
+"phone"?: string | undefined;
+/** Email supplied by the person; ambiguity is routed to canonical human review. */
+"email"?: string | undefined
+} };
+/**
+ * Submit a consented referral to Totem Studio
+ *
+ * Submits a consented referral through the canonical CRM engine to the fixed Totem intake; the source lead provides provenance without selecting or granting destination access. The neutral received acknowledgement reveals neither destination identity nor existing matches, and unverified matching records remain unchanged. Attest consent and reuse Idempotency-Key for retries.
+ */
+"referrals.create": { response: Schemas["ReferralReceipt"]; query: {
+
+}; path: {
+
+}; body: {
+/** Real name supplied by the person; placeholder names are rejected. */
+"name": string;
+/** Contact phone in E.164. Hosted execution may omit it only when its actual retained transport supplies a current verified phone; hidden source identifiers never become phones. */
+"phone"?: string | undefined;
+/** Qualified context for the fixed Totem referral; source provenance is attached only by the server. */
+"note": string;
+/** Business tags for a genuinely new referred contact. Existing destination tags remain authoritative. */
+"tags"?: Array<string> | undefined;
+/** Explicit attestation that the person wants Totem AI/automation contact. It is not WhatsApp marketing consent and never overrides the destination review policy. */
+"consent": true;
+/** Optional owned source lead for provenance. Hosted execution may name only its current lead; this never selects or grants access to a Totem destination contact. */
+"lead_id"?: string | undefined
+} };
+/**
+ * Record an attested external quote outcome
+ *
+ * Records the caller’s external calculator and delivery attestation against its current owned source, reusing configured commercial disposition and one-shot review or closure effects. Totem does not independently verify those external facts; callers cannot select destination teams, providers, private effects or attempt tokens. Current source, configuration and authority are rechecked before effects; reuse Idempotency-Key and reconcile outcome_unknown before repeating.
+ */
+"quotes.recordOutcome": { response: Schemas["Operation"]; query: {
+
+}; path: {
+
+}; body: {
+/** Current own-team lead; hosted execution may only name its current canonical source lead. */
+"lead_id"?: string | undefined;
+/** Exact current owned conversation for tenant integrations; hosted executions derive their retained source. */
+"conversation_id"?: string | undefined;
+/** Exact current owned call, as an alternative to conversation_id. */
+"call_id"?: string | undefined;
+/** Stable reference from the external calculator, scoped to this lead and source. */
+"quote_reference": string;
+/** SHA-256 of the exact external calculator revision attested by the caller. */
+"quote_revision_hash": string;
+/** Whether the external calculator produced a numeric offer accepted for delivery. */
+"quoted": boolean;
+/** Canonical refusal or review reason. Omit for a numeric offer. */
+"reason"?: ("BELOW_MINIMUM" | "BELOW_MINIMUM_REQUIRES_REVIEW" | "ABOVE_MAXIMUM" | "ABOVE_MAXIMUM_REQUIRES_REVIEW" | "PERSONAL_STUDY_REQUIRED") | undefined;
+/** Qualified quote summary for canonical CRM history or configured review email; never a model prompt. */
+"summary"?: string | undefined;
+/** At most one attested receipt per supported channel. Numeric quotes require a receipt; refusals cannot carry proposal deliveries. */
+"deliveries"?: Array<{
+/** External delivery channel attested by the caller. */
+"channel": ("email" | "whatsapp");
+/** External acceptance reference supplied and attested by the caller; Totem does not independently verify it. */
+"external_receipt": string;
+/** External acceptance time attested by the caller; must be current. */
+"accepted_at": string
+}> | undefined
 } };
 /**
  * Get a lead with its attribution and response
@@ -1667,6 +3284,10 @@ export interface OperationContracts {
 "estimated_value"?: (number | null) | undefined;
 /** Assigned team members, replacing the previous editable set. */
 "assignees"?: Array<string> | undefined;
+/** Current pipeline status. A transition into archived, converted or lost requires its dedicated action; an existing terminal status may be restated. An opted-out archived lead cannot be revived automatically. Cannot be combined with board/stage. */
+"status"?: ("new" | "contacted" | "qualified" | "negotiating" | "converted" | "lost" | "archived" | "unreachable") | undefined;
+/** The person’s explicit automated follow-up choice. Omission preserves it. ai never clears global opt-outs, human ownership, pauses, incidents or manual callbacks. */
+"follow_up_preference"?: ("ai" | "human" | "none") | undefined;
 /** Civil birth date, or null to clear it. */
 "date_of_birth"?: (string | null) | undefined;
 /** Your integration’s external id, scoped to this principal and team; never another integration’s namespace. */
@@ -1723,8 +3344,10 @@ export interface OperationContracts {
 "leads.notes": { response: Schemas["LeadNoteList"]; query: {
 /** Items per page, 1–100. Defaults to 25. */
 "limit"?: number | null | undefined;
-/** The `next_cursor` of the previous page. Omit it for the first page. */
-"cursor"?: string | null | undefined
+/** Opaque note-page cursor bound to the current lead. */
+"cursor"?: string | null | undefined;
+/** Select the unversioned current source representation. */
+"view"?: "source" | null | undefined
 }; path: {
 /** The lead's public id. */
 "id": string
@@ -1743,7 +3366,9 @@ export interface OperationContracts {
 /** Plain-text note body; stored with the integration as its author. */
 "body": string;
 /** Your integration’s external id, scoped to this principal and team; never another integration’s namespace. */
-"external_id"?: string | undefined
+"external_id"?: string | undefined;
+/** Return metadata for the current source without an inventory capture version. */
+"response_view"?: "source" | undefined
 } };
 /**
  * Archive a lead
@@ -1767,7 +3392,8 @@ export interface OperationContracts {
  * Requires the independent current custom-value content grant; exact names identify fields and current customFields override legacy formFields. Returns its own strong ETag, bound to the complete current snapshot and lead incarnation. Merged, erased and ambiguous duplicate-name sources are refused.
  */
 "leads.customValues": { response: Schemas["LeadCustomValues"]; query: {
-
+/** Select the unversioned current source representation. */
+"view"?: "source" | null | undefined
 }; path: {
 /** The lead's public id. */
 "id": string
@@ -1778,7 +3404,8 @@ export interface OperationContracts {
  * Changes up to 50 distinct exact names using the custom-values ETag in If-Match even for no-op requests; omitted values and unknown row attributes remain unchanged, while touched legacy values are migrated or removed atomically. Separate write permission never exports values: the receipt contains counts and a fresh ETag only. Retry the same logical write with the same Idempotency-Key; a replay renders current metadata without restoring old content.
  */
 "leads.updateCustomValues": { response: Schemas["LeadCustomValuesReceipt"]; query: {
-
+/** Select the unversioned current source representation. */
+"view"?: "source" | null | undefined
 }; path: {
 /** The lead's public id. */
 "id": string
@@ -1800,7 +3427,7 @@ export interface OperationContracts {
  *
  * Deletes only the named note under this lead incarnation using its current strong note ETag in If-Match; a stale version returns `412 version_conflict`. Success returns 204 with no JSON body and the changes feed retains a deletion marker. It never deletes or archives the parent lead.
  */
-"leads.deleteNote": { response: void; query: {
+"leads.deleteNote": { response: Schemas["LeadNoteReceipt"] | void; query: {
 
 }; path: {
 /** The note’s parent lead id. */
@@ -1824,7 +3451,9 @@ export interface OperationContracts {
 /** Plain-text note body; stored with the integration as its author. */
 "body": string;
 /** Your integration’s external id, scoped to this principal and team; never another integration’s namespace. */
-"external_id"?: string | undefined
+"external_id"?: string | undefined;
+/** Return metadata for the current source without an inventory capture version. */
+"response_view"?: "source" | undefined
 } };
 /**
  * Create a task
@@ -1906,8 +3535,274 @@ export interface OperationContracts {
 "department_id"?: string | undefined;
 /** Queue the team’s configured delivery plan; defaults to true. Delivery is not promised by acceptance. */
 "notify"?: boolean | undefined;
+/** Explicit customer report that the team missed a promised call or appointment. Requires notifications:incidents:write; opens a canonical human incident or records an unlinked alert, never attendance or resolution. */
+"handoff_reason"?: "missed_team_appointment" | undefined;
 /** Initial inbox status; defaults to new. */
 "status"?: ("new" | "archived") | undefined
+} };
+/**
+ * List current message senders
+ *
+ * Returns bounded opaque references to currently configured permitted sending channels. It exposes no provider account identifiers, destinations or message content; sending rechecks the current connection and recipient.
+ */
+"messages.channels": { response: Schemas["MessageChannels"]; query: {
+
+}; path: {
+
+}; body: Record<string, never> };
+/**
+ * Queue the configured information response
+ *
+ * Queues staff-configured requested information for the current authorized lead. Current server configuration selects the WhatsApp or designed-email channel, sender and template; raw destinations and caller-selected templates are refused. The receipt confirms queue admission without claiming delivery; reuse Idempotency-Key after an uncertain acknowledgement.
+ */
+"messages.requestInfo": { response: Schemas["Operation"]; query: {
+
+}; path: {
+
+}; body: {
+/** Current retained lead; hosted processing may derive its exact signed source. */
+"lead_id"?: string | undefined;
+/** The information requested by the contact, up to five hundred characters. The current staff configuration selects the sender and template. */
+"info": string
+} };
+/**
+ * Prepare the configured first reply
+ *
+ * Processes the configured first-reply campaign for the exact saved inbound conversation, preserving lifetime deduplication, human control and newer-message fences. Tenant integrations provide an owned conversation while hosted execution derives its signed source; configured Library content may be sent or prepared for webchat. Read the completed receipt before continuing the assistant because 202 only accepts the intent; private source identifiers and provider URLs are withheld.
+ */
+"messages.prepareReply": { response: Schemas["Operation"]; query: {
+
+}; path: {
+
+}; body: {
+/** Current owned conversation. Required for tenant integrations; hosted execution derives its exact saved source. */
+"conversation_id"?: string | undefined
+} };
+/**
+ * Send a message
+ *
+ * Starts one durable send to a current owned conversation or canonical lead using a permitted configured sender. Current source, recipient, actor and channel rules are checked at the actual provider boundary. Prepared web chat responses are distinguished from provider acceptance; uncertain delivery must be reconciled before repeating it.
+ */
+"messages.send": { response: Schemas["Operation"]; query: {
+
+}; path: {
+
+}; body: {
+/** Choose the current conversation or a current lead and configured sender; never supply a raw destination. */
+"target": ExclusiveUnion<({
+/** Send within a current retained conversation. */
+"kind": "conversation";
+/** Current conversation in the selected team. Tenant integrations must supply its identifier; hosted processing may derive its exact signed source. */
+"conversation_id"?: string | undefined
+} | {
+/** Use a current lead and a configured sending channel. */
+"kind": "lead";
+/** Current canonical lead whose stored contact details determine the destination. */
+"lead_id": string;
+/** Opaque reference to one current configured sender returned by messages.channels. A changed connection invalidates it. */
+"channel_reference": string
+})>;
+/** One bounded text, approved WhatsApp template, calling invitation or current retained Library selection. */
+"content": (ExclusiveUnion<({
+/** Send an interactive WhatsApp calling invitation or permission request. */
+"kind": "whatsapp_call";
+/** Send the current configured WhatsApp call button. */
+"action": "send_call_button";
+/** Text displayed to the current WhatsApp recipient, up to one thousand twenty-four characters. */
+"body_text": string;
+/** Optional button label, up to twenty characters. */
+"display_text"?: string | undefined;
+/** Optional button lifetime in minutes, from one to forty-three thousand two hundred. */
+"ttl_minutes"?: number | undefined
+} | {
+/** Send an interactive WhatsApp calling invitation or permission request. */
+"kind": "whatsapp_call";
+/** Request calling permission within the current WhatsApp reply window and permission limits. */
+"action": "request_permission";
+/** Text displayed to the current WhatsApp recipient, up to one thousand twenty-four characters. */
+"body_text"?: string | undefined
+})> | {
+/** Send a plain text message through the selected channel. */
+"kind": "text";
+/** Message text, with at most twenty thousand characters. */
+"text": string;
+/** Email subject; omitted replies reuse the current thread subject. */
+"subject"?: string | undefined
+} | {
+/** Send an approved WhatsApp template using current channel and Prelude rules. */
+"kind": "template";
+/** Exact name of a currently approved template on the configured WhatsApp account. */
+"template_name": string;
+/** Approved template language code, such as es or en_US. */
+"language": string;
+/** How the approved template identifies its body variables. */
+"parameter_format"?: ("NAMED" | "POSITIONAL") | undefined;
+/** Ordered body values for a positional template. */
+"variable_values"?: Array<string> | undefined;
+/** Named body values keyed by the approved template parameter names. */
+"variable_values_map"?: {
+[key: string]: string
+} | undefined;
+/** Dynamic URL button values keyed by the approved button index. */
+"url_button_values"?: {
+[key: string]: string
+} | undefined;
+/** Caller attestation that the template send was confirmed; this does not manufacture customer consent. */
+"consent_confirmed": true
+} | {
+/** Send one current retained Library selection through its canonical delivery flow. */
+"kind": "library";
+/** Current server-issued opaque content reference; never parse or modify it. */
+"asset_reference": string;
+/** Optional caption for the current retained Library selection. */
+"caption"?: string | undefined
+})
+} };
+/**
+ * Discover currently published chat assistants
+ *
+ * Returns bounded published assistant names and exact serving versions, bound to this integration and team. Drafts, disabled assistants, private instructions, tool configuration and workflow/provider identifiers are excluded. This read changes no configuration; a newer publication invalidates the selection.
+ */
+"assistants.options": { response: Schemas["AssistantOptions"]; query: {
+
+}; path: {
+
+}; body: Record<string, never> };
+/**
+ * Run a currently published chat assistant
+ *
+ * Admits a real API-origin turn through the published assistant gateway and existing execution, prepaid and contact rules; an existing conversation must belong to this integration and assistant. Current caller authority is checked before execution and every delegated effect; only an actual retained completed reply produces a completed-run receipt. Read reply text separately through conversations.messages with its independent content grant, reuse Idempotency-Key and never redispatch outcome_unknown.
+ */
+"assistants.run": { response: Schemas["Operation"]; query: {
+
+}; path: {
+
+}; body: {
+/** Short-lived opaque selection bound to this integration and the exact currently published assistant version; never a provider or workflow identifier. */
+"reference": string;
+/** User message for this real API-origin chat turn; it never proves a phone, transport identity or consent. */
+"message": string;
+/** Optional retained API-origin conversation owned by this same integration and selected assistant. Omit to begin a new session. */
+"conversation_id"?: string | undefined
+} };
+/**
+ * List permitted library entries
+ *
+ * Reads a bounded page of current permitted library content with an independent library-content grant. References bind the current source revision; raw file locations, provider identifiers and internal access lists stay private. Hosted discovery preserves the assistant library selection rules.
+ */
+"library.list": { response: Schemas["LibraryEntryList"]; query: {
+
+}; path: {
+
+}; body: {
+/** Optional discovery query; hosted assistant discovery retains its canonical selection rules. */
+"query"?: string | undefined;
+/** Restrict discovery to this entry type. */
+"type"?: ("message" | "media" | "sequence") | undefined;
+/** Optional language filter. */
+"language"?: string | undefined;
+/** Current server-issued opaque content reference; never parse or modify it. */
+"cursor"?: string | undefined;
+/** Maximum entries on this page, between one and fifty. */
+"limit"?: number | undefined
+} };
+/**
+ * Read a permitted library entry
+ *
+ * Reads authorized text and file metadata for one current library reference. Current grant, source incarnation, revision and hosted assistant access are checked before content is read. It returns no raw media download location.
+ */
+"library.get": { response: Schemas["LibraryEntry"]; query: {
+
+}; path: {
+
+}; body: {
+/** Current server-issued opaque content reference; never parse or modify it. */
+"reference": string
+} };
+/**
+ * Read a prepared library response
+ *
+ * Resolves a current owned prepared-response reference to ordered persisted text and media descriptors. It rechecks the current source, revision and content permission; media locations remain separate opaque attachment references. Prepared content is not a provider delivery claim.
+ */
+"library.prepared": { response: Schemas["LibraryPreparedResponse"]; query: {
+
+}; path: {
+
+}; body: {
+/** Current server-issued opaque content reference; never parse or modify it. */
+"reference": string
+} };
+/**
+ * Resolve an authorized attachment
+ *
+ * Intentionally discloses the current canonical application-bucket file URL and bounded file metadata under an independent attachment-content grant. Only the exact retained owned library file from a prepared response may resolve; provider, foreign-bucket and caller-supplied URLs are refused. Current source and permission are checked on each resolution.
+ */
+"attachments.resolve": { response: Schemas["Attachment"]; query: {
+
+}; path: {
+
+}; body: {
+/** Current server-issued opaque content reference; never parse or modify it. */
+"reference": string
+} };
+/**
+ * Send a reviewed library entry
+ *
+ * Starts a durable delivery of the current reviewed library revision to an owned retained conversation. Existing per-part progress, channel policy and uncertainty guards apply. Prepared web chat content is distinct from provider delivery; partial or uncertain delivery is never silently repeated.
+ */
+"library.send": { response: Schemas["Operation"]; query: {
+
+}; path: {
+
+}; body: {
+/** Current server-issued opaque content reference; never parse or modify it. */
+"reference": string;
+/** Current authored revision; sending requires the revision you reviewed. */
+"expected_revision": number;
+/** Current retained conversation. Required for a tenant key; hosted execution derives its exact source when omitted. */
+"conversation_id"?: string | undefined;
+/** Optional caption where the canonical entry and channel permit one. */
+"caption"?: string | undefined
+} };
+/**
+ * Search published catalog items
+ *
+ * Reads bounded currently published permitted variants, prices and availability basis with an explicit catalog-content grant. Draft and provider administration fields stay private. Advisory availability is not a booking offer; use the booking availability operation to select an actionable offer.
+ */
+"catalog.search": { response: Schemas["CatalogSearch"]; query: {
+
+}; path: {
+
+}; body: {
+/** Current server-issued opaque content reference; never parse or modify it. */
+"catalog"?: string | undefined;
+/** Optional text to match against the published catalog. */
+"query"?: string | undefined;
+/** Optional requested start in UTC; linked Totem services check their real scheduling availability. */
+"requested_start"?: string | undefined;
+/** Requested party size for linked scheduling, between one and ten thousand. */
+"party_size"?: number | undefined
+} };
+/**
+ * Send reviewed catalog items
+ *
+ * Starts one durable card send of the reviewed current published selection to an owned retained conversation. Current variant revision, provider synchronization, sender, recipient and messaging policy are rechecked at the provider boundary. Unknown provider acceptance is not retried automatically.
+ */
+"catalog.send": { response: Schemas["Operation"]; query: {
+
+}; path: {
+
+}; body: {
+/** Current server-issued opaque content reference; never parse or modify it. */
+"catalog": string;
+/** One to thirty distinct reviewed variant references from this catalog. */
+"variants": Array<string>;
+/** Published catalog revision that was reviewed before sending. */
+"expected_revision": number;
+/** Current retained conversation. Tenant keys must select it; hosted execution derives its exact retained source when omitted. */
+"conversation_id"?: string | undefined;
+/** Optional message accompanying the reviewed catalog selection. */
+"body_text"?: string | undefined
 } };
 /**
  * Search team knowledge
@@ -1947,6 +3842,19 @@ export interface OperationContracts {
 "id": `op_${string}`
 }; body: Record<string, never> };
 /**
+ * Read current outgoing call options
+ *
+ * Returns bounded current published assistant and outgoing line selections for the owned lead, under current consent and contact policy. This read places no call. Choose one opaque binding explicitly; no provider or account credentials are exported.
+ */
+"calls.options": { response: Schemas["CallBindingOptions"]; query: {
+
+}; path: {
+
+}; body: {
+/** Current retained lead in the selected team. */
+"lead_id": string
+} };
+/**
  * List calls
  *
  * Returns a page of the team's calls, each with its direction, start time, duration and a normalized outcome, and linked to its lead when there is one. Pass `lead` for one lead's calls. Recordings and transcripts are not exported.
@@ -1962,6 +3870,25 @@ export interface OperationContracts {
 
 }; body: never };
 /**
+ * Start an approved outgoing call
+ *
+ * Accepts one durable call intent using the current lead contact and a binding returned by calls.options. The canonical engine rechecks assistant, line, consent, opt-out, contact limits and budget before provider effects. The receipt confirms provider acceptance without claiming an answer or completed call; reuse Idempotency-Key after uncertainty and never repeat outcome_unknown.
+ */
+"calls.start": { response: Schemas["Operation"]; query: {
+
+}; path: {
+
+}; body: {
+/** Current retained lead in the selected team. */
+"lead_id": string;
+/** Opaque current calling binding emitted by the server. Never parse, edit or substitute its contents. */
+"binding_reference": string;
+/** Explicit caller attestation that this outgoing call was approved. Existing recipient consent, opt-out and contact limits remain required. */
+"consent_confirmed": true;
+/** Optional bounded objective for this call. It does not change the published assistant instructions or contact policy. */
+"objective"?: string | undefined
+} };
+/**
  * Get a call
  *
  * Returns one call by its id. A call this key cannot read, or one that was removed, answers `404 resource_missing`.
@@ -1972,6 +3899,48 @@ export interface OperationContracts {
 /** The call's public id. */
 "id": string
 }; body: never };
+/**
+ * Read authorized retained call speech
+ *
+ * Reads bounded retained speech under the independent transcript grant and current team communication-sharing policy; tool arguments and private transport metadata are excluded. The call, current linked lead, erasure fence and exact retained incarnation are rechecked, with complete:false when truncated. Call metadata permission alone grants no transcript content.
+ */
+"calls.transcript": { response: Schemas["CallTranscript"]; query: {
+
+}; path: {
+/** The call's public id. */
+"id": string
+}; body: never };
+/**
+ * Resolve an authorized retained call recording
+ *
+ * Returns a short-lived URL for the current owned application recording stored in the supported European bucket, after fresh recording content grant, current sharing and exact source checks. It does not fetch provider URLs, import recordings or grant general storage access. A missing retained application artifact returns resource_missing.
+ */
+"calls.recording": { response: Schemas["CallRecording"]; query: {
+
+}; path: {
+/** The call's public id. */
+"id": string
+}; body: never };
+/**
+ * Update dispatched call analysis
+ *
+ * Processes one system-analyzer callback for the exact dispatched call generation under current system delegation and source-bound context. Ordinary integrations and assistants cannot use this grant, and the content-free receipt distinguishes eligible writes from deferred finite analysis. The original dispatch admits one logical callback; reuse its Idempotency-Key after uncertainty.
+ */
+"call.analysis.update": { response: Schemas["AnalysisReceipt"]; query: {
+
+}; path: {
+/** The call's public id. */
+"id": string
+}; body: {
+/** Analyzer summary for the exact dispatched call. Existing language and voicemail policies apply. */
+"summary"?: string | undefined;
+/** At most 50 exact-name scalar extractions. Strings fit the existing 2,000-character lead value contract; empty and null values never delete existing fields. */
+"custom_values"?: {
+[key: string]: (string | number | boolean | null)
+} | undefined;
+/** Request existing finite Decisions fields from persisted source evidence. Caller-inferred verdict values are never accepted. */
+"finite_fields"?: Array<("user_sentiment" | "call_successful" | "in_voicemail")> | undefined
+} };
 /**
  * List conversations
  *
@@ -1999,6 +3968,21 @@ export interface OperationContracts {
 "id": string
 }; body: never };
 /**
+ * Read current conversation messages
+ *
+ * Reads a bounded latest slice of retained message text under its separate explicit content grant; existing messages:read keys remain metadata-only. Hosted executions derive their exact current conversation, and any supplied opaque id must match it. Media locations, provider identifiers and erased messages are withheld, with explicit truncation.
+ */
+"conversations.messages": { response: Schemas["ConversationMessages"]; query: {
+
+}; path: {
+
+}; body: {
+/** Current conversation in the selected team. Tenant integrations must supply its identifier; hosted processing may derive its exact signed source. */
+"conversation_id"?: string | undefined;
+/** Maximum number of latest retained messages to return, from one to fifty. */
+"limit"?: number | undefined
+} };
+/**
  * List bookings
  *
  * Returns a page of the team's bookings: appointments for a bookable service, events from the connected calendar and bookings imported from other systems, each with its status and times. Pass `lead` for one lead's bookings.
@@ -2014,6 +3998,27 @@ export interface OperationContracts {
 
 }; body: never };
 /**
+ * Book a current offer
+ *
+ * Accepts one current encrypted offer as a durable operation and revalidates service, capacity, current lead and provider authority before effects. Payment-required outcomes return a payment receipt and never claim a confirmed booking. Reuse the same Idempotency-Key after an uncertain acknowledgement; never repeat an outcome_unknown operation.
+ */
+"bookings.create": { response: Schemas["Operation"]; query: {
+
+}; path: {
+
+}; body: {
+/** Current lead in the selected team. */
+"lead_id": string;
+/** Server-issued opaque calendar reference; never parse or modify it. */
+"offer": string;
+/** Customer display name on the booking. */
+"customer_name": string;
+/** Optional booking notes. */
+"notes"?: string | undefined;
+/** Server-issued opaque calendar reference; never parse or modify it. */
+"payment_reference"?: string | undefined
+} };
+/**
  * Get a booking
  *
  * Returns one booking by its id. A booking this key cannot read, or one that was removed, answers `404 resource_missing`.
@@ -2024,6 +4029,134 @@ export interface OperationContracts {
 /** The booking's public id. */
 "id": string
 }; body: never };
+/**
+ * Update dispatched meeting analysis
+ *
+ * Processes one system-analyzer callback for the current retained meeting artifact and exact booking incarnation under current delegation and source-bound context. Updates only summary and sentiment; the receipt never claims deferred work completed. The original dispatch admits one logical callback; reuse its Idempotency-Key after uncertainty.
+ */
+"meeting.analysis.update": { response: Schemas["AnalysisReceipt"]; query: {
+
+}; path: {
+/** The booking's public id. */
+"id": string
+}; body: {
+/** Fallback analyzer summary for the exact retained meeting artifact. */
+"summary"?: string | undefined;
+/** Meeting summary sentiment, without lead custom-field synchronization or notes. */
+"sentiment"?: string | undefined
+} };
+/**
+ * Read current booking availability
+ *
+ * Returns bounded service-option choices and encrypted offers bound to this integration, team and lead; select an option when several are returned. Offers expire within fifteen minutes while provider resources and raw slot proofs stay private. This read reserves no capacity.
+ */
+"bookings.availability": { response: Schemas["BookingAvailability"]; query: {
+
+}; path: {
+
+}; body: {
+/** Current lead in the selected team. */
+"lead_id": string;
+/** Current bookable service. */
+"service_id": string;
+/** Server-issued opaque calendar reference; never parse or modify it. */
+"option"?: string | undefined;
+/** An instant in UTC. */
+"from_at"?: string | undefined;
+/** An instant in UTC. */
+"to_at"?: string | undefined;
+/** People attending, when supported by this service. */
+"party_size"?: number | undefined;
+/** Resource units required by this service. */
+"resource_units"?: number | undefined;
+/** Published booking page slug when required to disambiguate staffing. */
+"booking_page"?: string | undefined
+} };
+/**
+ * Inspect a current booking for management
+ *
+ * Returns the current canonical booking projection and its action ETag from the same source snapshot. Use that ETag in If-Match when cancelling or moving the booking. This management view has no capture version and does not alter the existing versioned booking inventory.
+ */
+"bookings.inspect": { response: Schemas["BookingManagement"]; query: {
+
+}; path: {
+/** The booking's public id. */
+"id": string
+}; body: never };
+/**
+ * Read current bookings for a lead
+ *
+ * Lists up to twenty currently manageable bookings of the authorized canonical lead with current action ETags. Hosted assistants remain restricted to their current retained conversation lead and permitted services. complete is false when the bounded source query may omit further records.
+ */
+"bookings.forLead": { response: Schemas["BookingManagementList"]; query: {
+
+}; path: {
+
+}; body: {
+/** Current lead in the selected team. */
+"lead_id": string;
+/** An instant in UTC. */
+"from_at"?: string | undefined;
+/** An instant in UTC. */
+"to_at"?: string | undefined
+} };
+/**
+ * Cancel a reviewed booking
+ *
+ * Accepts canonical cancellation of this owned booking using the management view ETag. Ownership, source incarnation and current version are checked before the actual provider action. An uncertain provider result remains unknown; cancellation of an operation is not a claim that an already accepted booking action was undone.
+ */
+"bookings.cancel": { response: Schemas["Operation"]; query: {
+
+}; path: {
+/** The booking's public id. */
+"id": string
+}; body: Record<string, never> };
+/**
+ * Move a reviewed booking
+ *
+ * Moves the owned booking to the requested instant while preserving canonical service, professional, capacity and paid-reservation rules. Use the current management ETag. Replacement and cancellation receipts follow the canonical lifecycle; an accepted replacement is never deleted merely because its local receipt became uncertain.
+ */
+"bookings.reschedule": { response: Schemas["Operation"]; query: {
+
+}; path: {
+/** The booking's public id. */
+"id": string
+}; body: {
+/** An instant in UTC. */
+"starts_at": string
+} };
+/**
+ * Read current booking payments
+ *
+ * Reads at most five owned current payment requests and active checkout URLs, revalidating the merchant and current checkout generation through the canonical payment ledger. Payment completion is verified with the merchant provider, never inferred from a caller flag. Raw Stripe accounts, sessions and customer records remain private.
+ */
+"bookingPayments.get": { response: Schemas["BookingPaymentList"]; query: {
+
+}; path: {
+
+}; body: {
+/** Current lead in the selected team. */
+"lead_id": string;
+/** Server-issued opaque calendar reference; never parse or modify it. */
+"reference"?: string | undefined
+} };
+/**
+ * Send a confirmed booking payment link
+ *
+ * Requires explicit consent_confirmed:true, fresh send authority and the current verified recipient; sender, template, URL, amount and currency come from server policy. Canonical delivery honors configured Prelude, and only acceptance of the target template proves link delivery. Sending a link never confirms a booking.
+ */
+"bookingPayments.sendLink": { response: Schemas["Operation"]; query: {
+
+}; path: {
+
+}; body: {
+/** Current lead in the selected team. */
+"lead_id": string;
+/** Server-issued opaque calendar reference; never parse or modify it. */
+"reference": string;
+/** Explicit caller attestation that sending this payment link was confirmed. This is not a server claim that the customer consented. */
+"consent_confirmed": true
+} };
 /**
  * Get a notification
  *
@@ -2049,6 +4182,21 @@ export interface OperationContracts {
 
 }; body: never };
 /**
+ * Read retained lifecycle events
+ *
+ * Poll current-authorized retained transition metadata with one saved cursor per integration and team, deduplicating by event ID; operation completions belong only to their initiating integration and acceptance is not completion. Missing or unauthorized sources are withheld while advancing the cursor; continue immediately while has_more is true even for empty pages, otherwise poll later. Capture invents no historical transitions, cursors expire after thirty days and events expire with their source or earlier; use sync.changes separately for CRM state and removals.
+ */
+"events.list": { response: Schemas["EventList"]; query: {
+/** Opaque cursor returned by this integration and team event feed. */
+"cursor"?: string | null | undefined;
+/** Items per page, 1–100. Defaults to 25. */
+"limit"?: number | null | undefined;
+/** Without a cursor, now initializes at the current capture position without replay; retained reads available history. Do not combine start with cursor. */
+"start"?: ("now" | "retained") | null | undefined
+}; path: {
+
+}; body: never };
+/**
  * Check that the API is up
  *
  * Tells you whether the API is up; call it with `GET`, because the firewall in front of the API answers any other method, `HEAD` included, with a plain `404`. It needs no key and takes no query string: any parameter, even a cache-buster, answers `400 invalid_request`. The `Totem-Release` response header names the release that answered.
@@ -2063,30 +4211,73 @@ export interface OperationContracts {
 export type Activity = Schemas["Activity"]
 /** A page of Activity objects, in a stable order that carries no meaning. */
 export type ActivityList = Schemas["ActivityList"]
+/** Content-free stored callback receipt. Acceptance never claims every deferred analysis task has completed. */
+export type AnalysisReceipt = Schemas["AnalysisReceipt"]
+/** Metadata-only published assistant discovery; no prompts, tool configuration or provider selectors. */
+export type AssistantOptions = Schemas["AssistantOptions"]
+/** Content-free completed-run metadata. It never exports the reply, prompt, private source or provider identifiers. */
+export type AssistantRunReceipt = Schemas["AssistantRunReceipt"]
+export type Attachment = Schemas["Attachment"]
 /** A board with its stages in pipeline order. */
 export type Board = Schemas["Board"]
 /** A page of Board objects, in a stable order that carries no meaning. */
 export type BoardList = Schemas["BoardList"]
 /** A booking and its `kind`: an appointment for a bookable service, an event from the connected calendar, or a booking imported from another system. */
 export type Booking = Schemas["Booking"]
+/** Bounded public choices and offers without provider or raw resource identifiers. */
+export type BookingAvailability = Schemas["BookingAvailability"]
 /** A page of Booking objects, in a stable order that carries no meaning. */
 export type BookingList = Schemas["BookingList"]
+/** Fresh management projection and action ETag from the same source snapshot; not a capture version. */
+export type BookingManagement = Schemas["BookingManagement"]
+/** Current authorized lead bookings, with explicit completeness. */
+export type BookingManagementList = Schemas["BookingManagementList"]
+/** Owned current payment metadata, never a raw Stripe record. */
+export type BookingPayment = Schemas["BookingPayment"]
+/** At most five current payment requests for the authorized lead. */
+export type BookingPaymentList = Schemas["BookingPaymentList"]
+/** A payment request or link delivery is not a confirmed booking. */
+export type BookingPaymentReceipt = Schemas["BookingPaymentReceipt"]
+/** Minimal current-source booking outcome. */
+export type BookingReceipt = Schemas["BookingReceipt"]
 /** A service customers can book, with its meeting type. */
 export type BookingService = Schemas["BookingService"]
 /** Every BookingService object, in one response: this list is never paged. */
 export type BookingServiceList = Schemas["BookingServiceList"]
+/** Source-backed service discovery for tenant integrations and actual hosted assistants. */
+export type CalendarServiceOptionsResult = Schemas["CalendarServiceOptionsResult"]
 /** A call: its direction, timing and a normalized outcome. No recording or transcript. */
 export type Call = Schemas["Call"]
+/** Current eligible calling options. Reading does not dial, reserve budget or change configuration. */
+export type CallBindingOptions = Schemas["CallBindingOptions"]
 /** A page of Call objects, in a stable order that carries no meaning. */
 export type CallList = Schemas["CallList"]
+/** An existing canonical European recording, never an arbitrary provider URL. */
+export type CallRecording = Schemas["CallRecording"]
+/** Minimal truthful call-start acceptance receipt. */
+export type CallStartReceipt = Schemas["CallStartReceipt"]
+/** Explicitly authorized call speech content. */
+export type CallTranscript = Schemas["CallTranscript"]
+export type CatalogSearch = Schemas["CatalogSearch"]
+export type CatalogSendReceipt = Schemas["CatalogSendReceipt"]
 /** A conversation on one channel: its status, assignee and the times of the latest messages, never their content. */
 export type Conversation = Schemas["Conversation"]
 /** A page of Conversation objects, in a stable order that carries no meaning. */
 export type ConversationList = Schemas["ConversationList"]
+/** Bounded current message bodies without sender destinations, raw identifiers or media locations. Truncated means older retained rows may exist. */
+export type ConversationMessages = Schemas["ConversationMessages"]
+/** Current source-bound CRM metadata and independently requested content. No export capture version or business authoring profile is included. */
+export type CrmContext = Schemas["CrmContext"]
+export type Event = Schemas["Event"]
+export type EventList = Schemas["EventList"]
+/** Content-free organization handoff result; destination contacts, source content and provider selectors remain private. */
+export type FamilyHandoffReceipt = Schemas["FamilyHandoffReceipt"]
 /** One change: the record's current state, or its removal. */
 export type FeedItem = Schemas["FeedItem"]
 /** A page of the changes feed. */
 export type FeedPage = Schemas["FeedPage"]
+/** Source-proven canonical first-reply receipt with bounded context and no provider identifiers. */
+export type FirstReplyReceipt = Schemas["FirstReplyReceipt"]
 /** The API is up. */
 export type Health = Schemas["Health"]
 /** Current retained knowledge passages without query echo, provider ids or source URLs. */
@@ -2103,28 +4294,47 @@ export type LeadCustomValuesReceipt = Schemas["LeadCustomValuesReceipt"]
 export type LeadDetail = Schemas["LeadDetail"]
 /** A page of Lead objects, in a stable order that carries no meaning. */
 export type LeadList = Schemas["LeadList"]
-/** A lead mutation and its current public projection; use its ETag for the next conditional write. */
 export type LeadMutation = Schemas["LeadMutation"]
 /** Lead note body. */
 export type LeadNote = Schemas["LeadNote"]
-/** A cursor-paged list of this lead’s notes, requiring an explicit note-content grant. */
 export type LeadNoteList = Schemas["LeadNoteList"]
 /** Lead note metadata without its content; safe for a write-only receipt or replay. */
 export type LeadNoteMetadata = Schemas["LeadNoteMetadata"]
-/** Metadata of the note written, without its body or other notes; safe to replay after a human edits the content. */
 export type LeadNoteReceipt = Schemas["LeadNoteReceipt"]
+/** Current retained note content under its independent read grant, without an inventory version. */
+export type LeadNoteSource = Schemas["LeadNoteSource"]
+/** Content-free proof that this operation deleted the reviewed note incarnation. */
+export type LeadNoteSourceDeletion = Schemas["LeadNoteSourceDeletion"]
+/** Current source note mutation metadata; safe for write-only integrations and replay. */
+export type LeadNoteSourceMutation = Schemas["LeadNoteSourceMutation"]
+/** Metadata-only source write receipt; no note text or other notes. */
+export type LeadNoteSourceReceipt = Schemas["LeadNoteSourceReceipt"]
 /** How the team has answered a lead across its conversations and calls: the latest messages each way and whether a reply is due. It uses its lead's id. */
 export type LeadResponse = Schemas["LeadResponse"]
+/** Current canonical CRM lead projection, available through the explicit operational context permission without inventing a capture version. */
+export type LeadSource = Schemas["LeadSource"]
+/** Source-backed CRM mutation metadata. It never invents an inventory version or grants read access through a write. */
+export type LeadSourceMutation = Schemas["LeadSourceMutation"]
+/** Write receipt metadata only: no contact details or CRM content. */
+export type LeadSourceReceipt = Schemas["LeadSourceReceipt"]
 /** The persisted lead result, or a validation-only result without a mutation. */
 export type LeadUpsertResult = Schemas["LeadUpsertResult"]
 /** A successful dry run; it never represents a persisted lead. */
 export type LeadValidation = Schemas["LeadValidation"]
+export type LibraryDeliveryReceipt = Schemas["LibraryDeliveryReceipt"]
+export type LibraryEntry = Schemas["LibraryEntry"]
+export type LibraryEntryList = Schemas["LibraryEntryList"]
+export type LibraryPreparedResponse = Schemas["LibraryPreparedResponse"]
 /** The integration that owns the key, with the teams the key reads. */
 export type Me = Schemas["Me"]
 /** A team member, by display name only: Totem exports no email, phone or role. */
 export type Member = Schemas["Member"]
 /** Every Member object, in one response: this list is never paged. */
 export type MemberList = Schemas["MemberList"]
+/** Configured sender references without provider identifiers or credentials. */
+export type MessageChannels = Schemas["MessageChannels"]
+/** Current-source message result without body, destination or provider identifiers. */
+export type MessageReceipt = Schemas["MessageReceipt"]
 /** A business notification, including its summary and linked lead, call or conversation. Personal notes and technical alerts are excluded. */
 export type Notification = Schemas["Notification"]
 /** A page of Notification objects, in a stable order that carries no meaning. */
@@ -2135,6 +4345,14 @@ export type NotificationReceipt = Schemas["NotificationReceipt"]
 export type Operation = Schemas["Operation"]
 /** An error, as `application/problem+json` (RFC 9457). */
 export type Problem = Schemas["Problem"]
+/** Content-free quote outcome receipt; no customer, provider, stage or private effect selectors. */
+export type QuoteOutcomeReceipt = Schemas["QuoteOutcomeReceipt"]
+/** Content-free receipt with no destination existence or identity disclosure. */
+export type ReferralReceipt = Schemas["ReferralReceipt"]
+/** Immutable queue admission acknowledgement, without content, destination or provider identifiers. */
+export type RequestedInfoReceipt = Schemas["RequestedInfoReceipt"]
+/** Metadata of a persisted callback promise, without customer contact details or provider selectors. */
+export type ScheduledContactReceipt = Schemas["ScheduledContactReceipt"]
 /** Minimal task receipt without task content or internal ids. */
 export type TaskReceipt = Schemas["TaskReceipt"]
 /** A team this key reads, with its time zone and default country. */

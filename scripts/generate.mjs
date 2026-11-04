@@ -22,7 +22,7 @@ export class GeneratorError extends Error {
 const fail = message => { throw new GeneratorError(message); };
 const quote = JSON.stringify;
 const annotations = new Set(['description', 'examples', 'example', 'format', 'pattern', 'minimum', 'maximum', 'exclusiveMinimum', 'exclusiveMaximum', 'minLength', 'maxLength', 'minItems', 'maxItems', 'default', 'deprecated', 'title']);
-const structural = new Set(['$ref', 'type', 'properties', 'required', 'additionalProperties', 'items', 'anyOf', 'oneOf', 'allOf', 'enum', 'const']);
+const structural = new Set(['$ref', 'type', 'properties', 'required', 'additionalProperties', 'propertyNames', 'items', 'anyOf', 'oneOf', 'allOf', 'enum', 'const']);
 const METHODS = ['get', 'put', 'post', 'delete', 'options', 'head', 'patch', 'trace'];
 const SCALAR_QUERY_TYPES = new Set(['string', 'integer', 'number']);
 /** x-totem-tenant-binding values; only team_header makes the SDK send Totem-Team. */
@@ -103,8 +103,16 @@ export function generate(document, { version, sha256 }) {
     for (const key of ['exclusiveMinimum', 'exclusiveMaximum']) {
       if (Object.hasOwn(schema, key) && (typeof schema[key] !== 'number' || !Number.isFinite(schema[key]))) fail(`${key} must be a finite number`);
     }
+    // String key constraints remain documented server validation, like a string
+    // property's pattern/length. Finite keys or structural key schemas need a
+    // distinct translation; never silently widen them into an unrestricted map.
+    if (Object.hasOwn(schema, 'propertyNames')) {
+      const names = schema.propertyNames;
+      if (schema.type !== 'object' || !names || typeof names !== 'object' || Array.isArray(names) || names.type !== 'string'
+        || Object.keys(names).some(key => key !== 'type' && !annotations.has(key) && !key.startsWith('x-'))) fail('Unsupported propertyNames: expected annotated string keys on an object');
+    }
     if (Array.isArray(schema.type)) {
-      for (const key of ['properties', 'required', 'additionalProperties', 'items', 'anyOf', 'oneOf', 'allOf']) {
+      for (const key of ['properties', 'required', 'additionalProperties', 'propertyNames', 'items', 'anyOf', 'oneOf', 'allOf']) {
         if (Object.hasOwn(schema, key)) fail(`A type array cannot be combined with ${key}`);
       }
     }

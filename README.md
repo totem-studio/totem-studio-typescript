@@ -1,4 +1,4 @@
-# Totem Studio TypeScript SDK · Beta
+# Totem Studio TypeScript SDK · v1 release candidate
 
 The official server-side SDK for the [Totem API](https://totemstudio.ai/developers).
 It covers the API’s reads and guarded CRM writes: leads, notes, boards, activities,
@@ -10,28 +10,30 @@ of an ES module works without a flag). Built and checked with **TypeScript
 
 ## Install
 
-Install the official [npm package](https://www.npmjs.com/package/@totemstudioai/sdk)
-on your server:
+This checkout prepares **1.0.0-rc.1**. The candidate has not been published;
+its package, Git tag and download assets below become available only after the
+coordinated release. API deployment is a separate step.
+
+After publication, install the exact candidate on your server:
 
 ```sh
-npm install @totemstudioai/sdk@beta
+npm install @totemstudioai/sdk@1.0.0-rc.1
 ```
 
-The `beta` tag selects **0.3.0-beta.1**, with the API 1.0b CRM methods.
-To pin this release, use `npm install @totemstudioai/sdk@0.3.0-beta.1`.
-The `latest` tag remains **0.2.0-beta.1**, with the earlier read methods, so
-include `@beta` or the exact version to install the CRM release.
+The previously published CRM beta is `0.3.0-beta.1`; this candidate does not
+change existing npm tags. Its new source, messaging, calendar, content and
+lifecycle methods require the candidate package and corresponding API rollout.
 
-The same **0.3.0-beta.1** release tarball is also available from GitHub. It
-contains the built package, so it needs no Git, no build step and no install
-scripts, and it works with `ignore-scripts`. Download the tarball and its
-checksum, check it, then install the file you checked:
+The planned GitHub release contains the built package and checksum, so the
+archive needs no Git, build step or install scripts and works with
+`ignore-scripts`. After release publication, download and check it before
+installing:
 
 ```sh
-curl -fLO https://github.com/totem-studio/totem-studio-typescript/releases/download/v0.3.0-beta.1/totemstudioai-sdk-0.3.0-beta.1.tgz
-curl -fLO https://github.com/totem-studio/totem-studio-typescript/releases/download/v0.3.0-beta.1/totemstudioai-sdk-0.3.0-beta.1.tgz.sha256
-shasum -a 256 -c totemstudioai-sdk-0.3.0-beta.1.tgz.sha256
-npm install ./totemstudioai-sdk-0.3.0-beta.1.tgz
+curl -fLO https://github.com/totem-studio/totem-studio-typescript/releases/download/v1.0.0-rc.1/totemstudioai-sdk-1.0.0-rc.1.tgz
+curl -fLO https://github.com/totem-studio/totem-studio-typescript/releases/download/v1.0.0-rc.1/totemstudioai-sdk-1.0.0-rc.1.tgz.sha256
+shasum -a 256 -c totemstudioai-sdk-1.0.0-rc.1.tgz.sha256
+npm install ./totemstudioai-sdk-1.0.0-rc.1.tgz
 ```
 
 `sha256sum -c` works as well as `shasum -a 256 -c`. The checksum shows that
@@ -43,14 +45,14 @@ so keep the tarball where you installed it from: later installs such as
 `npm ci` read it from there. Import the package by its name,
 `@totemstudioai/sdk`.
 
-Alternatively, install the Git tag. This builds the package with TypeScript
+After the candidate tag is published, you may also install it from Git. This builds the package with TypeScript
 through its `prepare` script, so it **needs lifecycle scripts**: with
 `ignore-scripts=true`, pnpm's build-script allowlist or npm's `allowScripts`,
 allow `@totemstudioai/sdk`, or the install succeeds without a `dist/` and the
 import fails.
 
 ```sh
-npm install github:totem-studio/totem-studio-typescript#v0.3.0-beta.1
+npm install github:totem-studio/totem-studio-typescript#v1.0.0-rc.1
 ```
 
 TypeScript projects need `module`/`moduleResolution` `nodenext` (or
@@ -97,7 +99,26 @@ the authority for request validation and access control. A `baseUrl` on
 | `client.boards.list(query?)` | `GET /boards` |
 | `client.members.list()` | `GET /members` |
 | `client.bookingServices.list()` | `GET /booking_services` |
+| `client.bookingServices.options(body?, options?)` | `POST /booking_services/options` |
 | `client.knowledge.search(body, options?)` | `POST /knowledge/search` |
+| `client.crm.context(body?, options?)` | `POST /crm/context` |
+| `client.messages.channels(options?)`, `client.messages.send(body, options?)` | `POST /messages/channels`, `POST /messages/send` |
+| `client.messages.requestInfo(body, options?)` | `POST /messages/requested-info` |
+| `client.messages.prepareReply(body?, options?)` | `POST /messages/prepare-reply` |
+| `client.conversations.messages(body?, options?)` | `POST /conversations/messages` |
+| `client.bookings.availability(body, options?)`, `client.bookings.forLead(body, options?)` | `POST /bookings/availability`, `POST /bookings/for-lead` |
+| `client.bookings.inspect(id, options?)` | `GET /bookings/{id}/management` |
+| `client.bookings.create(body, options?)` | `POST /bookings` |
+| `client.bookings.cancel(id, options)`, `client.bookings.reschedule(id, body, options)` | `POST /bookings/{id}/cancel`, `POST /bookings/{id}/reschedule` |
+| `client.bookingPayments.get(body, options?)`, `client.bookingPayments.sendLink(body, options?)` | `POST /booking-payments/get`, `POST /booking-payments/send-link` |
+| `client.library.list(body?, options?)`, `client.library.get(reference, options?)` | `POST /library/list`, `POST /library/get` |
+| `client.library.prepared(reference, options?)`, `client.library.send(body, options?)` | `POST /library/prepared`, `POST /library/send` |
+| `client.attachments.resolve(reference, options?)` | `POST /attachments/resolve` |
+| `client.catalog.search(body?, options?)`, `client.catalog.send(body, options?)` | `POST /catalog/search`, `POST /catalog/send` |
+| `client.assistants.options(options?)`, `client.assistants.run(body, options?)` | `POST /assistants/options`, `POST /assistants/runs` |
+| `client.quotes.recordOutcome(body, options?)` | `POST /crm/quote-outcomes` |
+| `client.referrals.create(body, options?)` | `POST /referrals/totem` |
+| `client.events.list(query?, options?)` | `GET /events` |
 | `client.leads.list(query?)` | `GET /leads` |
 | `client.leads.get(id)` | `GET /leads/{id}` |
 | `client.leads.search({ email })` or `({ phone })` | `POST /leads/search` |
@@ -109,10 +130,19 @@ the authority for request validation and access control. A `baseUrl` on
 | `client.leads.addNote(id, body, options?)` | `POST /leads/{id}/notes` |
 | `client.leads.updateNote(id, note, body, options)` | `PATCH /leads/{id}/notes/{note}` |
 | `client.leads.deleteNote(id, note, options)` | `DELETE /leads/{id}/notes/{note}` |
+| `client.leads.customValues(id, options?)`, `client.leads.updateCustomValues(id, body, options)` | `GET /leads/{id}/custom-values`, `PATCH /leads/{id}/custom-values` |
+| `client.leads.scheduleContact(body, options?)`, `client.leads.handoff(body, options?)` | `POST /crm/scheduled-contact`, `POST /crm/handoff` |
 | `client.calls.list(query?)`, `client.calls.get(id)` | `GET /calls`, `GET /calls/{id}` |
+| `client.calls.options(body, options?)`, `client.calls.start(body, options?)` | `POST /calls/options`, `POST /calls` |
+| `client.calls.transcript(id, options?)`, `client.calls.recording(id, options?)` | `GET /calls/{id}/transcript`, `GET /calls/{id}/recording` |
+| `client.calls.updateAnalysis(id, body, options?)` | `PATCH /calls/{id}/analysis` (source-bound system analyzer only) |
 | `client.conversations.list(query?)`, `client.conversations.get(id)` | `GET /conversations`, `GET /conversations/{id}` |
 | `client.bookings.list(query?)`, `client.bookings.get(id)` | `GET /bookings`, `GET /bookings/{id}` |
+| `client.bookings.updateAnalysis(id, body, options?)` | `PATCH /bookings/{id}/analysis` (source-bound system analyzer only) |
+| `client.notifications.create(body, options?)` | `POST /notifications` |
 | `client.notifications.list(query?)`, `client.notifications.get(id)` | `GET /notifications`, `GET /notifications/{id}` |
+| `client.tasks.create(body, options?)`, `client.tasks.complete(id, options?)` | `POST /tasks`, `POST /tasks/{id}/complete` |
+| `client.operations.get(id, options?)`, `client.operations.cancel(id, options?)` | `GET /operations/{id}`, `POST /operations/{id}/cancel` |
 | `client.sync.changes(query?)` | `GET /sync/changes` |
 | `client.health()` | `GET /health` |
 
@@ -146,6 +176,60 @@ identifiers, source URLs and private lead files are excluded. Provider deletion
 discovery is eventual. This POST is a read: normal read retries apply and no
 idempotency key is sent. Service integrations may forward their request-scoped
 server context using the existing `writeContext` option.
+
+## Current-source business methods (v1 candidate)
+
+The context, messaging, calendar, Library, Catalog and lifecycle-event additions
+above are in the current v1 candidate. They await API rollout and package
+publication and are absent from the published `0.3.0-beta.1` archive.
+
+`crm.context` reads the actual authorized source without waiting for a CRM
+inventory capture. Request note bodies, custom values, messages, calls, payments,
+recordings or attachments explicitly; each content class has its own permission.
+Historical `messages:read` grants metadata, while message bodies require the new
+`messages:content:read` grant. A successful write does not grant a content read.
+
+Current-source CRM mutations return metadata receipts. Select
+`response_view: 'source'` when the operation supports it and preserve the current
+quoted `"lrs1_…"` lead or `"lns1_…"` note validator. `leads.notes` supports
+`{ view: 'source' }`. Never substitute an inventory version validator for a
+source validator. Source-mode note deletion returns metadata; legacy inventory
+deletion returns 204 and resolves to `undefined`.
+
+`messages.requestInfo({ lead_id, info })` queues the staff-configured information
+request, limited to 500 characters. Staff choose its approved WhatsApp template
+or email design. The queued receipt states the actual configured channel and
+`delivery_confirmed: false`; the existing dispatcher owns provider delivery, cap and billing.
+Hosted voice execution derives its exact source contact without accepting a
+caller-selected recipient or template.
+
+Message sending uses an authorized conversation, or a lead plus an opaque
+configured sender from `messages.channels`. It accepts no arbitrary raw recipient
+or provider identity. Booking availability returns reviewed opaque offers;
+booking management uses its separate `"bka_…"` validator. Library and Catalog
+send operations require current content references and reviewed revisions.
+Their independent permissions and channel rules still apply.
+
+These sends and calendar writes return asynchronous operations. Inspect them
+with `operations.get` using the original logical idempotency key; keep
+`outcome_unknown` for reconciliation instead of submitting another effect.
+`payment_required` does not confirm a booking. A `prepared` Library delivery is
+persisted visitor output, not provider acceptance: read its ordered messages
+with `library.prepared`, then resolve only the required attachment references
+with `attachments.resolve` under the separate attachment permission.
+
+`events.list` returns integration-owned lifecycle transitions with stable event
+IDs. Apply a page and deduplicate those IDs before durably saving `next_cursor`;
+save the cursor even for an empty page. An accepted start is distinct from an
+actual completion event. The SDK does not poll or schedule consumers itself.
+See [`examples/business-operations.ts`](examples/business-operations.ts).
+
+`messages.prepareReply` accepts first-reply preparation on the same operation
+rail. Its final receipt may suppress an AI reply or provide a prepared-content
+reference; it never implies provider delivery. Reporting a missed team
+appointment with `notifications.create({ handoff_reason: 'missed_team_appointment',
+... })` additionally requires `notifications:incidents:write`. Existing keys
+gain neither this scope nor any content permission automatically.
 
 ## CRM writes and notes
 
@@ -190,8 +274,8 @@ quotes. A stale validator returns 412: re-read and reconcile rather than
 blindly replacing the validator. Opt-outs can only be added by this API.
 Note writes return **metadata only**; `leads.notes` is the granted content
 read. Read bodies may contain 0–50,000 characters for existing attachment-only
-or long product notes; API note writes accept 1–20,000. Deletion returns 204 and
-resolves to `undefined`. Granted notes also appear as `lead_note` feed upserts
+or long product notes; API note writes accept 1–20,000. Legacy inventory deletion returns 204 and
+resolves to `undefined`; current-source deletion returns its metadata receipt. Granted notes also appear as `lead_note` feed upserts
 and removals; existing read keys never receive that kind. Exhaustive feed
 switches must add it. See [`examples/crm.ts`](examples/crm.ts).
 
@@ -535,3 +619,14 @@ skipped checks, the feed variants seen and, on failure, the failing operation
 or check, schema rule and schema path, and request ID. It never contains the
 key or record content. A failed or incomplete run exits nonzero. Local green
 tests do not constitute live API verification.
+
+The v1 candidate also exposes `leads.scheduleContact`, `leads.handoff` and
+`referrals.create` through the canonical CRM engines. Saved callback and handoff
+receipts never claim provider delivery. Use the same idempotency key when reconciling
+retries; `scheduleContact` also accepts a reviewed source `ifMatch`.
+`calls.options` supplies an opaque current calling binding for `calls.start`;
+the resulting operation attests initiation acceptance, while `events.list` reports
+actual lifecycle completion. `calls.transcript` and `calls.recording` require their
+own content grants. Call metadata permission alone grants neither.
+
+Use `messages.send` for a WhatsApp call invitation too: `content: { kind: 'whatsapp_call', action: 'send_call_button', body_text: 'Call our team', display_text: 'Call', ttl_minutes: 60 }`, or `{ kind: 'whatsapp_call', action: 'request_permission' }`. The selected conversation binds the configured line and actual recipient. Current WhatsApp calling setup, reply window and permission limits apply. The operation acknowledges an invitation message, never a started or answered call.

@@ -1,8 +1,8 @@
 /** Generated from openapi.json and package.json. Do not edit; run npm run generate. */
 import type { ErrorAction, TotemErrorCode } from './schema.js'
 
-export const CONTRACT_SHA256 = 'fb500b8d49647b2273a976aeabdd3b0167a3cdcaa9ff466d08e65527234f2890'
-export const SDK_VERSION = '0.3.0-beta.1'
+export const CONTRACT_SHA256 = 'ffed3a0bdf57fb69390fb27e5468f22716e9c4baf62a7a33100d64255bfd5519'
+export const SDK_VERSION = '1.0.0-rc.1'
 export const DEFAULT_BASE_URL = "https://api.totemstudio.ai/v1"
 export const operationDefinitions = {
   "me.get": {
@@ -104,6 +104,22 @@ export const operationDefinitions = {
     ],
     "query": []
   },
+  "booking_services.options": {
+    "method": "POST",
+    "path": "/booking_services/options",
+    "authenticated": true,
+    "body": true,
+    "team": true,
+    "effect": "read",
+    "headers": [],
+    "successResponses": [
+      {
+        "status": 200,
+        "body": true
+      }
+    ],
+    "query": []
+  },
   "leads.list": {
     "method": "GET",
     "path": "/leads",
@@ -157,6 +173,140 @@ export const operationDefinitions = {
     ],
     "query": []
   },
+  "crm.context": {
+    "method": "POST",
+    "path": "/crm/context",
+    "authenticated": true,
+    "body": true,
+    "team": true,
+    "effect": "read",
+    "headers": [],
+    "successResponses": [
+      {
+        "status": 200,
+        "body": true
+      }
+    ],
+    "query": []
+  },
+  "leads.scheduleContact": {
+    "method": "POST",
+    "path": "/crm/scheduled-contact",
+    "authenticated": true,
+    "body": true,
+    "team": true,
+    "effect": "write",
+    "headers": [
+      {
+        "name": "Idempotency-Key",
+        "required": true,
+        "schema": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 255,
+          "pattern": "^[\\x21-\\x7e]+$"
+        }
+      },
+      {
+        "name": "If-Match",
+        "required": false,
+        "schema": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 300,
+          "pattern": "^\"lrs1_[a-f0-9]{64}\"$"
+        }
+      }
+    ],
+    "successResponses": [
+      {
+        "status": 200,
+        "body": true
+      }
+    ],
+    "query": []
+  },
+  "leads.handoff": {
+    "method": "POST",
+    "path": "/crm/handoff",
+    "authenticated": true,
+    "body": true,
+    "team": true,
+    "effect": "write",
+    "headers": [
+      {
+        "name": "Idempotency-Key",
+        "required": true,
+        "schema": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 255,
+          "pattern": "^[\\x21-\\x7e]+$"
+        }
+      }
+    ],
+    "successResponses": [
+      {
+        "status": 200,
+        "body": true
+      }
+    ],
+    "query": []
+  },
+  "referrals.create": {
+    "method": "POST",
+    "path": "/referrals/totem",
+    "authenticated": true,
+    "body": true,
+    "team": true,
+    "effect": "write",
+    "headers": [
+      {
+        "name": "Idempotency-Key",
+        "required": true,
+        "schema": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 255,
+          "pattern": "^[\\x21-\\x7e]+$"
+        }
+      }
+    ],
+    "successResponses": [
+      {
+        "status": 200,
+        "body": true
+      }
+    ],
+    "query": []
+  },
+  "quotes.recordOutcome": {
+    "method": "POST",
+    "path": "/crm/quote-outcomes",
+    "authenticated": true,
+    "body": true,
+    "team": true,
+    "effect": "write",
+    "headers": [
+      {
+        "name": "Idempotency-Key",
+        "required": true,
+        "schema": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 255,
+          "pattern": "^[\\x21-\\x7e]+$"
+        }
+      }
+    ],
+    "successResponses": [
+      {
+        "status": 202,
+        "body": true
+      }
+    ],
+    "query": []
+  },
   "leads.get": {
     "method": "GET",
     "path": "/leads/{id}",
@@ -198,7 +348,7 @@ export const operationDefinitions = {
           "type": "string",
           "minLength": 1,
           "maxLength": 300,
-          "pattern": "^\"lead_[A-Za-z0-9]+:[1-9][0-9]{0,15}\"$"
+          "pattern": "^\"(?:lrs1_[a-f0-9]{64}|lead_[A-Za-z0-9]+:[1-9][0-9]{0,15})\"$"
         }
       }
     ],
@@ -261,7 +411,8 @@ export const operationDefinitions = {
     ],
     "query": [
       "limit",
-      "cursor"
+      "cursor",
+      "view"
     ]
   },
   "leads.addNote": {
@@ -316,7 +467,7 @@ export const operationDefinitions = {
           "type": "string",
           "minLength": 1,
           "maxLength": 300,
-          "pattern": "^\"lead_[A-Za-z0-9]+:[1-9][0-9]{0,15}\"$"
+          "pattern": "^\"(?:lrs1_[a-f0-9]{64}|lead_[A-Za-z0-9]+:[1-9][0-9]{0,15})\"$"
         }
       }
     ],
@@ -342,7 +493,9 @@ export const operationDefinitions = {
         "body": true
       }
     ],
-    "query": []
+    "query": [
+      "view"
+    ]
   },
   "leads.updateCustomValues": {
     "method": "PATCH",
@@ -379,7 +532,9 @@ export const operationDefinitions = {
         "body": true
       }
     ],
-    "query": []
+    "query": [
+      "view"
+    ]
   },
   "leads.deleteNote": {
     "method": "DELETE",
@@ -406,11 +561,15 @@ export const operationDefinitions = {
           "type": "string",
           "minLength": 1,
           "maxLength": 300,
-          "pattern": "^\"note_[A-Za-z0-9]+:[1-9][0-9]{0,15}\"$"
+          "pattern": "^\"(?:lns1_[a-f0-9]{64}|note_[A-Za-z0-9]+:[1-9][0-9]{0,15})\"$"
         }
       }
     ],
     "successResponses": [
+      {
+        "status": 200,
+        "body": true
+      },
       {
         "status": 204,
         "body": false
@@ -443,7 +602,7 @@ export const operationDefinitions = {
           "type": "string",
           "minLength": 1,
           "maxLength": 300,
-          "pattern": "^\"note_[A-Za-z0-9]+:[1-9][0-9]{0,15}\"$"
+          "pattern": "^\"(?:lns1_[a-f0-9]{64}|note_[A-Za-z0-9]+:[1-9][0-9]{0,15})\"$"
         }
       }
     ],
@@ -557,6 +716,280 @@ export const operationDefinitions = {
     ],
     "query": []
   },
+  "messages.channels": {
+    "method": "POST",
+    "path": "/messages/channels",
+    "authenticated": true,
+    "body": true,
+    "team": true,
+    "effect": "read",
+    "headers": [],
+    "successResponses": [
+      {
+        "status": 200,
+        "body": true
+      }
+    ],
+    "query": []
+  },
+  "messages.requestInfo": {
+    "method": "POST",
+    "path": "/messages/requested-info",
+    "authenticated": true,
+    "body": true,
+    "team": true,
+    "effect": "write",
+    "headers": [
+      {
+        "name": "Idempotency-Key",
+        "required": true,
+        "schema": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 255,
+          "pattern": "^[\\x21-\\x7e]+$"
+        }
+      }
+    ],
+    "successResponses": [
+      {
+        "status": 202,
+        "body": true
+      }
+    ],
+    "query": []
+  },
+  "messages.prepareReply": {
+    "method": "POST",
+    "path": "/messages/prepare-reply",
+    "authenticated": true,
+    "body": true,
+    "team": true,
+    "effect": "write",
+    "headers": [
+      {
+        "name": "Idempotency-Key",
+        "required": true,
+        "schema": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 255,
+          "pattern": "^[\\x21-\\x7e]+$"
+        }
+      }
+    ],
+    "successResponses": [
+      {
+        "status": 202,
+        "body": true
+      }
+    ],
+    "query": []
+  },
+  "messages.send": {
+    "method": "POST",
+    "path": "/messages/send",
+    "authenticated": true,
+    "body": true,
+    "team": true,
+    "effect": "write",
+    "headers": [
+      {
+        "name": "Idempotency-Key",
+        "required": true,
+        "schema": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 255,
+          "pattern": "^[\\x21-\\x7e]+$"
+        }
+      }
+    ],
+    "successResponses": [
+      {
+        "status": 202,
+        "body": true
+      }
+    ],
+    "query": []
+  },
+  "assistants.options": {
+    "method": "POST",
+    "path": "/assistants/options",
+    "authenticated": true,
+    "body": true,
+    "team": true,
+    "effect": "read",
+    "headers": [],
+    "successResponses": [
+      {
+        "status": 200,
+        "body": true
+      }
+    ],
+    "query": []
+  },
+  "assistants.run": {
+    "method": "POST",
+    "path": "/assistants/runs",
+    "authenticated": true,
+    "body": true,
+    "team": true,
+    "effect": "write",
+    "headers": [
+      {
+        "name": "Idempotency-Key",
+        "required": true,
+        "schema": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 255,
+          "pattern": "^[\\x21-\\x7e]+$"
+        }
+      }
+    ],
+    "successResponses": [
+      {
+        "status": 202,
+        "body": true
+      }
+    ],
+    "query": []
+  },
+  "library.list": {
+    "method": "POST",
+    "path": "/library/list",
+    "authenticated": true,
+    "body": true,
+    "team": true,
+    "effect": "read",
+    "headers": [],
+    "successResponses": [
+      {
+        "status": 200,
+        "body": true
+      }
+    ],
+    "query": []
+  },
+  "library.get": {
+    "method": "POST",
+    "path": "/library/get",
+    "authenticated": true,
+    "body": true,
+    "team": true,
+    "effect": "read",
+    "headers": [],
+    "successResponses": [
+      {
+        "status": 200,
+        "body": true
+      }
+    ],
+    "query": []
+  },
+  "library.prepared": {
+    "method": "POST",
+    "path": "/library/prepared",
+    "authenticated": true,
+    "body": true,
+    "team": true,
+    "effect": "read",
+    "headers": [],
+    "successResponses": [
+      {
+        "status": 200,
+        "body": true
+      }
+    ],
+    "query": []
+  },
+  "attachments.resolve": {
+    "method": "POST",
+    "path": "/attachments/resolve",
+    "authenticated": true,
+    "body": true,
+    "team": true,
+    "effect": "read",
+    "headers": [],
+    "successResponses": [
+      {
+        "status": 200,
+        "body": true
+      }
+    ],
+    "query": []
+  },
+  "library.send": {
+    "method": "POST",
+    "path": "/library/send",
+    "authenticated": true,
+    "body": true,
+    "team": true,
+    "effect": "write",
+    "headers": [
+      {
+        "name": "Idempotency-Key",
+        "required": true,
+        "schema": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 255,
+          "pattern": "^[\\x21-\\x7e]+$"
+        }
+      }
+    ],
+    "successResponses": [
+      {
+        "status": 202,
+        "body": true
+      }
+    ],
+    "query": []
+  },
+  "catalog.search": {
+    "method": "POST",
+    "path": "/catalog/search",
+    "authenticated": true,
+    "body": true,
+    "team": true,
+    "effect": "read",
+    "headers": [],
+    "successResponses": [
+      {
+        "status": 200,
+        "body": true
+      }
+    ],
+    "query": []
+  },
+  "catalog.send": {
+    "method": "POST",
+    "path": "/catalog/send",
+    "authenticated": true,
+    "body": true,
+    "team": true,
+    "effect": "write",
+    "headers": [
+      {
+        "name": "Idempotency-Key",
+        "required": true,
+        "schema": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 255,
+          "pattern": "^[\\x21-\\x7e]+$"
+        }
+      }
+    ],
+    "successResponses": [
+      {
+        "status": 202,
+        "body": true
+      }
+    ],
+    "query": []
+  },
   "knowledge.search": {
     "method": "POST",
     "path": "/knowledge/search",
@@ -605,6 +1038,22 @@ export const operationDefinitions = {
     ],
     "query": []
   },
+  "calls.options": {
+    "method": "POST",
+    "path": "/calls/options",
+    "authenticated": true,
+    "body": true,
+    "team": true,
+    "effect": "read",
+    "headers": [],
+    "successResponses": [
+      {
+        "status": 200,
+        "body": true
+      }
+    ],
+    "query": []
+  },
   "calls.list": {
     "method": "GET",
     "path": "/calls",
@@ -625,6 +1074,33 @@ export const operationDefinitions = {
       "lead"
     ]
   },
+  "calls.start": {
+    "method": "POST",
+    "path": "/calls",
+    "authenticated": true,
+    "body": true,
+    "team": true,
+    "effect": "write",
+    "headers": [
+      {
+        "name": "Idempotency-Key",
+        "required": true,
+        "schema": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 255,
+          "pattern": "^[\\x21-\\x7e]+$"
+        }
+      }
+    ],
+    "successResponses": [
+      {
+        "status": 202,
+        "body": true
+      }
+    ],
+    "query": []
+  },
   "calls.get": {
     "method": "GET",
     "path": "/calls/{id}",
@@ -633,6 +1109,65 @@ export const operationDefinitions = {
     "team": false,
     "effect": "read",
     "headers": [],
+    "successResponses": [
+      {
+        "status": 200,
+        "body": true
+      }
+    ],
+    "query": []
+  },
+  "calls.transcript": {
+    "method": "GET",
+    "path": "/calls/{id}/transcript",
+    "authenticated": true,
+    "body": false,
+    "team": false,
+    "effect": "read",
+    "headers": [],
+    "successResponses": [
+      {
+        "status": 200,
+        "body": true
+      }
+    ],
+    "query": []
+  },
+  "calls.recording": {
+    "method": "GET",
+    "path": "/calls/{id}/recording",
+    "authenticated": true,
+    "body": false,
+    "team": false,
+    "effect": "read",
+    "headers": [],
+    "successResponses": [
+      {
+        "status": 200,
+        "body": true
+      }
+    ],
+    "query": []
+  },
+  "call.analysis.update": {
+    "method": "PATCH",
+    "path": "/calls/{id}/analysis",
+    "authenticated": true,
+    "body": true,
+    "team": false,
+    "effect": "write",
+    "headers": [
+      {
+        "name": "Idempotency-Key",
+        "required": true,
+        "schema": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 255,
+          "pattern": "^[\\x21-\\x7e]+$"
+        }
+      }
+    ],
     "successResponses": [
       {
         "status": 200,
@@ -677,6 +1212,22 @@ export const operationDefinitions = {
     ],
     "query": []
   },
+  "conversations.messages": {
+    "method": "POST",
+    "path": "/conversations/messages",
+    "authenticated": true,
+    "body": true,
+    "team": true,
+    "effect": "read",
+    "headers": [],
+    "successResponses": [
+      {
+        "status": 200,
+        "body": true
+      }
+    ],
+    "query": []
+  },
   "bookings.list": {
     "method": "GET",
     "path": "/bookings",
@@ -697,6 +1248,33 @@ export const operationDefinitions = {
       "lead"
     ]
   },
+  "bookings.create": {
+    "method": "POST",
+    "path": "/bookings",
+    "authenticated": true,
+    "body": true,
+    "team": true,
+    "effect": "write",
+    "headers": [
+      {
+        "name": "Idempotency-Key",
+        "required": true,
+        "schema": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 255,
+          "pattern": "^[\\x21-\\x7e]+$"
+        }
+      }
+    ],
+    "successResponses": [
+      {
+        "status": 202,
+        "body": true
+      }
+    ],
+    "query": []
+  },
   "bookings.get": {
     "method": "GET",
     "path": "/bookings/{id}",
@@ -708,6 +1286,198 @@ export const operationDefinitions = {
     "successResponses": [
       {
         "status": 200,
+        "body": true
+      }
+    ],
+    "query": []
+  },
+  "meeting.analysis.update": {
+    "method": "PATCH",
+    "path": "/bookings/{id}/analysis",
+    "authenticated": true,
+    "body": true,
+    "team": false,
+    "effect": "write",
+    "headers": [
+      {
+        "name": "Idempotency-Key",
+        "required": true,
+        "schema": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 255,
+          "pattern": "^[\\x21-\\x7e]+$"
+        }
+      }
+    ],
+    "successResponses": [
+      {
+        "status": 200,
+        "body": true
+      }
+    ],
+    "query": []
+  },
+  "bookings.availability": {
+    "method": "POST",
+    "path": "/bookings/availability",
+    "authenticated": true,
+    "body": true,
+    "team": true,
+    "effect": "read",
+    "headers": [],
+    "successResponses": [
+      {
+        "status": 200,
+        "body": true
+      }
+    ],
+    "query": []
+  },
+  "bookings.inspect": {
+    "method": "GET",
+    "path": "/bookings/{id}/management",
+    "authenticated": true,
+    "body": false,
+    "team": false,
+    "effect": "read",
+    "headers": [],
+    "successResponses": [
+      {
+        "status": 200,
+        "body": true
+      }
+    ],
+    "query": []
+  },
+  "bookings.forLead": {
+    "method": "POST",
+    "path": "/bookings/for-lead",
+    "authenticated": true,
+    "body": true,
+    "team": true,
+    "effect": "read",
+    "headers": [],
+    "successResponses": [
+      {
+        "status": 200,
+        "body": true
+      }
+    ],
+    "query": []
+  },
+  "bookings.cancel": {
+    "method": "POST",
+    "path": "/bookings/{id}/cancel",
+    "authenticated": true,
+    "body": true,
+    "team": false,
+    "effect": "write",
+    "headers": [
+      {
+        "name": "Idempotency-Key",
+        "required": true,
+        "schema": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 255,
+          "pattern": "^[\\x21-\\x7e]+$"
+        }
+      },
+      {
+        "name": "If-Match",
+        "required": true,
+        "schema": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 300,
+          "pattern": "^\"bka_[a-f0-9]{64}\"$"
+        }
+      }
+    ],
+    "successResponses": [
+      {
+        "status": 202,
+        "body": true
+      }
+    ],
+    "query": []
+  },
+  "bookings.reschedule": {
+    "method": "POST",
+    "path": "/bookings/{id}/reschedule",
+    "authenticated": true,
+    "body": true,
+    "team": false,
+    "effect": "write",
+    "headers": [
+      {
+        "name": "Idempotency-Key",
+        "required": true,
+        "schema": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 255,
+          "pattern": "^[\\x21-\\x7e]+$"
+        }
+      },
+      {
+        "name": "If-Match",
+        "required": true,
+        "schema": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 300,
+          "pattern": "^\"bka_[a-f0-9]{64}\"$"
+        }
+      }
+    ],
+    "successResponses": [
+      {
+        "status": 202,
+        "body": true
+      }
+    ],
+    "query": []
+  },
+  "bookingPayments.get": {
+    "method": "POST",
+    "path": "/booking-payments/get",
+    "authenticated": true,
+    "body": true,
+    "team": true,
+    "effect": "read",
+    "headers": [],
+    "successResponses": [
+      {
+        "status": 200,
+        "body": true
+      }
+    ],
+    "query": []
+  },
+  "bookingPayments.sendLink": {
+    "method": "POST",
+    "path": "/booking-payments/send-link",
+    "authenticated": true,
+    "body": true,
+    "team": true,
+    "effect": "write",
+    "headers": [
+      {
+        "name": "Idempotency-Key",
+        "required": true,
+        "schema": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 255,
+          "pattern": "^[\\x21-\\x7e]+$"
+        }
+      }
+    ],
+    "successResponses": [
+      {
+        "status": 202,
         "body": true
       }
     ],
@@ -746,6 +1516,26 @@ export const operationDefinitions = {
     "query": [
       "cursor",
       "limit"
+    ]
+  },
+  "events.list": {
+    "method": "GET",
+    "path": "/events",
+    "authenticated": true,
+    "body": false,
+    "team": true,
+    "effect": "read",
+    "headers": [],
+    "successResponses": [
+      {
+        "status": 200,
+        "body": true
+      }
+    ],
+    "query": [
+      "cursor",
+      "limit",
+      "start"
     ]
   },
   "health": {
