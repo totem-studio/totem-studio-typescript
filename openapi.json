@@ -2,10 +2,10 @@
   "openapi": "3.1.0",
   "info": {
     "title": "Totem API",
-    "version": "1.0.0-rc.1",
+    "version": "1.0.0",
     "summary": "Totem Studio CRM reads and guarded writes, explicit note-content access, calls, conversations, bookings, business notifications and a changes feed.",
     "x-summary-es": "Lecturas y escrituras protegidas de CRM de Totem Studio, acceso explícito al contenido de notas, llamadas, conversaciones, citas, avisos de negocio y un feed de cambios.",
-    "x-totem-stability": "beta",
+    "x-totem-stability": "stable",
     "x-totem-pending-components": []
   },
   "servers": [
@@ -157,7 +157,7 @@
         "x-totem-rate-class": "read",
         "x-totem-effect": "read",
         "x-totem-tenant-binding": "principal",
-        "x-totem-stability": "beta"
+        "x-totem-stability": "stable"
       }
     },
     "/teams": {
@@ -254,7 +254,7 @@
         "x-totem-rate-class": "sync",
         "x-totem-effect": "read",
         "x-totem-tenant-binding": "principal",
-        "x-totem-stability": "beta"
+        "x-totem-stability": "stable"
       }
     },
     "/teams/{id}": {
@@ -332,7 +332,7 @@
         "x-totem-rate-class": "read",
         "x-totem-effect": "read",
         "x-totem-tenant-binding": "resource_id",
-        "x-totem-stability": "beta"
+        "x-totem-stability": "stable"
       }
     },
     "/boards": {
@@ -473,7 +473,7 @@
         "x-totem-rate-class": "sync",
         "x-totem-effect": "read",
         "x-totem-tenant-binding": "team_header",
-        "x-totem-stability": "beta"
+        "x-totem-stability": "stable"
       }
     },
     "/members": {
@@ -579,7 +579,7 @@
         "x-totem-rate-class": "sync",
         "x-totem-effect": "read",
         "x-totem-tenant-binding": "team_header",
-        "x-totem-stability": "beta"
+        "x-totem-stability": "stable"
       }
     },
     "/booking_services": {
@@ -686,7 +686,7 @@
         "x-totem-rate-class": "sync",
         "x-totem-effect": "read",
         "x-totem-tenant-binding": "team_header",
-        "x-totem-stability": "beta"
+        "x-totem-stability": "stable"
       }
     },
     "/booking_services/options": {
@@ -793,7 +793,7 @@
         "x-totem-rate-class": "read",
         "x-totem-effect": "read",
         "x-totem-tenant-binding": "team_header",
-        "x-totem-stability": "beta"
+        "x-totem-stability": "stable"
       }
     },
     "/leads": {
@@ -986,7 +986,7 @@
         "x-totem-rate-class": "sync",
         "x-totem-effect": "read",
         "x-totem-tenant-binding": "team_header",
-        "x-totem-stability": "beta"
+        "x-totem-stability": "stable"
       },
       "post": {
         "operationId": "leads.upsert",
@@ -1402,7 +1402,7 @@
         "x-totem-rate-class": "write",
         "x-totem-effect": "write",
         "x-totem-tenant-binding": "team_header",
-        "x-totem-stability": "beta"
+        "x-totem-stability": "stable"
       }
     },
     "/crm/context": {
@@ -1650,7 +1650,7 @@
         "x-totem-rate-class": "read",
         "x-totem-effect": "read",
         "x-totem-tenant-binding": "team_header",
-        "x-totem-stability": "beta"
+        "x-totem-stability": "stable"
       }
     },
     "/crm/scheduled-contact": {
@@ -1841,7 +1841,7 @@
         "x-totem-rate-class": "write",
         "x-totem-effect": "write",
         "x-totem-tenant-binding": "team_header",
-        "x-totem-stability": "beta"
+        "x-totem-stability": "stable"
       }
     },
     "/crm/handoff": {
@@ -1997,7 +1997,7 @@
         "x-totem-rate-class": "write",
         "x-totem-effect": "write",
         "x-totem-tenant-binding": "team_header",
-        "x-totem-stability": "beta"
+        "x-totem-stability": "stable"
       }
     },
     "/referrals/totem": {
@@ -2147,7 +2147,7 @@
         "x-totem-rate-class": "write",
         "x-totem-effect": "write",
         "x-totem-tenant-binding": "team_header",
-        "x-totem-stability": "beta"
+        "x-totem-stability": "stable"
       }
     },
     "/crm/quote-outcomes": {
@@ -2355,7 +2355,7 @@
         "x-totem-rate-class": "write",
         "x-totem-effect": "write",
         "x-totem-tenant-binding": "team_header",
-        "x-totem-stability": "beta"
+        "x-totem-stability": "stable"
       }
     },
     "/leads/{id}": {
@@ -2605,7 +2605,7 @@
         "x-totem-rate-class": "read",
         "x-totem-effect": "read",
         "x-totem-tenant-binding": "resource_id",
-        "x-totem-stability": "beta"
+        "x-totem-stability": "stable"
       },
       "patch": {
         "operationId": "leads.update",
@@ -2986,7 +2986,7 @@
         "x-totem-rate-class": "write",
         "x-totem-effect": "write",
         "x-totem-tenant-binding": "resource_id",
-        "x-totem-stability": "beta"
+        "x-totem-stability": "stable"
       }
     },
     "/leads/search": {
@@ -3186,7 +3186,7 @@
         "x-totem-rate-class": "read",
         "x-totem-effect": "read",
         "x-totem-tenant-binding": "team_header",
-        "x-totem-stability": "beta"
+        "x-totem-stability": "stable"
       }
     },
     "/leads/{id}/activities": {
@@ -3316,7 +3316,7 @@
         "x-totem-rate-class": "sync",
         "x-totem-effect": "read",
         "x-totem-tenant-binding": "resource_id",
-        "x-totem-stability": "beta"
+        "x-totem-stability": "stable"
       }
     },
     "/leads/{id}/notes": {
@@ -3459,7 +3459,7 @@
         "x-totem-rate-class": "write",
         "x-totem-effect": "write",
         "x-totem-tenant-binding": "resource_id",
-        "x-totem-stability": "beta"
+        "x-totem-stability": "stable"
       },
       "get": {
         "operationId": "leads.notes",
@@ -3584,7 +3584,7 @@
         "x-totem-rate-class": "sync",
         "x-totem-effect": "read",
         "x-totem-tenant-binding": "resource_id",
-        "x-totem-stability": "beta"
+        "x-totem-stability": "stable"
       }
     },
     "/leads/{id}/archive": {
@@ -3790,7 +3790,7 @@
         "x-totem-rate-class": "write",
         "x-totem-effect": "write",
         "x-totem-tenant-binding": "resource_id",
-        "x-totem-stability": "beta"
+        "x-totem-stability": "stable"
       }
     },
     "/leads/{id}/custom-values": {
@@ -3889,7 +3889,7 @@
         "x-totem-rate-class": "sync",
         "x-totem-effect": "read",
         "x-totem-tenant-binding": "resource_id",
-        "x-totem-stability": "beta"
+        "x-totem-stability": "stable"
       },
       "patch": {
         "operationId": "leads.updateCustomValues",
@@ -4074,7 +4074,7 @@
         "x-totem-rate-class": "write",
         "x-totem-effect": "write",
         "x-totem-tenant-binding": "resource_id",
-        "x-totem-stability": "beta"
+        "x-totem-stability": "stable"
       }
     },
     "/leads/{id}/notes/{note}": {
@@ -4243,7 +4243,7 @@
         "x-totem-rate-class": "write",
         "x-totem-effect": "write",
         "x-totem-tenant-binding": "resource_id",
-        "x-totem-stability": "beta"
+        "x-totem-stability": "stable"
       },
       "delete": {
         "operationId": "leads.deleteNote",
@@ -4385,7 +4385,7 @@
         "x-totem-rate-class": "write",
         "x-totem-effect": "write",
         "x-totem-tenant-binding": "resource_id",
-        "x-totem-stability": "beta"
+        "x-totem-stability": "stable"
       }
     },
     "/tasks": {
@@ -4630,7 +4630,7 @@
         "x-totem-rate-class": "write",
         "x-totem-effect": "write",
         "x-totem-tenant-binding": "team_header",
-        "x-totem-stability": "beta"
+        "x-totem-stability": "stable"
       }
     },
     "/tasks/{id}/complete": {
@@ -4752,7 +4752,7 @@
         "x-totem-rate-class": "write",
         "x-totem-effect": "write",
         "x-totem-tenant-binding": "team_header",
-        "x-totem-stability": "beta"
+        "x-totem-stability": "stable"
       }
     },
     "/notifications": {
@@ -4909,7 +4909,7 @@
         "x-totem-rate-class": "write",
         "x-totem-effect": "write",
         "x-totem-tenant-binding": "team_header",
-        "x-totem-stability": "beta"
+        "x-totem-stability": "stable"
       },
       "get": {
         "operationId": "notifications.list",
@@ -5046,7 +5046,7 @@
         "x-totem-rate-class": "sync",
         "x-totem-effect": "read",
         "x-totem-tenant-binding": "team_header",
-        "x-totem-stability": "beta"
+        "x-totem-stability": "stable"
       }
     },
     "/messages/channels": {
@@ -5134,7 +5134,7 @@
         "x-totem-rate-class": "read",
         "x-totem-effect": "read",
         "x-totem-tenant-binding": "team_header",
-        "x-totem-stability": "beta"
+        "x-totem-stability": "stable"
       }
     },
     "/messages/requested-info": {
@@ -5258,7 +5258,7 @@
         "x-totem-rate-class": "write",
         "x-totem-effect": "write",
         "x-totem-tenant-binding": "team_header",
-        "x-totem-stability": "beta"
+        "x-totem-stability": "stable"
       }
     },
     "/messages/prepare-reply": {
@@ -5374,7 +5374,7 @@
         "x-totem-rate-class": "write",
         "x-totem-effect": "write",
         "x-totem-tenant-binding": "team_header",
-        "x-totem-stability": "beta"
+        "x-totem-stability": "stable"
       }
     },
     "/messages/send": {
@@ -5774,7 +5774,7 @@
         "x-totem-rate-class": "write",
         "x-totem-effect": "write",
         "x-totem-tenant-binding": "team_header",
-        "x-totem-stability": "beta"
+        "x-totem-stability": "stable"
       }
     },
     "/assistants/options": {
@@ -5864,7 +5864,7 @@
         "x-totem-rate-class": "read",
         "x-totem-effect": "read",
         "x-totem-tenant-binding": "team_header",
-        "x-totem-stability": "beta"
+        "x-totem-stability": "stable"
       }
     },
     "/assistants/runs": {
@@ -5996,7 +5996,7 @@
         "x-totem-rate-class": "write",
         "x-totem-effect": "write",
         "x-totem-tenant-binding": "team_header",
-        "x-totem-stability": "beta"
+        "x-totem-stability": "stable"
       }
     },
     "/library/list": {
@@ -6140,7 +6140,7 @@
         "x-totem-rate-class": "read",
         "x-totem-effect": "read",
         "x-totem-tenant-binding": "team_header",
-        "x-totem-stability": "beta"
+        "x-totem-stability": "stable"
       }
     },
     "/library/get": {
@@ -6249,7 +6249,7 @@
         "x-totem-rate-class": "read",
         "x-totem-effect": "read",
         "x-totem-tenant-binding": "team_header",
-        "x-totem-stability": "beta"
+        "x-totem-stability": "stable"
       }
     },
     "/library/prepared": {
@@ -6351,7 +6351,7 @@
         "x-totem-rate-class": "read",
         "x-totem-effect": "read",
         "x-totem-tenant-binding": "team_header",
-        "x-totem-stability": "beta"
+        "x-totem-stability": "stable"
       }
     },
     "/attachments/resolve": {
@@ -6448,7 +6448,7 @@
         "x-totem-rate-class": "read",
         "x-totem-effect": "read",
         "x-totem-tenant-binding": "team_header",
-        "x-totem-stability": "beta"
+        "x-totem-stability": "stable"
       }
     },
     "/library/send": {
@@ -6586,7 +6586,7 @@
         "x-totem-rate-class": "write",
         "x-totem-effect": "write",
         "x-totem-tenant-binding": "team_header",
-        "x-totem-stability": "beta"
+        "x-totem-stability": "stable"
       }
     },
     "/catalog/search": {
@@ -6696,7 +6696,7 @@
         "x-totem-rate-class": "read",
         "x-totem-effect": "read",
         "x-totem-tenant-binding": "team_header",
-        "x-totem-stability": "beta"
+        "x-totem-stability": "stable"
       }
     },
     "/catalog/send": {
@@ -6850,7 +6850,7 @@
         "x-totem-rate-class": "write",
         "x-totem-effect": "write",
         "x-totem-tenant-binding": "team_header",
-        "x-totem-stability": "beta"
+        "x-totem-stability": "stable"
       }
     },
     "/knowledge/search": {
@@ -6960,7 +6960,7 @@
         "x-totem-rate-class": "read",
         "x-totem-effect": "read",
         "x-totem-tenant-binding": "team_header",
-        "x-totem-stability": "beta"
+        "x-totem-stability": "stable"
       }
     },
     "/operations/{id}": {
@@ -7044,7 +7044,7 @@
         "x-totem-rate-class": "read",
         "x-totem-effect": "read",
         "x-totem-tenant-binding": "team_header",
-        "x-totem-stability": "beta"
+        "x-totem-stability": "stable"
       }
     },
     "/operations/{id}/cancel": {
@@ -7142,7 +7142,7 @@
         "x-totem-rate-class": "write",
         "x-totem-effect": "write",
         "x-totem-tenant-binding": "team_header",
-        "x-totem-stability": "beta"
+        "x-totem-stability": "stable"
       }
     },
     "/calls/options": {
@@ -7245,7 +7245,7 @@
         "x-totem-rate-class": "read",
         "x-totem-effect": "read",
         "x-totem-tenant-binding": "team_header",
-        "x-totem-stability": "beta"
+        "x-totem-stability": "stable"
       }
     },
     "/calls": {
@@ -7384,7 +7384,7 @@
         "x-totem-rate-class": "write",
         "x-totem-effect": "write",
         "x-totem-tenant-binding": "team_header",
-        "x-totem-stability": "beta"
+        "x-totem-stability": "stable"
       },
       "get": {
         "operationId": "calls.list",
@@ -7504,7 +7504,7 @@
         "x-totem-rate-class": "sync",
         "x-totem-effect": "read",
         "x-totem-tenant-binding": "team_header",
-        "x-totem-stability": "beta"
+        "x-totem-stability": "stable"
       }
     },
     "/calls/{id}": {
@@ -7589,7 +7589,7 @@
         "x-totem-rate-class": "read",
         "x-totem-effect": "read",
         "x-totem-tenant-binding": "resource_id",
-        "x-totem-stability": "beta"
+        "x-totem-stability": "stable"
       }
     },
     "/calls/{id}/transcript": {
@@ -7666,7 +7666,7 @@
         "x-totem-rate-class": "read",
         "x-totem-effect": "read",
         "x-totem-tenant-binding": "resource_id",
-        "x-totem-stability": "beta"
+        "x-totem-stability": "stable"
       }
     },
     "/calls/{id}/recording": {
@@ -7745,7 +7745,7 @@
         "x-totem-rate-class": "read",
         "x-totem-effect": "read",
         "x-totem-tenant-binding": "resource_id",
-        "x-totem-stability": "beta"
+        "x-totem-stability": "stable"
       }
     },
     "/calls/{id}/analysis": {
@@ -7904,7 +7904,7 @@
         "x-totem-rate-class": "write",
         "x-totem-effect": "write",
         "x-totem-tenant-binding": "resource_id",
-        "x-totem-stability": "beta"
+        "x-totem-stability": "stable"
       }
     },
     "/conversations": {
@@ -8028,7 +8028,7 @@
         "x-totem-rate-class": "sync",
         "x-totem-effect": "read",
         "x-totem-tenant-binding": "team_header",
-        "x-totem-stability": "beta"
+        "x-totem-stability": "stable"
       }
     },
     "/conversations/{id}": {
@@ -8115,7 +8115,7 @@
         "x-totem-rate-class": "read",
         "x-totem-effect": "read",
         "x-totem-tenant-binding": "resource_id",
-        "x-totem-stability": "beta"
+        "x-totem-stability": "stable"
       }
     },
     "/conversations/messages": {
@@ -8214,7 +8214,7 @@
         "x-totem-rate-class": "read",
         "x-totem-effect": "read",
         "x-totem-tenant-binding": "team_header",
-        "x-totem-stability": "beta"
+        "x-totem-stability": "stable"
       }
     },
     "/bookings": {
@@ -8341,7 +8341,7 @@
         "x-totem-rate-class": "sync",
         "x-totem-effect": "read",
         "x-totem-tenant-binding": "team_header",
-        "x-totem-stability": "beta"
+        "x-totem-stability": "stable"
       },
       "post": {
         "operationId": "bookings.create",
@@ -8487,7 +8487,7 @@
         "x-totem-rate-class": "write",
         "x-totem-effect": "write",
         "x-totem-tenant-binding": "team_header",
-        "x-totem-stability": "beta"
+        "x-totem-stability": "stable"
       }
     },
     "/bookings/{id}": {
@@ -8577,7 +8577,7 @@
         "x-totem-rate-class": "read",
         "x-totem-effect": "read",
         "x-totem-tenant-binding": "resource_id",
-        "x-totem-stability": "beta"
+        "x-totem-stability": "stable"
       }
     },
     "/bookings/{id}/analysis": {
@@ -8700,7 +8700,7 @@
         "x-totem-rate-class": "write",
         "x-totem-effect": "write",
         "x-totem-tenant-binding": "resource_id",
-        "x-totem-stability": "beta"
+        "x-totem-stability": "stable"
       }
     },
     "/bookings/availability": {
@@ -8875,7 +8875,7 @@
         "x-totem-rate-class": "read",
         "x-totem-effect": "read",
         "x-totem-tenant-binding": "team_header",
-        "x-totem-stability": "beta"
+        "x-totem-stability": "stable"
       }
     },
     "/bookings/{id}/management": {
@@ -8963,7 +8963,7 @@
         "x-totem-rate-class": "read",
         "x-totem-effect": "read",
         "x-totem-tenant-binding": "resource_id",
-        "x-totem-stability": "beta"
+        "x-totem-stability": "stable"
       }
     },
     "/bookings/for-lead": {
@@ -9087,7 +9087,7 @@
         "x-totem-rate-class": "read",
         "x-totem-effect": "read",
         "x-totem-tenant-binding": "team_header",
-        "x-totem-stability": "beta"
+        "x-totem-stability": "stable"
       }
     },
     "/bookings/{id}/cancel": {
@@ -9214,7 +9214,7 @@
         "x-totem-rate-class": "write",
         "x-totem-effect": "write",
         "x-totem-tenant-binding": "resource_id",
-        "x-totem-stability": "beta"
+        "x-totem-stability": "stable"
       }
     },
     "/bookings/{id}/reschedule": {
@@ -9351,7 +9351,7 @@
         "x-totem-rate-class": "write",
         "x-totem-effect": "write",
         "x-totem-tenant-binding": "resource_id",
-        "x-totem-stability": "beta"
+        "x-totem-stability": "stable"
       }
     },
     "/booking-payments/get": {
@@ -9465,7 +9465,7 @@
         "x-totem-rate-class": "read",
         "x-totem-effect": "read",
         "x-totem-tenant-binding": "team_header",
-        "x-totem-stability": "beta"
+        "x-totem-stability": "stable"
       }
     },
     "/booking-payments/send-link": {
@@ -9599,7 +9599,7 @@
         "x-totem-rate-class": "write",
         "x-totem-effect": "write",
         "x-totem-tenant-binding": "team_header",
-        "x-totem-stability": "beta"
+        "x-totem-stability": "stable"
       }
     },
     "/notifications/{id}": {
@@ -9686,7 +9686,7 @@
         "x-totem-rate-class": "read",
         "x-totem-effect": "read",
         "x-totem-tenant-binding": "resource_id",
-        "x-totem-stability": "beta"
+        "x-totem-stability": "stable"
       }
     },
     "/sync/changes": {
@@ -9907,7 +9907,7 @@
         "x-totem-rate-class": "sync",
         "x-totem-effect": "read",
         "x-totem-tenant-binding": "team_header",
-        "x-totem-stability": "beta"
+        "x-totem-stability": "stable"
       }
     },
     "/events": {
@@ -10028,7 +10028,7 @@
         "x-totem-rate-class": "sync",
         "x-totem-effect": "read",
         "x-totem-tenant-binding": "team_header",
-        "x-totem-stability": "beta"
+        "x-totem-stability": "stable"
       }
     },
     "/health": {
@@ -10080,7 +10080,7 @@
         "x-totem-rate-class": "none",
         "x-totem-effect": "read",
         "x-totem-tenant-binding": "none",
-        "x-totem-stability": "beta"
+        "x-totem-stability": "stable"
       }
     }
   },

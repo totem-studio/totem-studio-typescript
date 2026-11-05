@@ -3,13 +3,16 @@
 The SDK follows the Totem API contract. Each entry lists what changed and
 what to adapt.
 
-## 1.0.0 (prepared locally, 2026-11-04)
+## 1.0.0 (2026-11-05)
 
-- Prepared the stable SDK version and future download assets. Publication is
-  on hold until final production API and public n8n-node acceptance.
-- No API contract, permissions or runtime behavior changes from 1.0.0-rc.1.
-  The same 70-operation contract remains in use; this version change grants
-  no additional access to existing integrations.
+- The SDK version and documented package, Git tag and download paths use
+  `1.0.0` for the stable API v1 contract.
+- Generated from the stable API v1 metadata and the same 70 operation ids.
+  `bookings.availability` accepts optional `additional_services` for one joint
+  Koibox visit; choose the returned combined offer rather than inferring an
+  overlap from independent service times.
+- Permissions and existing key grants are unchanged. The version change
+  grants no additional access.
 
 ## 1.0.0-rc.1 (candidate, 2026-11-04)
 

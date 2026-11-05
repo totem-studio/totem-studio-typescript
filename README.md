@@ -1,8 +1,9 @@
 # Totem Studio TypeScript SDK · v1
 
 The official server-side SDK for the [Totem API](https://totemstudio.ai/developers).
-It covers the API’s reads and guarded CRM writes: leads, notes, boards, activities,
-calls, conversations, bookings, notifications, teams, members, services and the changes feed.
+It covers all 70 API operations: CRM, authorized messaging and calls, bookings and
+payments, tasks, notifications, published assistant runs, Library, Catalog,
+knowledge, events and the changes feed. Private content requires its own grant.
 
 Requires **Node.js 22.12 or later** (the first release line where `require()`
 of an ES module works without a flag). Built and checked with **TypeScript
@@ -10,24 +11,20 @@ of an ES module works without a flag). Built and checked with **TypeScript
 
 ## Install
 
-This checkout prepares **1.0.0**. Stable publication is on hold until final
-production API and public n8n-node acceptance. Its package, Git tag and download
-assets below become available only after that release.
-
-After stable publication, install the exact version on your server:
+Version **1.0.0** targets the stable Totem API v1 contract. Pin the exact
+SDK version on your server:
 
 ```sh
 npm install @totemstudioai/sdk@1.0.0
 ```
 
-The published release candidate is `1.0.0-rc.1` under the `rc` tag. This
-local preparation changes no registry tags. Version 1.0.0 uses the same
-70-operation API contract and runtime behavior as that candidate.
+Version 1.0.0 retains the same 70 operation ids and permissions. It adds the
+optional `additional_services` field for a joint Koibox visit and reflects the
+stable API contract metadata; existing keys receive no additional access.
 
-The planned GitHub release contains the built package and checksum, so the
+GitHub release downloads contain the built package and checksum, so the
 archive needs no Git, build step or install scripts and works with
-`ignore-scripts`. After release publication, download and check it before
-installing:
+`ignore-scripts`. Download and check the versioned archive before installing:
 
 ```sh
 curl -fLO https://github.com/totem-studio/totem-studio-typescript/releases/download/v1.0.0/totemstudioai-sdk-1.0.0.tgz
@@ -45,7 +42,7 @@ so keep the tarball where you installed it from: later installs such as
 `npm ci` read it from there. Import the package by its name,
 `@totemstudioai/sdk`.
 
-After the stable tag is published, you may also install it from Git. This builds the package with TypeScript
+You may also install the versioned source from Git. This builds the package with TypeScript
 through its `prepare` script, so it **needs lifecycle scripts**: with
 `ignore-scripts=true`, pnpm's build-script allowlist or npm's `allowScripts`,
 allow `@totemstudioai/sdk`, or the install succeeds without a `dist/` and the
@@ -154,10 +151,9 @@ record of a particular team, compare its `team` field with the one you expect.
 Optional settings and query values accept `undefined`, and a cursor accepts
 `null`, so `client.leads.list({ cursor: page.next_cursor })` works as written.
 
-## Knowledge search (v1 candidate)
+## Knowledge search
 
-Knowledge search is part of the current v1 candidate, pending publication and
-API rollout. It is not included in the published `0.3.0-beta.1` archive.
+The v1 client includes knowledge search.
 `knowledge:read` requires its own explicit knowledge-content grant; CRM, note
 and custom-value permissions do not grant it. Existing keys gain no access.
 
@@ -177,11 +173,10 @@ discovery is eventual. This POST is a read: normal read retries apply and no
 idempotency key is sent. Service integrations may forward their request-scoped
 server context using the existing `writeContext` option.
 
-## Current-source business methods (v1 candidate)
+## Current-source business methods
 
-The context, messaging, calendar, Library, Catalog and lifecycle-event additions
-above are in the current v1 candidate. They await API rollout and package
-publication and are absent from the published `0.3.0-beta.1` archive.
+The context, messaging, calendar, Library, Catalog and lifecycle-event methods
+above use the same public API v1 contract.
 
 `crm.context` reads the actual authorized source without waiting for a CRM
 inventory capture. Request note bodies, custom values, messages, calls, payments,
@@ -237,8 +232,8 @@ Existing read keys remain read-only. An administrator must grant `crm:write`;
 reading note bodies also requires the separate explicit note-content grant and
 `crm:notes:read`. Import uses `origin: 'import'` and never arms outreach.
 `origin: 'inbound'` needs its separate intake capability and a phone supplied by
-the person. Declaring inbound never implies WhatsApp consent. This Beta’s
-automatic intake accepts ordinary mobile/fixed-line destinations in the team’s
+the person. Declaring inbound never implies WhatsApp consent. Automatic
+intake accepts ordinary mobile/fixed-line destinations in the team’s
 stored default country; unknown, special-rate or foreign destinations remain
 saved and withheld. The durable recipient fence allows one armed intake per
 billing family/phone in seven days, with an additional 500/day principal cap.
@@ -620,7 +615,7 @@ or check, schema rule and schema path, and request ID. It never contains the
 key or record content. A failed or incomplete run exits nonzero. Local green
 tests do not constitute live API verification.
 
-The v1 candidate also exposes `leads.scheduleContact`, `leads.handoff` and
+The v1 client also exposes `leads.scheduleContact`, `leads.handoff` and
 `referrals.create` through the canonical CRM engines. Saved callback and handoff
 receipts never claim provider delivery. Use the same idempotency key when reconciling
 retries; `scheduleContact` also accepts a reviewed source `ifMatch`.
