@@ -3,6 +3,15 @@
 The SDK follows the Totem API contract. Each entry lists what changed and
 what to adapt.
 
+## 1.1.0 (2026-11-06)
+
+- `leads.upsert` accepts an optional `note` of up to 5,000 characters. The server
+  appends it atomically to a new or authorized existing lead; blank text adds no
+  note, and replaying the same idempotent intent does not append again.
+- The lead mutation receipt remains metadata only. Reading note content still
+  requires its separate grant; the same 70 operation ids and key permissions
+  remain in place.
+
 ## 1.0.0 (2026-11-05)
 
 - The SDK version and documented package, Git tag and download paths use

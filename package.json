@@ -1,6 +1,6 @@
 {
   "name": "@totemstudioai/sdk",
-  "version": "1.0.0",
+  "version": "1.1.0",
   "description": "Official server-side TypeScript SDK for the Totem Studio public API v1",
   "type": "module",
   "license": "MIT",

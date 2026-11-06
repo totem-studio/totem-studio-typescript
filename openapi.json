@@ -995,8 +995,8 @@
         ],
         "summary": "Upsert a lead by identity",
         "x-summary-es": "Crea o resuelve un lead por identidad",
-        "description": "Creates a lead with all supplied CRM fields (201), or fills only missing contact details on an existing identity (200); changing an existing pipeline value requires conditional PATCH and otherwise returns `400 invalid_request`. Import never revives or arms outreach; inbound requires its separate capability and a phone supplied by the person, with destination, consent and durable outreach guards. A validate_only dry run returns 200 without writes, conflicting identities return `409 ambiguous_identity`, and external ids never cross integration namespaces.",
-        "x-description-es": "Crea un lead con todos los campos CRM enviados (201), o completa solo datos de contacto ausentes de una identidad existente (200); cambiar un valor existente del embudo requiere PATCH condicional y, en otro caso, devuelve `400 invalid_request`. Import nunca reactiva ni activa contactos; inbound requiere su capacidad independiente y un teléfono facilitado por la persona, con protecciones de destino, consentimiento y límites duraderos. La validación validate_only devuelve 200 sin escrituras, las identidades en conflicto devuelven `409 ambiguous_identity` y los identificadores externos nunca cruzan espacios de integración.",
+        "description": "Creates a lead with supplied CRM fields (201) or fills only missing contact details on an existing identity (200), appending an optional note in the same idempotent transaction; changing an existing pipeline value requires conditional PATCH or returns `400 invalid_request`. Import never revives or arms outreach; inbound requires its separate capability and a phone supplied by the person, with destination, consent and durable outreach guards. A validate_only dry run returns 200 without writes, conflicting identities return `409 ambiguous_identity`, and external ids never cross integration namespaces.",
+        "x-description-es": "Crea un lead con los campos CRM enviados (201) o completa solo datos de contacto ausentes de una identidad existente (200), añadiendo una nota opcional en la misma transacción idempotente; cambiar un valor existente del embudo requiere PATCH condicional o devuelve `400 invalid_request`. Import nunca reactiva ni activa contactos; inbound requiere su capacidad independiente y un teléfono facilitado por la persona, con protecciones de destino, consentimiento y límites duraderos. La validación validate_only devuelve 200 sin escrituras, las identidades en conflicto devuelven `409 ambiguous_identity` y los identificadores externos nunca cruzan espacios de integración.",
         "parameters": [
           {
             "$ref": "#/components/parameters/TotemTeam"
@@ -1190,6 +1190,12 @@
                       }
                     },
                     "additionalProperties": false
+                  },
+                  "note": {
+                    "description": "Optional qualification note appended atomically to a created or authorized existing lead. Blank text writes no note; replaying the same Idempotency-Key does not append again. Reading note content still requires its separate grant.",
+                    "x-description-es": "Nota de contexto opcional añadida atómicamente a un lead nuevo o existente autorizado. Un texto vacío no crea nota; repetir la misma Idempotency-Key no la duplica. Leer su contenido sigue requiriendo su permiso independiente.",
+                    "type": "string",
+                    "maxLength": 5000
                   }
                 },
                 "required": [

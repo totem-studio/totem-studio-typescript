@@ -45,7 +45,9 @@ const dateObjectBirthday: Lead['date_of_birth'] = new Date('2000-02-29')
 void version; void birthday; void birthdayInFeed; void birthdayInDetail; void knownBirthday; void noBirthday
 void omittedBirthday; void timestampBirthday; void dateObjectBirthday
 client.leads.search({ email: 'sdk@example.invalid' })
-client.leads.upsert({ origin: 'import', email: 'ada@example.com', external_id: 'crm-123' }, { idempotencyKey: 'request-123' })
+client.leads.upsert({ origin: 'import', email: 'ada@example.com', external_id: 'crm-123', note: 'Requested a repair proposal.' }, { idempotencyKey: 'request-123' })
+// @ts-expect-error qualification notes are text, never an authority object
+client.leads.upsert({ origin: 'import', email: 'ada@example.com', note: { actor: 'caller-chosen' } })
 client.leads.update('lead_ABC', { do_not_contact: true }, { ifMatch: '"lead_ABC:7"' })
 client.leads.archive('lead_ABC', { reason: 'not_interested' }, { ifMatch: '"lead_ABC:7"' })
 client.leads.addNote('lead_ABC', { body: 'Asked for a proposal.' })

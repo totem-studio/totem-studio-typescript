@@ -11,26 +11,28 @@ of an ES module works without a flag). Built and checked with **TypeScript
 
 ## Install
 
-Version **1.0.0** targets the stable Totem API v1 contract. Pin the exact
+Version **1.1.0** targets the stable Totem API v1 contract. Pin the exact
 SDK version on your server:
 
 ```sh
-npm install @totemstudioai/sdk@1.0.0
+npm install @totemstudioai/sdk@1.1.0
 ```
 
-Version 1.0.0 retains the same 70 operation ids and permissions. It adds the
-optional `additional_services` field for a joint Koibox visit and reflects the
-stable API contract metadata; existing keys receive no additional access.
+Version 1.1.0 retains the same 70 operation ids and permissions. It adds an
+optional `note` to `leads.upsert`: qualification text is saved in the same
+idempotent intent as a new or authorized existing lead. Replaying that intent
+does not append another note. The receipt contains no note content, and existing
+keys receive no additional access.
 
 GitHub release downloads contain the built package and checksum, so the
 archive needs no Git, build step or install scripts and works with
 `ignore-scripts`. Download and check the versioned archive before installing:
 
 ```sh
-curl -fLO https://github.com/totem-studio/totem-studio-typescript/releases/download/v1.0.0/totemstudioai-sdk-1.0.0.tgz
-curl -fLO https://github.com/totem-studio/totem-studio-typescript/releases/download/v1.0.0/totemstudioai-sdk-1.0.0.tgz.sha256
-shasum -a 256 -c totemstudioai-sdk-1.0.0.tgz.sha256
-npm install ./totemstudioai-sdk-1.0.0.tgz
+curl -fLO https://github.com/totem-studio/totem-studio-typescript/releases/download/v1.1.0/totemstudioai-sdk-1.1.0.tgz
+curl -fLO https://github.com/totem-studio/totem-studio-typescript/releases/download/v1.1.0/totemstudioai-sdk-1.1.0.tgz.sha256
+shasum -a 256 -c totemstudioai-sdk-1.1.0.tgz.sha256
+npm install ./totemstudioai-sdk-1.1.0.tgz
 ```
 
 `sha256sum -c` works as well as `shasum -a 256 -c`. The checksum shows that
@@ -49,7 +51,7 @@ allow `@totemstudioai/sdk`, or the install succeeds without a `dist/` and the
 import fails.
 
 ```sh
-npm install github:totem-studio/totem-studio-typescript#v1.0.0
+npm install github:totem-studio/totem-studio-typescript#v1.1.0
 ```
 
 TypeScript projects need `module`/`moduleResolution` `nodenext` (or

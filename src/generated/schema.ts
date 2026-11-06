@@ -3041,7 +3041,7 @@ export interface OperationContracts {
 /**
  * Upsert a lead by identity
  *
- * Creates a lead with all supplied CRM fields (201), or fills only missing contact details on an existing identity (200); changing an existing pipeline value requires conditional PATCH and otherwise returns `400 invalid_request`. Import never revives or arms outreach; inbound requires its separate capability and a phone supplied by the person, with destination, consent and durable outreach guards. A validate_only dry run returns 200 without writes, conflicting identities return `409 ambiguous_identity`, and external ids never cross integration namespaces.
+ * Creates a lead with supplied CRM fields (201) or fills only missing contact details on an existing identity (200), appending an optional note in the same idempotent transaction; changing an existing pipeline value requires conditional PATCH or returns `400 invalid_request`. Import never revives or arms outreach; inbound requires its separate capability and a phone supplied by the person, with destination, consent and durable outreach guards. A validate_only dry run returns 200 without writes, conflicting identities return `409 ambiguous_identity`, and external ids never cross integration namespaces.
  */
 "leads.upsert": { response: Schemas["LeadUpsertResult"]; query: {
 
@@ -3093,7 +3093,9 @@ export interface OperationContracts {
 /** Reference to the notice shown when collecting this choice. */
 "notice_ref": string
 } | undefined
-} | undefined
+} | undefined;
+/** Optional qualification note appended atomically to a created or authorized existing lead. Blank text writes no note; replaying the same Idempotency-Key does not append again. Reading note content still requires its separate grant. */
+"note"?: string | undefined
 } };
 /**
  * Read current CRM context

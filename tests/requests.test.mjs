@@ -25,7 +25,7 @@ const routes = [
   ['lead', client => client.leads.get('lead_ABC'), 'GET', '/v1/leads/lead_ABC', false],
   ['search', client => client.leads.search({ email: 'alice+crm@example.invalid' }), 'POST', '/v1/leads/search', true, '{"email":"alice+crm@example.invalid"}'],
   ['activities', client => client.leads.activities('lead_ABC', { limit: 1 }), 'GET', '/v1/leads/lead_ABC/activities?limit=1', false],
-  ['upsert', client => client.leads.upsert({ origin: 'import', email: 'ada@example.com' }), 'POST', '/v1/leads', true, '{"origin":"import","email":"ada@example.com"}', 201],
+  ['upsert', client => client.leads.upsert({ origin: 'import', email: 'ada@example.com', note: 'Requested a repair proposal.' }), 'POST', '/v1/leads', true, '{"origin":"import","email":"ada@example.com","note":"Requested a repair proposal."}', 201],
   ['update', client => client.leads.update('lead_ABC', { name: 'Ada' }, { ifMatch: '"lead_ABC:7"' }), 'PATCH', '/v1/leads/lead_ABC', false, '{"name":"Ada"}'],
   ['add note', client => client.leads.addNote('lead_ABC', { body: 'Asked for a proposal.' }), 'POST', '/v1/leads/lead_ABC/notes', false, '{"body":"Asked for a proposal."}', 201],
   ['archive', client => client.leads.archive('lead_ABC', { reason: 'not_interested' }, { ifMatch: '"lead_ABC:7"' }), 'POST', '/v1/leads/lead_ABC/archive', false, '{"reason":"not_interested"}'],
