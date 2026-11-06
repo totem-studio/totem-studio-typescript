@@ -1196,6 +1196,43 @@
                     "x-description-es": "Nota de contexto opcional añadida atómicamente a un lead nuevo o existente autorizado. Un texto vacío no crea nota; repetir la misma Idempotency-Key no la duplica. Leer su contenido sigue requiriendo su permiso independiente.",
                     "type": "string",
                     "maxLength": 5000
+                  },
+                  "initial_custom_values": {
+                    "description": "Initial exact-name values set only when this request creates a new lead; existing or revived leads ignore them. Requires current crm:custom_values:write in addition to crm:write; hosted assistant/source requests cannot supply this field. Provenance is server-owned; editing existing values still requires the independent custom-values If-Match.",
+                    "x-description-es": "Valores iniciales por nombre exacto que se fijan solo si esta petición crea un lead nuevo; los leads existentes o reactivados los ignoran. Requiere crm:custom_values:write vigente además de crm:write; las peticiones de asistentes o fuentes alojadas no pueden enviar este campo. La procedencia la fija el servidor; editar valores existentes sigue requiriendo el If-Match independiente de valores personalizados.",
+                    "minItems": 1,
+                    "maxItems": 50,
+                    "type": "array",
+                    "items": {
+                      "type": "object",
+                      "properties": {
+                        "name": {
+                          "type": "string",
+                          "minLength": 1,
+                          "maxLength": 100,
+                          "description": "Exact stable field name; names are never inferred from labels.",
+                          "x-description-es": "Nombre exacto y estable; nunca se deduce de la etiqueta."
+                        },
+                        "label": {
+                          "type": "string",
+                          "maxLength": 200,
+                          "description": "Human-readable label.",
+                          "x-description-es": "Etiqueta legible."
+                        },
+                        "value": {
+                          "type": "string",
+                          "maxLength": 2000,
+                          "description": "Exact string value; an empty string is a stored value, not deletion.",
+                          "x-description-es": "Valor de texto exacto; un texto vacío se guarda y no elimina el campo."
+                        }
+                      },
+                      "required": [
+                        "name",
+                        "label",
+                        "value"
+                      ],
+                      "additionalProperties": false
+                    }
                   }
                 },
                 "required": [

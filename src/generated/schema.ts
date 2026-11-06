@@ -3095,7 +3095,16 @@ export interface OperationContracts {
 } | undefined
 } | undefined;
 /** Optional qualification note appended atomically to a created or authorized existing lead. Blank text writes no note; replaying the same Idempotency-Key does not append again. Reading note content still requires its separate grant. */
-"note"?: string | undefined
+"note"?: string | undefined;
+/** Initial exact-name values set only when this request creates a new lead; existing or revived leads ignore them. Requires current crm:custom_values:write in addition to crm:write; hosted assistant/source requests cannot supply this field. Provenance is server-owned; editing existing values still requires the independent custom-values If-Match. */
+"initial_custom_values"?: Array<{
+/** Exact stable field name; names are never inferred from labels. */
+"name": string;
+/** Human-readable label. */
+"label": string;
+/** Exact string value; an empty string is a stored value, not deletion. */
+"value": string
+}> | undefined
 } };
 /**
  * Read current CRM context

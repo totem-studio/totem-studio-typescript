@@ -5,6 +5,11 @@ what to adapt.
 
 ## 1.1.0 (2026-11-06)
 
+- `leads.upsert` accepts `initial_custom_values` for ordinary integrations to set
+  1–50 distinct exact-name values on new leads before inbound intake. Existing
+  and revived leads ignore them; supplying the field also requires current
+  `crm:custom_values:write`. Hosted source/model requests cannot supply it,
+  provenance remains server-owned, and existing-value edits keep their own CAS.
 - `leads.upsert` accepts an optional `note` of up to 5,000 characters. The server
   appends it atomically to a new or authorized existing lead; blank text adds no
   note, and replaying the same idempotent intent does not append again.

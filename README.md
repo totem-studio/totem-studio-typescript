@@ -22,7 +22,9 @@ Version 1.1.0 retains the same 70 operation ids and permissions. It adds an
 optional `note` to `leads.upsert`: qualification text is saved in the same
 idempotent intent as a new or authorized existing lead. Replaying that intent
 does not append another note. The receipt contains no note content, and existing
-keys receive no additional access.
+keys receive no additional access. Ordinary integrations can also supply
+`initial_custom_values` for new leads, subject to the additional current
+`crm:custom_values:write` permission.
 
 GitHub release downloads contain the built package and checksum, so the
 archive needs no Git, build step or install scripts and works with
@@ -245,6 +247,13 @@ identity keeps every nonempty human contact value and only fills missing
 contact details; import never revives it or re-arms outreach. To change its
 board, stage, tags, priority, value or assignees, use conditional PATCH. A
 conflicting existing pipeline value returns 400 instead of being ignored.
+
+`initial_custom_values` accepts 1–50 distinct exact-name `{ name, label, value }`
+rows on an ordinary integration upsert with both current `crm:write` and
+`crm:custom_values:write`. Values are set only on new leads, before the inbound
+intake snapshot; existing and revived leads ignore them. The server owns their
+provenance, hosted assistant/source and model requests cannot supply the field,
+and editing existing values still uses the independent custom-values `If-Match`.
 
 ```ts
 const result = await client.requestWithResponse('leads.upsert', {

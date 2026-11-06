@@ -46,6 +46,13 @@ void version; void birthday; void birthdayInFeed; void birthdayInDetail; void kn
 void omittedBirthday; void timestampBirthday; void dateObjectBirthday
 client.leads.search({ email: 'sdk@example.invalid' })
 client.leads.upsert({ origin: 'import', email: 'ada@example.com', external_id: 'crm-123', note: 'Requested a repair proposal.' }, { idempotencyKey: 'request-123' })
+client.leads.upsert({ origin: 'import', email: 'ada@example.com', initial_custom_values: [{ name: 'Rol', label: 'Role', value: 'Owner' }] })
+// @ts-expect-error custom-value provenance is server-owned
+client.leads.upsert({ origin: 'import', email: 'ada@example.com', initial_custom_values: [{ name: 'Rol', label: 'Role', value: 'Owner', source: 'form' }] })
+// @ts-expect-error initial values are exact-name string values, never removal instructions
+client.leads.upsert({ origin: 'import', email: 'ada@example.com', initial_custom_values: { remove: ['Rol'] } })
+// @ts-expect-error initial custom-value values must be strings
+client.leads.upsert({ origin: 'import', email: 'ada@example.com', initial_custom_values: [{ name: 'Rol', label: 'Role', value: 5 }] })
 // @ts-expect-error qualification notes are text, never an authority object
 client.leads.upsert({ origin: 'import', email: 'ada@example.com', note: { actor: 'caller-chosen' } })
 client.leads.update('lead_ABC', { do_not_contact: true }, { ifMatch: '"lead_ABC:7"' })
